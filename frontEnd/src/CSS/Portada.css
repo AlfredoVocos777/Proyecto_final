@@ -1,0 +1,87 @@
+.fondoTitulo{
+    width: 100%;
+    height: 100vh;
+    background-image:url("../assets/fondo_portada_titulo.png");
+    background-size:cover;       /* para que se ajuste bien la imagen al box*/
+    background-position: center;  /* centrada */
+    background-attachment: fixed;
+}
+.portada{
+      width: 100%;
+    height: 100vh;
+    background-image:url("../assets/fondo_portada2.jpg");
+    background-size:cover;       /* para que se ajuste bien la imagen al box*/
+    background-position: center;  /* centrada */
+
+   position: relative;
+    display: flex;
+    flex-direction: column; 
+    background-color: rgb(193, 199, 211);
+    min-height: 100vh;      /* ocupa toda la altura de la pantalla */
+    width: 100vw; 
+    justify-content: center;
+    align-items: center;
+}
+
+
+.portada .titulo{
+    
+    font-family: 'arial black'; 
+    font-size: 5vh; /* Tamaño de fuente grande */
+    color: #ffffff; /* Color del texto */
+    margin-top: 100px ; /* Espacio superior e inferior */
+    font-weight: bold; /* negrita */
+}
+
+.portada .subtitulo{
+    
+    font-size: 3.9vh; /* Tamaño de fuente grande */
+    color: #ffffff; /* Color del texto */
+    margin-bottom: 20px; /* Espacio inferior */
+    text-align: center;
+   
+}
+
+.subportada{
+    background-color: rgb(91, 116, 216, 0.8);
+    padding : 20px 50px;
+    border-radius: 40px;
+   
+    display: flex;
+    height: 250px;
+    margin-top: 20px;
+    justify-content: center;
+    align-items: center;
+
+}
+
+.contenedorBoton{
+    display: flex;
+    gap: 300px;
+}
+.btns{
+ 
+    border-radius: 15px ;      /* más redondo */
+    background-color: #bdcde2 ; /* color de fondo personalizado */
+    color: #313030;              /* color del texto */
+   font-size: 4vh !important;
+    font-weight: bold; /* negrita */
+    transition: background 0.3s;
+    
+}
+
+.btns2{
+ 
+    border-radius: 15px ;      /* más redondo */
+    background-color: #bdcde2 ; /* color de fondo personalizado */
+    color: #313030;              /* color del texto */
+   font-size: 4vh !important;
+    font-weight: bold; /* negrita */
+    transition: background 0.3s;
+    
+}
+/* cuando pasa el mouse por encima */
+.btn:hover {
+    background-color: #1a366d; /* nuevo color de fondo al pasar el mouse */
+    color: rgb(255, 255, 255);              /* cambia el color del texto (opcional) */
+}

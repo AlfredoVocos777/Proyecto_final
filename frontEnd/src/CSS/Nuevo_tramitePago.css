@@ -1,0 +1,114 @@
+.contenedorFormPago{
+    margin-top: 20px;
+    width: 820px;  
+    padding: 30px 80px;      /* Más espacio interno */
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    
+}
+
+.contenedorFormPago2 {
+  display: flex;
+  flex-direction: column; /* Una fila debajo de otra */
+  gap: 25px; /* Espacio entre filas */
+  width: 820px;
+  margin: 30px 0;
+  font-size: 3vh;
+  color: #43385f;
+  font-weight: bold;
+}
+
+
+
+.filaPago {
+  display: flex;
+  justify-content: space-between; /* Izquierda - derecha */
+  align-items: center;
+  width: 100%;
+}
+
+.labelPago {
+  width: 40%; /* o lo que necesites */
+  text-align: left;
+}
+
+.valorPago {
+  width: 60%;
+  text-align: right;
+  font-weight: normal;
+  color: #43385f;
+  font-weight: bold;
+}
+
+.labelPagoTatal{
+    font-size: 3.7vh ;
+    font-weight: bold;
+    color: #302c84;
+}
+
+.contenedorFormMedioPago{
+    margin-top: 30px;
+    width: 820px;  
+    padding: 30px 80px;      /* Más espacio interno */
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    
+}
+
+.contenedorFormMedioPago2 {
+  display: flex;
+  flex-direction: column; /* Una fila debajo de otra */
+  width: 820px;
+  margin-top: 20px;
+  font-size: 3vh;
+  color: #43385f;
+  font-weight: bold;
+}
+
+.tituloMedioPago{
+    
+    font-family: 'arial black'; 
+    font-size: 3.5vh; /* Tamaño de fuente grande */
+    color: #1b0a47; /* Color del texto */
+    font-weight: bold; /* negrita */
+}
+
+.subtituloMedioPago{
+    
+    font-family: 'arial'; /* Asegúrate de que la fuente esté importada */
+    font-size: 2vh; /* Tamaño de fuente grande */
+    color: #43385f; /* Color del texto */
+  
+}
+
+.opcionesMedioPago {
+  display: flex;
+ gap: 90px;
+  
+  margin-top: 50px;
+  margin-bottom: 100px;
+  
+  
+}
+
+.opcionMedioPago {
+  display: flex;
+  background: none;
+  border: none;
+  color: #5a4ebf;
+  font-size: 1.1rem;
+  cursor: pointer;
+  margin-bottom: 10px;
+  text-align: left;
+  transition: color 0.3s;
+  
+}
+
+.opcionMedioPago:hover {
+  color: #302c84;
+  text-decoration: underline;
+}
+
+

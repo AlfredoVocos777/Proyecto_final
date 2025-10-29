@@ -1,0 +1,102 @@
+.containerUsuario{
+  background-image: url('../assets/fondo_portada_2.jpg'); /* Ajusta la ruta según tu estructura */
+  position: relative;
+  display: flex;
+  flex-direction: column; 
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;      /* ocupa toda la altura de la pantalla */
+  width: 100vw; 
+  background-color: rgb(193, 199, 211);
+}
+
+.titulo{
+    font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif; /* Asegúrate de que la fuente esté importada */
+    font-size: 7vh; /* Tamaño de fuente grande */
+    color: #1d0c49; /* Color del texto */
+    text-align: center; /* Centra el texto */
+    margin-top: 90px; /* Espacio superior */
+    margin-bottom: 20px; /* Espacio inferior */
+}
+.contenedorFlex {
+  flex-direction: row; 
+  display: flex; /* pongo elementos (imagen y h1) uno al lado del otro.*/
+  align-items: center; /* alineo verticalmente los elementos.*/
+  justify-content: center;  /* centro horizontalmente todo el bloque.*/
+  gap: 5%;  /*mete espacio entre la imagen y el texto*/
+  padding-top: 1%;
+  padding-bottom: 20%;
+}
+
+
+/* Make each Form.Group (mb-3) stack label + input vertically and add spacing */
+.contenedorLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* space between form groups */
+}
+
+
+
+.contenedorLabel label,
+.contenedorLabel .form-label {
+  margin-bottom: 0;
+  font-weight: 700;
+  color: rgb(37, 35, 180);
+}
+
+.contenedorLabel .form-control {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  box-shadow: none;
+  font-size: 1rem;
+}
+
+/* Responsive: on small screens, make the form full-width and stack image above form */
+@media (max-width: 768px) {
+  .contenedorFormUsuario {
+    width: 90%;
+    padding: 20px;
+  }
+  .contenedorFlex {
+    flex-direction: column;
+    gap: 2rem;
+    padding-bottom: 8%;
+  }
+  .ImgcargaUsuario {
+    width: 60%;
+    margin: 0 auto;
+  }
+}
+.contenedorFormUsuario{
+    
+    width: 300px;  
+    padding: 80px;      /* Más espacio interno */
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    
+}
+
+.ImgcargaUsuario{
+    width: 620px;
+    height: auto;
+   
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    
+}
+
+.contenedorBoton {
+  display: flex;
+ 
+
+  gap: 20px !important;
+  flex-direction: row !important; 
+  justify-content: center;
+  align-items: center;
+  padding-top: 20px;
+
+}

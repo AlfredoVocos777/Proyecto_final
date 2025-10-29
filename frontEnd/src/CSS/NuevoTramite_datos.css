@@ -1,0 +1,202 @@
+.portadaDatos{
+    
+    position: relative;
+    display: flex;
+    flex-direction: column; 
+    background-color: rgb(193, 199, 211);
+    min-height: 100vh;      /* ocupa toda la altura de la pantalla */
+    width: 100vw; 
+}
+
+.subportadaDatos{
+    
+    position: relative;
+    display: flex;
+    flex-direction: column; 
+    justify-content: center;
+    align-items: center;
+ 
+   
+}
+
+/*.claseTitulosDatos{
+    display: flex;
+    flex-direction: column; 
+    
+   
+} */  
+.portadaDatos .tituloDatos{
+    
+    font-family: 'arial black'; 
+    font-size: 5vh; /* Tamaño de fuente grande */
+    color: #1b0a47; /* Color del texto */
+    margin-top: 100px ; /* Espacio superior e inferior */
+    
+    padding-left: 130px !important;
+    font-weight: bold; /* negrita */
+}
+
+.portadaDatos .subtituloDatos{
+    
+    font-size: 3.2vh; /* Tamaño de fuente grande */
+    color: #43385f; /* Color del texto */
+    margin-bottom: 40px; /* Espacio inferior */
+    margin-left: 130px;
+    
+}
+
+.lineaTiempoContainerDatos img {
+  width: 1000px;   /* ancho deseado */
+  height: auto;   /* mantiene la proporción original */
+
+  margin: 0 auto; /* centra la imagen horizontalmente */
+}
+
+.conteinerDatoss{
+    background-color: rgb(177, 184, 211);
+    padding : 20px 50px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(248, 233, 233, 0.962);
+    
+    width: 1000px; 
+    height: auto;
+    margin-top: 50px;
+}
+
+.tituloDatos2{
+    font-family: 'arial black'; 
+    font-size: 3.5vh; /* Tamaño de fuente grande */
+    color: #1b0a47; /* Color del texto */
+    margin-top: 20px ; /* Espacio superior e inferior */
+    margin-bottom: 20px;
+    font-weight: bold; /* negrita */
+}
+
+.subtituloDatos2{
+    
+    font-size: 3vh; /* Tamaño de fuente grande */
+    color: #43385f; /* Color del texto */
+    margin-bottom: 40px; /* Espacio inferior */
+    margin-left: 0px;
+    
+}
+
+.tipoDtramite{
+    font-family: 'arial'; /* Asegúrate de que la fuente esté importada */
+    font-size: 3.2vh; /* Tamaño de fuente grande */
+    font-weight: bold; /* negrita */
+    color: #1b0a47; /* Color del texto */
+    margin-bottom: 0px;
+}
+
+.menuDesplegable{
+    width: 300px;
+    padding: 5px;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    box-shadow: none;
+    margin-bottom: 130px;
+    background-color: #d7dce9;
+ 
+}
+.contenedorFormDatos{
+    
+    width: 820px;  
+    padding: 30px 80px;      /* Más espacio interno */
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    
+}
+
+.contenedorLabelDatos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Dos columnas iguales */
+  gap: 1.5rem 8rem; /* Espacio entre filas y columnas */
+  font-weight: bold;
+  color: rgb(37, 35, 180);
+}
+
+
+.contenedorFormDatos2 .form-group {
+  width: 100%;
+}
+
+
+.contenedorLabelDatos .form-control {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  box-shadow: none;
+  font-size: 1rem;
+}
+
+.contenedorFormProyecto2{
+  margin-top: 30px;
+  margin-bottom: 30px;
+    width: 820px;  
+    padding: 30px 80px;      /* Más espacio interno */
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tituloProyecto{
+    
+    font-family: 'arial black'; 
+    font-size: 3.5vh; /* Tamaño de fuente grande */
+    color: #1b0a47; /* Color del texto */
+    margin-top: 20px ; /* Espacio superior e inferior */
+    margin-bottom: 20px;
+    font-weight: bold; /* negrita */
+}
+
+.contenedorLabelProyecto{
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Dos columnas iguales */
+  gap: 1.5rem 8rem; /* Espacio entre filas y columnas */
+  font-weight: bold;
+  color: rgb(37, 35, 180);
+}
+
+.contenedorLabelProyecto .form-control {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  box-shadow: none;
+  font-size: 1rem;
+}
+
+/* Responsive: on small screens, make the form full-width and stack image above form */
+/*@media (max-width: 768px) {
+  .contenedorFormUsuario3 {
+    width: 90%;
+    padding: 20px;
+  }
+  .contenedorFlex3 {
+    flex-direction: column;
+    gap: 2rem;
+    padding-bottom: 8%;
+  }
+  .ImgcargaUsuario3 {
+    width: 60%;
+    margin: 0 auto;
+  }
+}*/
+
+
+
+    
+
+.contenedorBotonDatos {
+    display: flex;
+    flex-direction: row; 
+    justify-content: center;
+    align-items: center;
+    margin-top: 30px;
+    gap: 760px;
+    
+}

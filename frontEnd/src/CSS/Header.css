@@ -1,0 +1,38 @@
+/* Navbar general */
+.navbar {
+  position: fixed;        /* Fijo en la parte superior */
+  top: 0;
+  left: 0;
+  width: 100%;            /* Ocupa todo el ancho */
+  height: 80px;           /* Ajustá la altura del navbar según los logos */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: rgb(173, 182, 214); 
+  padding: 0 20px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+/* Logo DPA a la izquierda */
+.logoDpa img {
+  height: 60px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.logoDpa img:hover {
+  transform: scale(1.05);
+}
+
+/* Logo Ministerio arriba a la derecha */
+.logoMinisterio {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  padding-right: 50px;
+}
+
+.logoMinisterio img {
+  height: 50px;
+}
