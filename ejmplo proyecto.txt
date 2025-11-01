@@ -1,0 +1,254 @@
+Primero inicializamos en la terminal y posicionados en la carpeta raiz, 
+ejecutamos  git init
+
+Creamos 2 carpetas. Front y Back
+
+en Front,   npm create vite@latest
+            npm i
+
+en back,  npm init -y
+            npm i express 
+            npm i nodemon
+            npm i mysql2
+
+Creamos el archivo en backend. llamado index.js
+ carpetas,  router ()
+            controllers  (Logica de negocio en donde vamos a realizar las peticiones que necesitamos)
+            config DB  con su archivo dataBase.js
+
+
+en nuestra bases de datos, vamos a crear una DB. 
+
+create database "nombreDB";
+
+use "nombreDB";
+
+create table Tabla (
+id_tabla int primary key auto_increment,
+nombre varchar(100),
+contraseña varchar(100),
+activo bool defautl true
+);
+
+insert into (nombre, contraseña, activo) values ("Rodrigo", "1234", "1")
+
+
+
+
+express - framework nos sirve para todo le manejo de peticiones http y creacion de api
+
+Express es como un mozo en un bar
+
+El cliente (navegador) hace el pedido (request).
+
+El mozo (Express) lo lleva a la cocina (tu código).
+
+Luego trae la comida (response) al cliente.
+
+nodemon - logra que no corte el servidor o coneccion en caso de error, y se levanta automaticamente
+mysql - ;ibreria para conectarme con mi bases de datos
+
+
+--------------------Vamos a hablar de dataBase
+
+                    En Node.js existen dos librerías populares para conectarse a bases de datos MySQL:
+
+mysql → la librería más vieja.
+
+mysql2 → una versión mejorada, más rápida y más actualizada.
+
+-------------------Ventajas de mysql2:
+
+                    Soporta Promises y async/await (lo cual facilita el código moderno).
+
+                    Es más rápido y eficiente.
+
+                    Está mejor mantenido que mysql.
+
+                    Por eso, hoy en día se recomienda usar mysql2 en lugar de mysql.
+
+
+--------------------require  que es ? 
+
+                En Node.js, cuando queremos usar una librería externa (como mysql2), debemos importarla en nuestro archivo.
+const mysql = require('mysql2');
+
+                "Traeme el paquete mysql2 que instalamos con npm install mysql2 y
+                 guardalo dentro de la constante mysql para poder usarlo en el código".  
+
+
+--------------------------------porque ahora es const, require  en vez de import .
+--------------------------------al igual que en vez de export default ahora es  module.exports
+
+                    Esto tiene que ver con el sistema de módulos que usa Node.js.
+
+        require y module.exports → pertenecen a CommonJS (el sistema de módulos original de Node.js).
+
+        import y export default → pertenecen a ES Modules (ESM), que es el estándar de JavaScript más moderno.
+
+En CommonJS (por defecto en Node.js):
+
+const mysql = require('mysql2');   // importar
+module.exports = { connection };   // exportar
+
+En ES Modules 
+
+import mysql from 'mysql2';        // importar
+export default connection;         // exportar
+
+pero para ello debevamos activar "type": "module" en package.json):
+
+------------------------------------¿Qué hace module.exports = { connection }?
+
+                        Esto significa:
+
+                        "Voy a exportar este objeto { connection } para que pueda ser usado en otros archivos de mi proyecto".
+
+                        Entonces, en otro archivo podriamos hacer:
+
+                        const { connection } = require('./database');
+
+
+                        Y ya tenemos la conexión lista para usar.
+
+
+
+--------------------------------------------------------------------Routes----------------------------------------------
+
+Importamos Express   const express = require('express');
+
+Express es un framework de Node.js que nos facilita crear un servidor y manejar rutas HTTP (GET, POST, PUT, DELETE).
+
+En vez de escribir todo a mano con Node puro, Express nos da funciones ya listas.
+
+------------------------Creamos un router  const router = express.Router();
+
+                        Router() es como un mini servidor dentro de Express.
+
+Sirve para organizar las rutas en archivos separados, en lugar de tener todo en index.js.
+
+Ejemplo: podemos tener un usuarios.routes.js, otro clientes.routes.js, etc. 
+
+
+   Importaciones 
+                const { 
+    mostrarUsuarios,
+    mostrarUsuario,                                             
+    crearUsuario,                       
+    editarUsuario,
+    eliminarUsuario 
+} = require('../controllers/usuarios');                                 
+
+
+---------------Estas funciones están en otro archivo (controllers/usuarios.js).
+
+Cada una representa la lógica que se ejecuta cuando un usuario hace una petición.
+
+
+mostrarUsuarios → devuelve todos los usuarios.
+
+mostrarUsuario → devuelve un usuario según su id.
+
+crearUsuario → agrega un nuevo usuario a la base de datos.
+
+editarUsuario → actualiza un usuario existente.
+
+eliminarUsuario → borra un usuario.
+
+
+
+Definimos las rutas
+
+router.get("/usuarios", mostrarUsuarios);     // Obtener todos los usuarios
+router.get("/usuario/:id", mostrarUsuario);   // Obtener un usuario por id
+router.post("/usuario", crearUsuario);        // Crear un nuevo usuario
+router.put("/usuario/:id", editarUsuario);    // Editar un usuario existente
+router.delete("/usuario/:id", eliminarUsuario); // Eliminar un usuario
+
+El :id significa un parámetro dinámico en la URL. Ejemplo:
+
+/usuario/5 → obtiene o edita o elimina el usuario con id = 5.
+
+
+Las rutas en Express sirven para definir cómo nuestro backend responde a las peticiones HTTP que vienen desde el frontend o desde cualquier cliente (por ejemplo, Postman).
+
+En tu ejemplo, estas rutas son parte de un CRUD de usuarios (Crear, Leer, Actualizar y Borrar).
+
+   "Las rutas son como caminos que el frontend o cualquier cliente pueden usar para hablar con el servidor.
+   
+   " 
+ ----------module.exports = router;--------------
+
+ Esto hace que podamos usar estas rutas en otro archivo (generalmente en index.js o app.js).
+
+
+-------------index.js
+
+
+const express = require ("express")
+const mysql = require ("mysql2")
+
+Importamos Express (para levantar el servidor) y MySQL2 (para después poder conectarnos a la base de datos).
+
+
+const app = express()   ---- Creamos una instancia de Express → es como nuestro "servidor en código".
+
+
+app.use(express.json()) ----Habilitamos que Express pueda leer JSON en las peticiones (por ejemplo, cuando mandamos un POST con datos desde el frontend o Postman).
+
+
+app.get("/", (req,res) => {
+    res.send("API de usuarios")
+})
+
+Si entramos a http://localhost:8000/ en el navegador, vamos a ver el mensaje "API de usuarios".
+
+Esto confirma que el backend está funcionando.
+
+
+
+Coneccion con el frontend
+primero crear la carpeta endpoints. con su respectivo archivo.
+
+utilizar las mismas rutas que en el back.
+y van exportadas por constante
+
+
+luego creamos los componentes. Home por ejemplo.  
+DEBEMOS INSTALAR AXIOS
+y bootstrap
+
+
+
+crear la carpeta routers
+
+
+
+
+luego en el App.jsx 
+
+instalamos brouserRouters para utilizar el ruteo en app.jsx
+npm i react-router-dom
+
+y luego importarlas en nuestro componente app.jsx
+
+
+**************************************************************************************
+
+para clonar un proyecto de github
+
+1- posicionarse en la carpeta donde quiero descargar el proyecto
+2- hacer click derecho open git bash here
+3- en la terminal poner 
+git clone https://github.com/AlfredoVocos777/Proyecto_final.git
+4- poner
+cd /e/Documentos/Facu\ Alfredo/TUP/Programacion\ 4/Proyecto_final
+5-abrir visisuall stude code en un nuevo proyecto en blanco
+6- poner en la termial de git bach here
+code .
+7- se abrira el proyecto automaticamente en el visual
+8- en la terminal del visual poner en la carpeta frontEnd
+npm install
+npm i axios
+npm i react-bootstrap
+npm i react-router-dom
