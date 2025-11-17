@@ -1,13 +1,14 @@
 import express from "express";
+
 import {
-  obtenerTramites,
-  crearTramite,
+  obtenerExpediente,
+  crearExpediente,
  
 } from "../controllers/tramite.js";
 
 const router = express.Router();
 
-router.get("/", obtenerTramites);
-router.post("/", crearTramite);
+router.get("/", obtenerExpediente);
+router.post("/", crearExpediente);
 
 export default router;

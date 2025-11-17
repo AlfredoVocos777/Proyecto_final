@@ -1,0 +1,35 @@
+.page-container{
+        display: grid;
+}
+
+.form-title{
+    
+    
+    font-size: 4vh; 
+    color: #300d86; 
+    font-weight: bold; 
+}
+
+.form-container2 {
+  display: grid;
+  grid-template-columns: auto 1fr; /* primera col para label, segunda col para valor */
+  gap: 1rem 3rem; /* espacio entre filas y columnas */
+  align-items: center; /* centra verticalmente */
+  margin-top: 2rem;
+  font-weight: bold;
+  color: #2523b4;
+}
+
+.form-container2 label {
+  text-align: right; /* alinea los títulos a la derecha */
+  color: #300d86;
+}
+
+.form-container2 div {
+  color: black;
+  font-weight: normal;
+}
+
+.nExpediente{
+    font-weight: bold;
+}

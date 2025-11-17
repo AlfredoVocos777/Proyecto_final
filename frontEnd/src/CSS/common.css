@@ -1,0 +1,223 @@
+/* Estilos comunes para todas las páginas */
+:root {
+  --primary-color: #4a90e2;
+  --primary-hover: #357abd;
+  --background-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --text-color: #2c3e50;
+  --text-secondary: #666;
+  --border-color: #e0e0e0;
+  --error-color: #ff4d4d;
+  --success-color: #2ecc71;
+  --box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --border-radius: 8px;
+  --transition-speed: 0.3s;
+  /* Alias usados por Header y Portada Administrativa */
+  --color-azul-acento: var(--primary-color);
+  --color-azul-claro: #e9f2ff;
+}
+
+/* Barra simple para ubicar el botón volver después del contenido */
+.backbar {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 4px 12px 10px; /* más compacto */
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px; /* más chico */
+  font-weight: 600;
+  font-size: 0.85rem; /* más chico */
+  color: #2c3e50;
+  background: linear-gradient(180deg, #ffffff 0%, #f5faff 100%);
+  border: 1px solid #d6e8ff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease, border-color .15s ease;
+}
+
+.btn-back:hover {
+  transform: translateY(-1px);
+  background: #eef6ff;
+  border-color: #c7dfff;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+}
+
+.btn-back:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+/* Reducir margen superior del container que viene después del backbar */
+.backbar + .container,
+.backbar + div > .container {
+  margin-top: 0 !important;
+  padding-top: 12px;
+}
+
+/* Limitar altura de la tabla de Roles para que el botón Volver quede más cerca */
+.roles-table-scroll {
+  max-height: 60vh;
+  overflow: auto;
+  margin-bottom: 8px;
+  border-radius: 8px;
+}
+
+/* Contenedor común para todas las páginas */
+.page-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 15px);
+  width: 100%;
+  background: var(--background-gradient);
+  margin-top: 15px;
+  z-index: 1;
+}
+
+/* Formularios */
+.form-container {
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: var(--box-shadow);
+  width: 100%;
+  max-width: 500px;
+  transition: transform var(--transition-speed) ease;
+}
+
+.form-container:hover {
+  transform: translateY(-5px);
+}
+
+/* Títulos */
+.form-title {
+  color: var(--text-color);
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+/* Inputs */
+.form-input {
+  width: 100%;
+  padding: 12px 15px;
+  margin: 8px 0;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 16px;
+  transition: border-color var(--transition-speed) ease;
+  outline: none;
+  background-color: #f8f9fa;
+}
+
+.form-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+/* Botones */
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: var(--border-radius);
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-speed) ease;
+  margin-top: 20px;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Links */
+.link-primary {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition-speed) ease;
+}
+
+.link-primary:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* Mensajes */
+.message {
+  text-align: center;
+  margin: 20px 0;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+}
+
+.message-error {
+  background-color: rgba(255, 77, 77, 0.1);
+  color: var(--error-color);
+}
+
+.message-success {
+  background-color: rgba(46, 204, 113, 0.1);
+  color: var(--success-color);
+}
+
+/* Grid para formularios más complejos */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+/* Grupos de inputs */
+.input-group {
+  margin-bottom: 20px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+/* Animaciones */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.input-error {
+  animation: shake 0.3s ease-in-out;
+  border-color: var(--error-color) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-container {
+    width: 90%;
+    padding: 20px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

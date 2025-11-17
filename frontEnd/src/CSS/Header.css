@@ -1,38 +1,156 @@
-/* Navbar general */
+/* Navbar general (sólido azul claro, sin gradiente) */
 .navbar {
-  position: fixed;        /* Fijo en la parte superior */
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;            /* Ocupa todo el ancho */
-  height: 80px;           /* Ajustá la altura del navbar según los logos */
+  width: 100%;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: rgb(173, 182, 214); 
+  /* Fondo sólido azul claro */
+  background: var(--color-azul-claro);
   padding: 0 20px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 1000;
+  border-bottom: 2px solid var(--color-azul-acento);
 }
 
 /* Logo DPA a la izquierda */
+.logoDpa {
+  display: flex;
+  align-items: center;
+  z-index: 2;
+}
+
 .logoDpa img {
   height: 60px;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.25s ease, filter 0.25s ease, box-shadow 0.25s ease;
 }
 
 .logoDpa img:hover {
-  transform: scale(1.05);
+  transform: scale(1.03) translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 2px 10px rgba(138, 180, 248, 0.35);
 }
 
-/* Logo Ministerio arriba a la derecha */
+/* Logo Ministerio a la derecha */
 .logoMinisterio {
-  position: absolute;
-  top: 10px;
-  right: 20px;
-  padding-right: 50px;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+  margin-left: 16px; /* separa del bloque de usuario */
 }
 
 .logoMinisterio img {
-  height: 50px;
+  height: 55px;
+  transition: transform 0.25s ease, filter 0.25s ease, box-shadow 0.25s ease;
+}
+
+.logoMinisterio img:hover {
+  transform: scale(1.03) translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 2px 10px rgba(138, 180, 248, 0.35);
+}
+
+/* Información de usuario en el header */
+.userInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* alinear a la derecha */
+  justify-content: center;
+  gap: 6px; /* compacto para que entre en el header */
+  color: #2c3e50;
+  text-align: right;
+  padding: 6px 10px;
+  
+}
+
+.userMeta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap; /* que no salte de línea */
+}
+
+.divider {
+  color: rgba(44, 62, 80, 0.55);
+  font-weight: 600;
+}
+
+.userName {
+  font-weight: 700;
+  font-size: 1.15rem; /* más grande */
+}
+
+.userRole {
+  background: var(--color-azul-acento);
+  color: #fff;
+  padding: 3px 12px; /* un poco más grande */
+  border-radius: 999px;
+  font-size: 0.85rem; /* más grande */
+  letter-spacing: 0.3px;
+}
+
+.logoutLink {
+  margin-top: 0;
+  font-size: 0.85rem; /* similar a userRole */
+  font-weight: 700;
+  color: var(--color-azul-acento);
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  display: inline-block; /* permite transform */
+  padding: 2px 6px 4px; /* espacio para el subrayado animado */
+  border-radius: 6px;
+  transition: color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+}
+
+.logoutLink:hover,
+.logoutLink:focus {
+  color: #ffffff; /* contraste fuerte */
+  transform: translateY(-1px); /* levante sutil */
+  background-color: var(--color-azul-acento); /* realce notorio */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+/* subrayado animado */
+.logoutLink::after {
+  content: "";
+  position: absolute;
+  left: 6px; /* alinear con padding izquierdo */
+  bottom: 2px; /* alinear con padding inferior */
+  height: 2px;
+  width: 0;
+  background: currentColor;
+  transition: width 0.2s ease;
+}
+
+.logoutLink:hover::after,
+.logoutLink:focus::after {
+  width: calc(100% - 12px); /* respetar padding horizontal */
+  background: #ffffff; /* que el subrayado contraste sobre el fondo azul */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar {
+    height: 70px;
+    padding: 0 10px;
+  }
+  .userInfo { gap: 6px; }
+  .userName { font-size: 1.02rem; }
+  .userRole { font-size: 0.78rem; padding: 2px 10px; }
+  .logoutLink { font-size: 0.82rem; }
+  .userMeta { gap: 8px; }
+}
+
+@media (max-width: 576px) {
+  .logoMinisterio img { height: 35px; }
+  .userInfo { gap: 5px; }
+  .userName { font-size: 0.95rem; }
+  .userRole { font-size: 0.74rem; padding: 1px 8px; }
+  .logoutLink { font-size: 0.78rem; padding: 2px 6px; }
 }

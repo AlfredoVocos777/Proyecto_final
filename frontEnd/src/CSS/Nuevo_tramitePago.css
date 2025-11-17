@@ -1,114 +1,252 @@
-.contenedorFormPago{
+
+/* ====== Contenedor Principal de Formularios ====== */
+
+
+.contenedorFormPago, 
+.contenedorFormMedioPago {
     margin-top: 20px;
-    width: 820px;  
-    padding: 30px 80px;      /* Más espacio interno */
+    
+    /* 🛑 CAMBIO CLAVE: Usamos ancho máximo flexible */
+    max-width: 1000px; 
+    width: 95%; /* Asegura que ocupe casi todo el ancho disponible */
+    margin-left: auto; /* Centra el contenedor */
+    margin-right: auto; /* Centra el contenedor */
+    
+    padding: 30px 60px; 
     background-color: rgba(255, 255, 255, 0.8);
     border-radius: 15px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    
 }
+
+
+/* ====== Resumen y Filas de Pago ====== */
+
 
 .contenedorFormPago2 {
-  display: flex;
-  flex-direction: column; /* Una fila debajo de otra */
-  gap: 25px; /* Espacio entre filas */
-  width: 820px;
-  margin: 30px 0;
-  font-size: 3vh;
-  color: #43385f;
-  font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    margin: 20px 0;
+    font-size: 1.1rem;
+    color: #43385f;
 }
 
-
-
 .filaPago {
-  display: flex;
-  justify-content: space-between; /* Izquierda - derecha */
-  align-items: center;
-  width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 8px 0;
+    /* Evita que los elementos internos se envuelvan si hay poco espacio */
+    flex-wrap: nowrap; 
 }
 
 .labelPago {
-  width: 40%; /* o lo que necesites */
-  text-align: left;
+    /* Mantenemos un ancho mínimo para la etiqueta */
+    min-width: 150px; 
+    text-align: left;
+    font-weight: bold;
+    color: #43385f;
+    flex-shrink: 0; /* Asegura que no se haga más pequeña */
 }
 
 .valorPago {
-  width: 60%;
-  text-align: right;
-  font-weight: normal;
-  color: #43385f;
-  font-weight: bold;
+    /* El valor toma el espacio restante y se alinea a la derecha */
+    flex-grow: 1; 
+    text-align: right;
+    font-weight: normal;
+    color: #555;
+    /* Permitimos que el texto se trunque si es muy largo, para evitar desbordamiento */
+    overflow: hidden; 
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .labelPagoTatal{
-    font-size: 3.7vh ;
+    font-size: 1.3rem;
     font-weight: bold;
     color: #302c84;
 }
 
-.contenedorFormMedioPago{
-    margin-top: 30px;
-    width: 820px;  
-    padding: 30px 80px;      /* Más espacio interno */
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 15px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    
+
+/* ====== Archivos adjuntos (pago) ====== */
+
+.archivosAdjuntos {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
 }
+
+.archivoItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.archivoNombre {
+    color: #43385f;
+    font-weight: 600;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    /* Permite que el nombre del archivo se rompa en varias líneas si es necesario */
+    word-break: break-word; 
+    flex-wrap: wrap; 
+}
+
+/* (Resto del CSS de archivos sin cambios mayores) */
+.badge {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.badge-pendiente {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    flex-shrink: 0;
+}
+
+
+/* -------------------------------------------------- */
+/* ====== Opciones de Medio de Pago ====== */
+/* -------------------------------------------------- */
 
 .contenedorFormMedioPago2 {
-  display: flex;
-  flex-direction: column; /* Una fila debajo de otra */
-  width: 820px;
-  margin-top: 20px;
-  font-size: 3vh;
-  color: #43385f;
-  font-weight: bold;
+    /* Eliminamos el ancho fijo (820px) */
+    display: flex;
+    flex-direction: column; 
+    width: 100%; /* Aseguramos que ocupe el 100% de su contenedor padre flexible */
+    margin-top: 20px;
+    font-size: 3vh;
+    color: #43385f;
+    font-weight: bold;
 }
 
-.tituloMedioPago{
-    
-    font-family: 'arial black'; 
-    font-size: 3.5vh; /* Tamaño de fuente grande */
-    color: #1b0a47; /* Color del texto */
-    font-weight: bold; /* negrita */
+.tituloMedioPago {
+    font-family: 'arial black', sans-serif;
+    font-size: 3.5vh; 
+    color: #1b0a47; 
+    font-weight: bold; 
 }
 
-.subtituloMedioPago{
-    
-    font-family: 'arial'; /* Asegúrate de que la fuente esté importada */
-    font-size: 2vh; /* Tamaño de fuente grande */
-    color: #43385f; /* Color del texto */
-  
+.subtituloMedioPago {
+    font-family: 'arial', sans-serif;
+    font-size: 2vh; 
+    color: #43385f; 
 }
 
 .opcionesMedioPago {
-  display: flex;
- gap: 90px;
-  
-  margin-top: 50px;
-  margin-bottom: 100px;
-  
-  
+    display: flex;
+    /* 🛑 CAMBIO CLAVE: Permite que los botones se envuelvan */
+    flex-wrap: wrap; 
+    gap: 90px; /* Reducimos el gap de 80px a 20px para el móvil */
+    justify-content: center; /* Centramos los botones cuando se envuelvan */
+    margin-top: 30px;
+    margin-bottom: 50px;
 }
 
 .opcionMedioPago {
-  display: flex;
-  background: none;
-  border: none;
-  color: #5a4ebf;
-  font-size: 1.1rem;
-  cursor: pointer;
-  margin-bottom: 10px;
-  text-align: left;
-  transition: color 0.3s;
-  
+    display: flex;
+    flex-direction: column; /* Apilamos ícono y texto para móvil */
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    
+    /* Le damos un ancho base y un padding para que sean buenos touch targets */
+    padding: 15px 20px; 
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    width: 150px; /* Ancho fijo para botones de pago en desktop/tablet */
+    
+    background: none;
+    color: #5a4ebf;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
 .opcionMedioPago:hover {
-  color: #302c84;
-  text-decoration: underline;
+    color: #302c84;
+    text-decoration: none; /* Quitamos el underline en hover, queda más limpio */
+    box-shadow: 0 4px 10px rgba(90, 78, 191, 0.15);
+}
+
+.iconoTarjeta, .iconoPagofacil {
+    /* Ajustamos los tamaños de los iconos */
+    width: 100px;
+    height: auto;
+    margin-bottom: 5px;
 }
 
 
+/* -------------------------------------------------- */
+/* ====== Media Query para Móviles (<= 768px) ====== */
+/* -------------------------------------------------- */
+
+@media (max-width: 768px) {
+    
+    /* 1. Contenedores */
+    .contenedorFormPago, 
+    .contenedorFormMedioPago {
+        padding: 20px 15px; /* Reducimos el padding horizontal en móvil */
+        width: 100%; /* Ocupa todo el ancho */
+        box-sizing: border-box; /* Asegura que el padding no cause desbordamiento */
+    }
+
+    /* 2. Tipografía */
+    .tituloDatos2, .tituloMedioPago2 {
+        font-size: 1.2rem;
+    }
+    
+    .tituloMedioPago{
+        font-size: 2.5vh;
+        text-align: center;
+    }
+
+    .subtituloMedioPago{
+        font-size: 1.8vh;
+        text-align: center;
+    }
+    
+    .labelPagoTatal {
+        font-size: 1.1rem;
+    }
+    
+    /* 3. Resumen (Filas de Pago) */
+    .filaPago {
+        flex-direction: column; /* Apilamos etiqueta y valor */
+        align-items: flex-start; /* Alineamos a la izquierda */
+        border-bottom: 1px dashed #e9ecef; /* Separación sutil */
+    }
+
+    .labelPago {
+        width: 100%;
+        min-width: unset;
+        margin-bottom: 3px;
+    }
+
+    .valorPago {
+        text-align: left;
+        padding-left: 10px; /* Un pequeño indentado para el valor */
+        font-size: 1rem;
+    }
+
+    /* 4. Opciones de Pago */
+    .opcionesMedioPago {
+        gap: 15px; /* Más compacto */
+        justify-content: space-around; /* Distribuye uniformemente */
+    }
+    
+    .opcionMedioPago {
+        /* Hacemos que los botones ocupen un tercio o mitad del ancho en móvil */
+        width: 45%; 
+        min-height: 120px;
+    }
+
+}

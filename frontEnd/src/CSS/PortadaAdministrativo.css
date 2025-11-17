@@ -1,0 +1,208 @@
+/* Mantener colores base: gradient de fondo y tarjeta clara */
+.admin-hero {
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 100px 20px 40px;
+}
+
+.admin-wrap {
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-title {
+  color: #fff;
+  font-family: "Aleo", sans-serif;
+  font-weight: 800;
+  font-size: 2.6rem;
+  text-align: center;
+  text-shadow: 2px 2px 12px rgba(0,0,0,0.3);
+  margin: 0;
+}
+
+.admin-subtitle {
+  color: rgba(255,255,255,0.95);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  text-align: center;
+}
+
+.admin-card {
+  background: rgba(255,255,255,0.96);
+  width: 100%;
+  max-width: 760px;
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+}
+
+.admin-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px; /* poco espacio entre botones */
+}
+
+.admin-btn {
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid #d6e8ff; /* celeste muy suave */
+  border-radius: 10px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  padding: 12px 18px;
+  cursor: pointer;
+  color: #2c3e50;
+  background: linear-gradient(180deg, #ffffff 0%, #f5faff 100%);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease, filter .2s ease, border-color .2s ease;
+}
+.admin-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.16); background: #eef6ff; border-color: #c7dfff; }
+.admin-btn:active { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(0,0,0,0.18); }
+
+/* Unificar tonos: celestes/blancos suaves, todos coherentes con la web */
+.admin-btn.primary,
+.admin-btn.info,
+.admin-btn.success,
+.admin-btn.warn,
+.admin-btn.danger,
+.admin-btn.muted,
+.admin-btn.dark,
+.admin-btn.secondary {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  color: #2c3e50;
+  border-color: #d6e8ff;
+}
+
+/* sutil acento al pasar por encima, sin cambiar a colores fuertes */
+.admin-btn.primary:hover,
+.admin-btn.info:hover,
+.admin-btn.success:hover,
+.admin-btn.warn:hover,
+.admin-btn.danger:hover,
+.admin-btn.muted:hover,
+.admin-btn.dark:hover,
+.admin-btn.secondary:hover {
+  background: #eaf3ff;
+  border-color: #c7dfff;
+}
+
+@media (max-width: 768px) {
+  .admin-hero { padding: 90px 20px 36px; }
+  .admin-title { font-size: 2.2rem; }
+  .admin-card { padding: 24px; }
+  .admin-btn { min-height: 52px; font-size: 1rem; }
+}
+
+@media (max-width: 576px) {
+  .admin-hero { padding: 80px 15px 28px; }
+  .admin-title { font-size: 1.9rem; }
+  .admin-card { padding: 20px; }
+  .admin-actions { gap: 8px; }
+  .admin-btn { min-height: 50px; font-size: 0.96rem; border-radius: 8px; }
+}
+
+/* Estilos para modal de consulta de expediente */
+.expediente-detalle {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.expediente-detalle h5 {
+  color: #667eea;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 8px;
+}
+
+.expediente-detalle .row > div {
+  padding: 5px 15px;
+}
+
+.expediente-detalle .badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badge-en.revisión,
+.badge-en\ revisión {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.badge-aprobado {
+  background-color: #28a745;
+  color: #fff;
+}
+
+.badge-rechazado {
+  background-color: #dc3545;
+  color: #fff;
+}
+
+.badge-archivado {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+.badge-alta {
+  background-color: #dc3545;
+  color: #fff;
+}
+
+.badge-media {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.badge-baja {
+  background-color: #28a745;
+  color: #fff;
+}
+
+.historial-expediente {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.historial-expediente h5 {
+  color: #667eea;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 8px;
+}
+
+.tabla-historial-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border-radius: 6px;
+}
+
+.tabla-historial-container table {
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+
+.tabla-historial-container thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.tabla-historial-container tbody td {
+  vertical-align: middle;
+}

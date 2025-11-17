@@ -1,0 +1,35 @@
+/* Estilos para la página completa de Usuario Técnico */
+.usuario-tecnico-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Ajustar el layout para que el footer se posicione correctamente */
+.usuario-tecnico-page .tecnico-layout {
+  flex: 1;
+  display: flex;
+}
+
+/* El footer debe estar fuera del layout de sidebar */
+.usuario-tecnico-page .footer {
+  margin-top: 0;
+  margin-left: 0;
+  width: 100%;
+  position: relative;
+  z-index: 40;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .usuario-tecnico-page .footer {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 576px) {
+  .usuario-tecnico-page {
+    overflow-x: auto;
+  }
+}

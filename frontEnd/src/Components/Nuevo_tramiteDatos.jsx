@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_USUARIOS } from "../Constants/endpoints";
-import { URL_TRAMITE } from "../Constants/endpoints";
+import { URL_USUARIOS, URL_EXPEDIENTES } from "../Constants/endpoints";
 import { Container, Form, Button } from "react-bootstrap";
 
 import "../CSS/NuevoTramite_datos.css";
+import { NUEVO_TRAMITE_EXPEDIENTES } from "../Routers/router";
 import lineaTiempo1 from "../assets/linea de tiempo 1.png";
 
 const NuevoTramiteDatos = () => {
@@ -23,305 +23,294 @@ const NuevoTramiteDatos = () => {
     contraseña: "",
   };
 
-    const initialTramite = {
-    tipo_tramite: "",
-    denominacion: "",
+  const initialExpediente = {
+    tipo_expediente: "",
     ubicacion: "",
     descripcion: "",
+    prioridad: "media",
+    estado_actual: "en revisión",
   };
 
-
   const [usuario, setUsuario] = useState(initialUsuario);
-  const [tramite, setTramite] = useState(initialTramite);
+  const [expediente, setExpediente] = useState(initialExpediente);
 
-
-  {
-    //---------------------------------------------------------
-  }
   const handleChangeUsuario = (e) => {
     setUsuario({ ...usuario, [e.target.name]: e.target.value });
   };
-  
-  const handleChangeTramite = (e) => {
-    setTramite({ ...tramite, [e.target.name]: e.target.value });
-  };
-  
 
-  {
-    //---------------------------------------------------------
-  }
-//  Datos del proyecto se crean y se guardan en la base de datos en la tabla tramite
+  const handleChangeExpediente = (e) => {
+    setExpediente({ ...expediente, [e.target.name]: e.target.value });
+  };
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Evita recargar la página si es un submit
-     try {
-      const data = { 
-      ...tramite, 
-      id_usuario: usuario.id_usuario // id del usuario actual que se guardara en la tabla tramie
-    };
-      const response = await axios.post(URL_TRAMITE, data);
-    console.log("✅ Trámite guardado exitosamente:", response.data);
-     
+    e.preventDefault();
 
-    setTramite(initialTramite);
-    alert("Trámite creado exitosamente");
-    navigate("/Nuevo_tramite");
-  } catch (error) {
-    console.error("❌ Error al guardar los datos del tramite:", error);
-  }
+    console.log("Datos del usuario:", usuario);
+    console.log("Datos del expediente:", expediente);
+
+    // Validaciones
+    if (!expediente.tipo_expediente) {
+      alert("Por favor, seleccione un tipo de expediente");
+      return;
+    }
+    if (!expediente.descripcion) {
+      alert("Por favor, ingrese una descripción del expediente");
+      return;
+    }
+    if (!expediente.ubicacion) {
+      alert("Por favor, ingrese la ubicación del proyecto");
+      return;
+    }
+
+    // Verificar que el usuario esté logueado
+    const idUsuario = usuario?.id_usuario || usuario?.id;
+    console.log("ID del usuario:", idUsuario);
+
+    if (!idUsuario) {
+      alert(
+        "Error: No se encontró información del usuario. Por favor, inicie sesión nuevamente."
+      );
+      navigate("/Login_usuario");
+      return;
+    }
+
+    try {
+      const expedienteData = {
+        ...expediente,
+        id_usuario_presentante: idUsuario,
+        fecha_creacion: new Date().toISOString(),
+      };
+
+      console.log("Guardando datos del expediente:", expedienteData);
+      localStorage.setItem(
+        "expedientePendiente",
+        JSON.stringify(expedienteData)
+      );
+
+      console.log("Navegando a /Nuevo_tramite");
+      // Navegamos al paso de carga de archivos
+      navigate("/Nuevo_tramite");
+    } catch (error) {
+      console.error("Error al guardar los datos del expediente:", error);
+      let mensajeError = "Error al crear el expediente. ";
+
+      if (error.response?.data) {
+        mensajeError +=
+          error.response.data.error || error.response.data.mensaje || "";
+      } else if (error.request) {
+        mensajeError += "No se pudo conectar con el servidor.";
+      } else {
+        mensajeError += error.message;
+      }
+
+      alert(mensajeError);
+    }
   };
 
   {
-    // 
+    //
   }
   // Cargar datos del usuario logueado desde el localStorage para mostrar en el formulario
   useEffect(() => {
-  const usuarioGuardado = localStorage.getItem("usuarioLogueado");
-  if (usuarioGuardado) {
-    const datosUsuario = JSON.parse(usuarioGuardado);
-    setUsuario(datosUsuario);
-  }
-}, []);
+    const usuarioGuardado = localStorage.getItem("usuarioLogueado");
+    if (usuarioGuardado) {
+      const datosUsuario = JSON.parse(usuarioGuardado);
+      setUsuario(datosUsuario);
+    }
+  }, []);
 
-// menú desplegable tipo de tramite se guardan en la tabla tramite
-const handleTipoTramiteChange = (e) => {
-  const tipoTramiteDatos = { ...tramite, tipo_tramite: e.target.value };
-  setTramite(tipoTramiteDatos);
+  // menú desplegable tipo de tramite se guardan en la tabla tramite
+  const handleTipoExpedienteChange = (e) => {
+    const tipo = e.target.value;
+    const tipoExpedienteDatos = { ...expediente, tipo_expediente: tipo };
+    setExpediente(tipoExpedienteDatos);
 
-  // Guardar también en localStorage
-  localStorage.setItem("tipoTramite", JSON.stringify(tipoTramiteDatos));
-};
+    // Guardar también en localStorage (para mostrar en pasos siguientes)
+    localStorage.setItem("tipoExpediente", JSON.stringify(tipoExpedienteDatos));
+  };
 
-
-
-// ---------------------------------------------------------------------
+  // ---------------------------------------------------------------------
   return (
     <div className="portadaDatos">
-
       <div className="claseTitulosDatos">
-
         <h1 className="tituloDatos">Nuevo Trámite</h1>
         <h2 className="subtituloDatos">
           Complete los datos para iniciar su expediente
         </h2>
-
       </div>
 
+      <Form onSubmit={handleSubmit}>
+        <div className="subportadaDatos">
+          <div className="lineaTiempoContainerDatos">
+            <img src={lineaTiempo1} alt="linea de tiempoDatos" />
+          </div>
 
-      <div className="subportadaDatos">
+          <div className="conteinerDatoss">
+            <h2 className="tituloDatos2">Datos del trámite</h2>
+            <h3 className="subtituloDatos2">
+              Ingrese la información del usuario y del proyecto
+            </h3>
 
-        <div className="lineaTiempoContainerDatos">
-          <img src={lineaTiempo1} alt="linea de tiempoDatos" />
-        </div>
+            <h3 className="tipoDtramite">Tipo de Expediente *</h3>
 
-        <div className="conteinerDatoss">
+            <Form.Select
+              className="menuDesplegable"
+              name="tipo_expediente"
+              value={expediente.tipo_expediente}
+              onChange={handleTipoExpedienteChange}
+              required
+            >
+              <option value="">Seleccione el tipo de expediente</option>
+              <option value="Obra nueva">Obra nueva</option>
+              <option value="Constancia de prefactibilidad de no inundabilidad">
+                Constancia de prefactibilidad de no inundabilidad
+              </option>
+              <option value="Línea de ribera">Línea de ribera</option>
+            </Form.Select>
 
-          <h2 className="tituloDatos2">Datos del trámite</h2>
-          <h3 className="subtituloDatos2">Ingrese la información del usuario y del proyecto</h3>
+            {/*<Form.Group className="mb-3" controlId="formPrioridad">
+              <Form.Label>Prioridad *</Form.Label>
+              <Form.Select 
+                name="prioridad"
+                value={expediente.prioridad}
+                onChange={handleChangeExpediente}
+                required
+              >
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+              </Form.Select>
+            </Form.Group>*/}
 
-          <h3 className="tipoDtramite">Tipo de Trámite *</h3>
-          
-          <select className="menuDesplegable"
-            name="tipo_tramite"
-            value={tramite.tipo_tramite}
-            onChange={handleTipoTramiteChange}
-          >
-            <option value="">Seleccione el tipo de trámite</option>
-            <option value="Obra nueva">Obra nueva</option>
-            <option value="Rivera">Rivera</option>
-            <option value="Rio">Río</option>
-          </select>
-
-
-          {/* Formulario Datos*/}
-          <div className="contenedorFormDatos">
-            <h2 className="tituloDatos2">Datos del Usuario</h2>
-
-            <div className="contenedorFormDatos2">
-              <Container className="mt-5">
-                <Form onSubmit={handleSubmit}>
+            <div className="contenedorFormDatos">
+              <h2 className="tituloDatos2">Datos del Usuario</h2>
+              <div className="contenedorFormDatos2">
+                <Container className="mt-5">
                   <div className="contenedorLabelDatos">
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlInput1"
-                    >
+                    <Form.Group className="mb-3">
                       <Form.Label>Nombre *</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder=" "
                         name="nombre"
                         value={usuario.nombre}
                         disabled
                         style={{ backgroundColor: "#e9ecef", color: "#6c757d" }}
-                        onChange={handleChangeUsuario}
                       />
                     </Form.Group>
 
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlInput1"
-                    >
+                    <Form.Group className="mb-3">
                       <Form.Label>Apellido *</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder=" "
                         name="apellido"
                         value={usuario.apellido}
                         disabled
                         style={{ backgroundColor: "#e9ecef", color: "#6c757d" }}
-                        onChange={handleChangeUsuario}
                       />
                     </Form.Group>
 
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlTextareal"
-                    >
+                    <Form.Group className="mb-3">
                       <Form.Label>DNI *</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder=" "
                         name="dni"
                         value={usuario.dni}
                         disabled
                         style={{ backgroundColor: "#e9ecef", color: "#6c757d" }}
-                        onChange={handleChangeUsuario}
                       />
                     </Form.Group>
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlTextarea1"
-                    >
-                      <Form.Label>email *</Form.Label>
+
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email *</Form.Label>
                       <Form.Control
                         type="email"
-                        placeholder=" "
                         name="email"
                         value={usuario.email}
                         disabled
                         style={{ backgroundColor: "#e9ecef", color: "#6c757d" }}
-                        onChange={handleChangeUsuario}
                       />
                     </Form.Group>
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlTextarea1"
-                    >
+
+                    <Form.Group className="mb-3">
                       <Form.Label>Dirección *</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder=" "
                         name="direccion"
                         value={usuario.direccion}
                         disabled
                         style={{ backgroundColor: "#e9ecef", color: "#6c757d" }}
-                        onChange={handleChangeUsuario}
                       />
                     </Form.Group>
 
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlTextarea1"
-                    >
+                    <Form.Group className="mb-3">
                       <Form.Label>Teléfono *</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder=" "
                         name="telefono"
                         value={usuario.telefono}
                         disabled
                         style={{ backgroundColor: "#e9ecef", color: "#6c757d" }}
-                        onChange={handleChangeUsuario}
                       />
                     </Form.Group>
                   </div>
-                </Form>
-                <br />
-              </Container>
+                </Container>
+              </div>
             </div>
-          </div>
 
-
-
-
-
-          {/* Formulario Datos del Proyecto*/}
-
-          <div className="contenedorFormProyecto">
-            <div className="contenedorFormProyecto2">
-              <h1 className="tituloProyecto">Datos del proyecto</h1>
-              <Container className="mt-5">
-                <Form onSubmit={handleSubmit}>
+            <div className="contenedorFormProyecto">
+              <div className="contenedorFormProyecto2">
+                <h1 className="tituloProyecto">Datos del proyecto</h1>
+                <Container className="mt-5">
                   <div className="contenedorLabelProyecto">
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlInput1"
-                    >
-                      <Form.Label>Denominación del proyecto *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Ej: Construcción de vivienda unifamiliar"
-                        name="denominacion"
-                        value={tramite.denominacion}
-                        onChange={handleChangeTramite}
-                      />
-                    </Form.Group>
-
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlInput1"
-                    >
+                    <Form.Group className="mb-3">
                       <Form.Label>Ubicación *</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder="Ingrese la dirección del proyecto"
+                        placeholder="Dirección, localidad o coordenadas"
                         name="ubicacion"
-                        value={tramite.ubicacion}
-                        onChange={handleChangeTramite}
+                        value={expediente.ubicacion}
+                        onChange={handleChangeExpediente}
+                        required
                       />
                     </Form.Group>
-
-                    <Form.Group
-                      className="mb-3"
-                      controlId="exampleForm.ControlTextareal"
-                    >
-                      <Form.Label>Descripción del proyecto *</Form.Label>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Descripción del expediente *</Form.Label>
                       <Form.Control
-                        type="text"
-                        placeholder="Describa brevemente la descripción del proyecto"
+                        as="textarea"
+                        rows={3}
+                        placeholder="Describa detalladamente el motivo del expediente"
                         name="descripcion"
-                        value={tramite.descripcion}
-                        onChange={handleChangeTramite}
+                        value={expediente.descripcion}
+                        onChange={handleChangeExpediente}
+                        required
                       />
                     </Form.Group>
                   </div>
-                </Form>
-                <br />
-              </Container>
+                </Container>
+              </div>
+            </div>
+
+            <div className="contenedorBotonDatos">
+              <Button
+                className="btnAtras"
+                variant="primary"
+                type="button"
+                onClick={() => navigate("/Portada")}
+              >
+                Atras
+              </Button>
+
+              <Button
+                size="sm"
+                className="btnContinuar"
+                variant="primary"
+                type="submit"
+              >
+                Continuar
+              </Button>
             </div>
           </div>
-
-          <div className="contenedorBotonDatos">
-            
-            <Button className='btnAtras'
-              variant="primary" 
-              type="button" 
-              onClick={() => navigate("/Portada")}
-            >           
-              Atras
-            </Button>
-
-            <Button
-              size="sm"
-              className="btn-cancelar3"
-              variant="secondary"
-              type="button"
-              onClick={(e) => handleSubmit(e)}
-            >
-              Continuar
-            </Button>
-          </div>
         </div>
-      </div>
+      </Form>
     </div>
   );
 };

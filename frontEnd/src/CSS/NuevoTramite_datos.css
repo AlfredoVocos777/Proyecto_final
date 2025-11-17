@@ -6,6 +6,7 @@
     background-color: rgb(193, 199, 211);
     min-height: 100vh;      /* ocupa toda la altura de la pantalla */
     width: 100vw; 
+    
 }
 
 .subportadaDatos{
@@ -15,6 +16,7 @@
     flex-direction: column; 
     justify-content: center;
     align-items: center;
+    
  
    
 }
@@ -54,7 +56,7 @@
 
 .conteinerDatoss{
     background-color: rgb(177, 184, 211);
-    padding : 20px 50px;
+    padding : 20px 80px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(248, 233, 233, 0.962);
     
@@ -171,7 +173,7 @@
 }
 
 /* Responsive: on small screens, make the form full-width and stack image above form */
-/*@media (max-width: 768px) {
+@media (max-width: 768px) {
   .contenedorFormUsuario3 {
     width: 90%;
     padding: 20px;
@@ -185,7 +187,7 @@
     width: 60%;
     margin: 0 auto;
   }
-}*/
+}
 
 
 
@@ -198,5 +200,6 @@
     align-items: center;
     margin-top: 30px;
     gap: 760px;
+    
     
 }

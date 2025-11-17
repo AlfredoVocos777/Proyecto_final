@@ -11,6 +11,11 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Paleta de colores global - Beige + Azul claro */
+  --color-beige: #f5e9d5;            /* beige suave */
+  --color-beige-strong: #ead6b7;     /* beige medio para acentos */
+  --color-azul-claro: #a7c7f0;       /* azul claro principal */
+  --color-azul-acento: #5aa1e3;      /* azul acento */
 }
 
 a {
@@ -24,9 +29,20 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
+  min-height: 100vh;
+}
+
+/* Layout global para páginas con footer */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+#root > div {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 

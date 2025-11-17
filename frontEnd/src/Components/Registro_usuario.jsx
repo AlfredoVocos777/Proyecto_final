@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_USUARIOS } from "../Constants/endpoints";
+import { URL_USUARIOS, URL_ROLES } from "../Constants/endpoints";
 import { Container, Form, Button } from "react-bootstrap";
 
 import "../CSS/registroUsuario.css";
@@ -18,8 +18,23 @@ const RegistroUsuario = () => {
     telefono: "",
     usuario: "",
     contraseña: "",
+    tipo_usuario: "presentante",
+    id_rol: "",
   };
   const [usuario, setUsuario] = useState(initialState);
+  const [roles, setRoles] = useState([]);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const { data } = await axios.get(URL_ROLES);
+        setRoles(data || []);
+      } catch (e) {
+        console.error("Error cargando roles:", e);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   {
     //---------------------------------------------------------
@@ -75,6 +90,38 @@ const RegistroUsuario = () => {
                   />
                 </Form.Group>
 
+                <Form.Group className="mb-3" controlId="registro.tipo_usuario">
+                  <Form.Label>Tipo de usuario</Form.Label>
+                  <Form.Select
+                    name="tipo_usuario"
+                    value={usuario.tipo_usuario}
+                    onChange={handleChange}
+                  >
+                    <option value="presentante">Presentante</option>
+                    <option value="administrativo">Administrativo</option>
+                    <option value="técnico">Técnico</option>
+                    <option value="jurídico">Jurídico</option>
+                    <option value="director">Director</option>
+                    <option value="admin_TI">Admin TI</option>
+                  </Form.Select>
+                </Form.Group>
+
+                <Form.Group className="mb-3" controlId="registro.id_rol">
+                  <Form.Label>Rol (opcional)</Form.Label>
+                  <Form.Select
+                    name="id_rol"
+                    value={usuario.id_rol}
+                    onChange={handleChange}
+                  >
+                    <option value="">Sin rol</option>
+                    {roles.map((r) => (
+                      <option key={r.id_rol} value={r.id_rol}>
+                        {r.nombre}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+
                 <Form.Group
                   className="mb-3"
                   controlId="exampleForm.ControlInput1"
@@ -88,7 +135,7 @@ const RegistroUsuario = () => {
                     onChange={handleChange}
                   />
                 </Form.Group>
-                
+
                 <Form.Group
                   className="mb-3"
                   controlId="exampleForm.ControlTextareal"
@@ -177,7 +224,6 @@ const RegistroUsuario = () => {
                   className="btn-guardar"
                   variant="primary"
                   type="submit"
-                  onClick={() => navigate("/")}
                 >
                   Guardar
                 </Button>

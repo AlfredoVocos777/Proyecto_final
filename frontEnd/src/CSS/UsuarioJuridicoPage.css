@@ -1,0 +1,35 @@
+/* Estilos para la página completa de Usuario Jurídico */
+.usuario-juridico-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Ajustar el layout para que el footer se posicione correctamente */
+.usuario-juridico-page .juridico-layout {
+  flex: 1;
+  display: flex;
+}
+
+/* El footer debe estar fuera del layout de sidebar */
+.usuario-juridico-page .footer {
+  margin-top: 0;
+  margin-left: 0;
+  width: 100%;
+  position: relative;
+  z-index: 40;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .usuario-juridico-page .footer {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 576px) {
+  .usuario-juridico-page {
+    overflow-x: auto;
+  }
+}

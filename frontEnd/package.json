@@ -4,14 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --open",
+    "dev:chrome": "start chrome http://localhost:5173 && vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "@mercadopago/sdk-react": "^1.0.6",
+    "axios": "^1.13.1",
+    "bootstrap": "^5.3.8",
+    "dom": "^0.0.3",
+    "react": "^19.2.0",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.5",
+    "router": "^2.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

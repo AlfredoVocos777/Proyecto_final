@@ -1,19 +1,19 @@
 import connection from "../configDB/dataBase.js";
 
-// Obtener todos los tramites de la base de datos
-export const obtenerTramites = (req, res) => {
-  connection.query("SELECT * FROM tramite", (err, results) => {
+// Obtener todos los expedientes de la base de datos
+export const obtenerExpediente = (req, res) => {
+  connection.query("SELECT * FROM expedientes", (err, results) => {
     if (err) {
-      return res.status(500).json({ error: "Error al obtener los tramites" });
+      return res.status(500).json({ error: "Error al obtener los expedientes" });
     }
     res.json(results);
   });
 };
 
-// Crear nuevo tramite de la pagina Nuevo_tramiteDatos
-export const crearTramite = (req, res) => {
+// Crear nuevo expediente de la pagina Nuevo_expedienteDatos
+export const crearExpediente = (req, res) => {
   const {
-    tipo_tramite,
+    tipo_expediente,
     denominacion,
     ubicacion,
     descripcion,
@@ -24,19 +24,19 @@ export const crearTramite = (req, res) => {
     return res.status(400).json({ error: "Falta el id_usuario" });
   }
 
-  const sql = `INSERT INTO tramite 
-  (tipo_tramite, denominacion, ubicacion, descripcion,  id_usuario)
+  const sql = `INSERT INTO expedientes 
+  (tipo_expediente, denominacion, ubicacion, descripcion, id_usuario)
   VALUES (?, ?, ?, ?, ?)`;
 
   connection.query(
     sql,
-    [tipo_tramite, denominacion, ubicacion, descripcion,  id_usuario],
+    [tipo_expediente, denominacion, ubicacion, descripcion, id_usuario],
     (err, result) => {
       if (err) {
         console.error(err);
-        return res.status(500).json({ error: "Error al crear el tramite" });
+        return res.status(500).json({ error: "Error al crear el expediente" });
       }
-      res.status(200).json({ mensaje: "Tramite creado exitosamente", id: result.insertId });
+      res.status(200).json({ mensaje: "Expediente creado exitosamente", id: result.insertId });
     }
   );
 };

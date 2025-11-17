@@ -1,0 +1,16 @@
+/* Layout común para páginas con header fijo y footer al fondo */
+
+.page-content {
+  padding-top: 120px; /* evita solaparse con header fijo (80px + respiración) */
+  padding-bottom: 2rem; /* espacio sobre el footer */
+  min-height: calc(100vh - 80px); /* altura visible menos header */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .page-content {
+    padding-top: 100px;
+  }
+}
