@@ -257,7 +257,7 @@ const NuevoTramitePago = () => {
               </div>
               <div className="filaPago">
                 <label className="labelPagoTatal">Total a Pagar</label>
-                <label> - $5.000 - </label>
+                <label> - <strong>$5.000</strong> - </label>
               </div>
             </div>
           </div>

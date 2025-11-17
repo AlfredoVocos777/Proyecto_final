@@ -30,6 +30,7 @@
     margin: 20px 0;
     font-size: 1.1rem;
     color: #43385f;
+   
 }
 
 .filaPago {
@@ -37,7 +38,7 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    padding: 8px 0;
+    padding: 8px 20px;
     /* Evita que los elementos internos se envuelvan si hay poco espacio */
     flex-wrap: nowrap; 
 }
