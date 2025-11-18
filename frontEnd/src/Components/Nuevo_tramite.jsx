@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import "../CSS/NuevoTramite.css";
 import lineaTiempo2 from "../assets/linea de tiempo 2.png";
+import dniEjemplo from "../assets/dni-ejemplo.svg";
+import planoEjemplo from "../assets/plano-ejemplo.svg";
+import memoriaEjemplo from "../assets/memoria-ejemplo.svg";
+import tituloEjemplo from "../assets/titulo-ejemplo.svg";
 import { URL_EXPEDIENTES, URL_SUBIR_DOCUMENTO } from "../Constants/endpoints";
 
 const NuevoTramite = () => {
@@ -14,6 +18,7 @@ const NuevoTramite = () => {
   const [expedienteInfo, setExpedienteInfo] = useState(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [usuario, setUsuario] = useState(null);
+  const [documentoSeleccionado, setDocumentoSeleccionado] = useState("dni");
 
   useEffect(() => {
     // Recuperar información del expediente pendiente del localStorage
@@ -223,11 +228,51 @@ const NuevoTramite = () => {
             </h3>
             <br></br>
             <ul className="listaDocumentacion">
-              <li>DNI del presentante</li>
-              <li>Plano de ubicación de proyecto</li>
-              <li>Memoria descriptiva</li>
-              <li>Titulo de propiedad o boleto de compra venta</li>
+              <li 
+                className={documentoSeleccionado === "dni" ? "documento-activo" : ""}
+                onClick={() => setDocumentoSeleccionado("dni")}
+                style={{ cursor: "pointer" }}
+              >
+                DNI del presentante (frente y dorso)
+              </li>
+              <li 
+                className={documentoSeleccionado === "plano" ? "documento-activo" : ""}
+                onClick={() => setDocumentoSeleccionado("plano")}
+                style={{ cursor: "pointer" }}
+              >
+                Plano de ubicación de proyecto
+              </li>
+              <li 
+                className={documentoSeleccionado === "memoria" ? "documento-activo" : ""}
+                onClick={() => setDocumentoSeleccionado("memoria")}
+                style={{ cursor: "pointer" }}
+              >
+                Memoria descriptiva
+              </li>
+              <li 
+                className={documentoSeleccionado === "titulo" ? "documento-activo" : ""}
+                onClick={() => setDocumentoSeleccionado("titulo")}
+                style={{ cursor: "pointer" }}
+              >
+                Titulo de propiedad o boleto de compra venta
+              </li>
             </ul>
+            
+            {/* Imágenes ilustrativas */}
+            <div className="ejemploDocumento">
+              {documentoSeleccionado === "dni" && (
+                <img src={dniEjemplo} alt="Ejemplo DNI" className="imagenEjemplo" />
+              )}
+              {documentoSeleccionado === "plano" && (
+                <img src={planoEjemplo} alt="Ejemplo Plano" className="imagenEjemplo" />
+              )}
+              {documentoSeleccionado === "memoria" && (
+                <img src={memoriaEjemplo} alt="Ejemplo Memoria" className="imagenEjemplo" />
+              )}
+              {documentoSeleccionado === "titulo" && (
+                <img src={tituloEjemplo} alt="Ejemplo Título" className="imagenEjemplo" />
+              )}
+            </div>
           </div>
           <div className="cargaArchivos">
             {error && (

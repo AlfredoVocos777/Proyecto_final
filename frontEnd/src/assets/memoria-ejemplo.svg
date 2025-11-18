@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380">
+  <!-- Fondo -->
+  <rect width="600" height="380" fill="#f8f9fa" stroke="#dee2e6" stroke-width="2"/>
+  
+  <!-- Título -->
+  <text x="300" y="30" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#495057">
+    Memoria Descriptiva del Proyecto
+  </text>
+  
+  <!-- Documento simulado -->
+  <g transform="translate(175, 60)">
+    <rect width="250" height="170" fill="#ffffff" stroke="#ffc107" stroke-width="3" rx="8"/>
+    
+    <!-- Encabezado del documento -->
+    <rect x="15" y="15" width="220" height="20" fill="#fff3cd" rx="3"/>
+    <text x="125" y="29" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#856404">
+      MEMORIA DESCRIPTIVA
+    </text>
+    
+    <!-- Contenido simulado -->
+    <g transform="translate(15, 50)">
+      <!-- Sección 1 -->
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#495057">
+        1. Descripción del Proyecto:
+      </text>
+      <rect x="0" y="5" width="220" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="10" width="200" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="15" width="210" height="3" fill="#e9ecef" rx="1"/>
+      
+      <!-- Sección 2 -->
+      <text x="0" y="30" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#495057">
+        2. Características Técnicas:
+      </text>
+      <rect x="0" y="35" width="220" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="40" width="190" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="45" width="205" height="3" fill="#e9ecef" rx="1"/>
+      
+      <!-- Sección 3 -->
+      <text x="0" y="60" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#495057">
+        3. Materiales y Construcción:
+      </text>
+      <rect x="0" y="65" width="220" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="70" width="180" height="3" fill="#e9ecef" rx="1"/>
+      
+      <!-- Sección 4 -->
+      <text x="0" y="85" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#495057">
+        4. Impacto Ambiental:
+      </text>
+      <rect x="0" y="90" width="220" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="95" width="195" height="3" fill="#e9ecef" rx="1"/>
+    </g>
+    
+    <!-- Firma simulada -->
+    <g transform="translate(15, 145)">
+      <line x1="0" y1="0" x2="100" y2="0" stroke="#6c757d" stroke-width="1"/>
+      <text x="50" y="12" font-family="Arial, sans-serif" font-size="8" text-anchor="middle" fill="#6c757d">
+        Firma Profesional
+      </text>
+    </g>
+  </g>
+  
+  <!-- Instrucciones -->
+  <g transform="translate(0, 250)">
+    <text x="300" y="0" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#212529">
+      La memoria debe contener:
+    </text>
+    
+    <g transform="translate(80, 25)">
+      <circle cx="0" cy="-3" r="4" fill="#ffc107"/>
+      <text x="15" y="0" font-family="Arial, sans-serif" font-size="14" fill="#495057">
+        Descripción detallada del proyecto y sus objetivos
+      </text>
+    </g>
+    
+    <g transform="translate(80, 50)">
+      <circle cx="0" cy="-3" r="4" fill="#ffc107"/>
+      <text x="15" y="0" font-family="Arial, sans-serif" font-size="14" fill="#495057">
+        Características técnicas y dimensiones de la obra
+      </text>
+    </g>
+    
+    <g transform="translate(80, 75)">
+      <circle cx="0" cy="-3" r="4" fill="#ffc107"/>
+      <text x="15" y="0" font-family="Arial, sans-serif" font-size="14" fill="#495057">
+        Materiales a utilizar y metodología constructiva
+      </text>
+    </g>
+    
+    <g transform="translate(80, 100)">
+      <circle cx="0" cy="-3" r="4" fill="#ffc107"/>
+      <text x="15" y="0" font-family="Arial, sans-serif" font-size="14" fill="#495057">
+        Firma del profesional responsable (si aplica)
+      </text>
+    </g>
+  </g>
+</svg>
