@@ -1,12 +1,45 @@
 import connection from "../configDB/dataBase.js";
 
 export const listarDepartamentos = (req, res) => {
-  connection.query("SELECT id_departamento, nombre, descripcion FROM departamentos ORDER BY nombre ASC", (err, results) => {
+  // Primero obtener todos los departamentos
+  connection.query("SELECT id_departamento, nombre, descripcion FROM departamentos ORDER BY nombre ASC", (err, departamentos) => {
     if (err) {
       console.error("Error al obtener departamentos:", err);
       return res.status(500).json({ error: "Error al obtener departamentos" });
     }
-    res.json(results);
+    
+    if (departamentos.length === 0) {
+      return res.json([]);
+    }
+    
+    // Para cada departamento, obtener sus usuarios
+    const departamentosConUsuarios = [];
+    let procesados = 0;
+    
+    departamentos.forEach((dept) => {
+      connection.query(
+        `SELECT id_usuario, nombre, apellido, usuario, email 
+         FROM usuario 
+         WHERE id_departamento = ?`,
+        [dept.id_departamento],
+        (errUsuarios, usuarios) => {
+          if (errUsuarios) {
+            console.error("Error al obtener usuarios:", errUsuarios);
+            dept.usuarios = [];
+          } else {
+            dept.usuarios = usuarios;
+          }
+          
+          departamentosConUsuarios.push(dept);
+          procesados++;
+          
+          // Cuando se procesaron todos, enviar respuesta
+          if (procesados === departamentos.length) {
+            res.json(departamentosConUsuarios);
+          }
+        }
+      );
+    });
   });
 };
 

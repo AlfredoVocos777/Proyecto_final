@@ -152,7 +152,7 @@ export const actualizarUsuario = async (req, res) => {
   if (!id) return res.status(400).json({ error: "ID requerido" });
 
   const camposPermitidos = [
-    'nombre','apellido','dni','email','direccion','telefono','usuario','contraseña','tipo_usuario','id_rol'
+    'nombre','apellido','dni','email','direccion','telefono','usuario','contraseña','tipo_usuario','id_rol','id_departamento'
   ];
   const datos = req.body || {};
   const setParts = [];

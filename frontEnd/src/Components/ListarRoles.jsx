@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Table, Button, Modal, Alert, Spinner } from "react-bootstrap";
+import { Table, Button, Modal, Alert, Spinner, Pagination } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL_ROLES } from "../Constants/endpoints";
@@ -13,6 +13,8 @@ const ListarRoles = () => {
   const [rolAEliminar, setRolAEliminar] = useState(null);
   const [mostrarPermisos, setMostrarPermisos] = useState(false);
   const [rolPermisos, setRolPermisos] = useState(null);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const rolesPorPagina = 10;
   const navigate = useNavigate();
 
   const cargarRoles = async () => {
@@ -108,35 +110,69 @@ const ListarRoles = () => {
               </td>
             </tr>
           ) : (
-            roles.map((rol) => (
-              <tr key={rol.id_rol}>
-                <td>{rol.id_rol}</td>
-                <td>{rol.nombre}</td>
-                <td>{rol.descripcion || "-"}</td>
-                <td className="text-center">
-                  <Button
-                    variant="info"
-                    size="sm"
-                    onClick={() => verPermisos(rol)}
-                  >
-                    Ver ({rol.permisos?.length || 0})
-                  </Button>
-                </td>
-                <td>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => confirmarEliminacion(rol)}
-                  >
-                    Eliminar
-                  </Button>
-                </td>
-              </tr>
-            ))
+            (() => {
+              const indiceInicio = (paginaActual - 1) * rolesPorPagina;
+              const indiceFin = indiceInicio + rolesPorPagina;
+              const rolesPagina = roles.slice(indiceInicio, indiceFin);
+              
+              return rolesPagina.map((rol) => (
+                <tr key={rol.id_rol}>
+                  <td>{rol.id_rol}</td>
+                  <td>{rol.nombre}</td>
+                  <td>{rol.descripcion || "-"}</td>
+                  <td className="text-center">
+                    <Button
+                      variant="info"
+                      size="sm"
+                      onClick={() => verPermisos(rol)}
+                    >
+                      Ver ({rol.permisos?.length || 0})
+                    </Button>
+                  </td>
+                  <td>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => confirmarEliminacion(rol)}
+                    >
+                      Eliminar
+                    </Button>
+                  </td>
+                </tr>
+              ));
+            })()
           )}
         </tbody>
       </Table>
       </div>
+
+      {roles.length > rolesPorPagina && (
+        <div className="d-flex justify-content-center mt-3">
+          <Pagination>
+            <Pagination.First onClick={() => setPaginaActual(1)} disabled={paginaActual === 1} />
+            <Pagination.Prev onClick={() => setPaginaActual(paginaActual - 1)} disabled={paginaActual === 1} />
+            
+            {[...Array(Math.ceil(roles.length / rolesPorPagina))].map((_, index) => (
+              <Pagination.Item
+                key={index + 1}
+                active={index + 1 === paginaActual}
+                onClick={() => setPaginaActual(index + 1)}
+              >
+                {index + 1}
+              </Pagination.Item>
+            ))}
+            
+            <Pagination.Next 
+              onClick={() => setPaginaActual(paginaActual + 1)} 
+              disabled={paginaActual === Math.ceil(roles.length / rolesPorPagina)} 
+            />
+            <Pagination.Last 
+              onClick={() => setPaginaActual(Math.ceil(roles.length / rolesPorPagina))} 
+              disabled={paginaActual === Math.ceil(roles.length / rolesPorPagina)} 
+            />
+          </Pagination>
+        </div>
+      )}
 
       {/* Modal de confirmación de eliminación */}
       <Modal show={mostrarModal} onHide={cancelarEliminacion}>

@@ -7,7 +7,7 @@ import {
   URL_HISTORIAL,
 } from "../Constants/endpoints";
 import { URL_DOCUMENTOS } from "../Constants/endpoints";
-import { Modal, Button, Form, Alert } from "react-bootstrap";
+import { Modal, Button, Form, Alert, Pagination } from "react-bootstrap";
 import "../CSS/Consulta.css";
 import { PORTADA_ADMINISTRATIVO } from "../Routers/router";
 import { URL_OBSERVACIONES } from "../Constants/endpoints";
@@ -211,15 +211,10 @@ export default function ConsultaAdminExpedientes() {
   }
 
   // Calcular expedientes a mostrar según página actual
-  const indexUltimo = paginaActual * expedientesPorPagina;
-  const indexPrimero = indexUltimo - expedientesPorPagina;
-  const expedientesPaginados = expedientes.slice(indexPrimero, indexUltimo);
+  const indiceInicio = (paginaActual - 1) * expedientesPorPagina;
+  const indiceFin = indiceInicio + expedientesPorPagina;
+  const expedientesPaginados = expedientes.slice(indiceInicio, indiceFin);
   const totalPaginas = Math.ceil(expedientes.length / expedientesPorPagina);
-
-  const cambiarPagina = (numeroPagina) => {
-    setPaginaActual(numeroPagina);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   return (
     <div className="consulta-container">
@@ -254,14 +249,6 @@ export default function ConsultaAdminExpedientes() {
         </div>
       ) : (
         <>
-          <div className="info-paginacion mb-3">
-            <p>
-              Mostrando {indexPrimero + 1} a{" "}
-              {Math.min(indexUltimo, expedientes.length)} de{" "}
-              {expedientes.length} expedientes
-            </p>
-          </div>
-
           <div className="tabla-container">
             <table className="tabla-expedientes">
               <thead>
@@ -336,27 +323,31 @@ export default function ConsultaAdminExpedientes() {
           </div>
 
           {/* Controles de Paginación */}
-          {totalPaginas > 1 && (
-            <div className="paginacion-container mt-3">
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => cambiarPagina(paginaActual - 1)}
-                disabled={paginaActual === 1}
-              >
-                Anterior
-              </button>
-
-              <span className="paginacion-info mx-3">
-                Página {paginaActual} de {totalPaginas}
-              </span>
-
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => cambiarPagina(paginaActual + 1)}
-                disabled={paginaActual === totalPaginas}
-              >
-                Siguiente
-              </button>
+          {expedientes.length > expedientesPorPagina && (
+            <div className="d-flex justify-content-center mt-3">
+              <Pagination>
+                <Pagination.First onClick={() => setPaginaActual(1)} disabled={paginaActual === 1} />
+                <Pagination.Prev onClick={() => setPaginaActual(paginaActual - 1)} disabled={paginaActual === 1} />
+                
+                {[...Array(Math.ceil(expedientes.length / expedientesPorPagina))].map((_, index) => (
+                  <Pagination.Item
+                    key={index + 1}
+                    active={index + 1 === paginaActual}
+                    onClick={() => setPaginaActual(index + 1)}
+                  >
+                    {index + 1}
+                  </Pagination.Item>
+                ))}
+                
+                <Pagination.Next 
+                  onClick={() => setPaginaActual(paginaActual + 1)} 
+                  disabled={paginaActual === Math.ceil(expedientes.length / expedientesPorPagina)} 
+                />
+                <Pagination.Last 
+                  onClick={() => setPaginaActual(Math.ceil(expedientes.length / expedientesPorPagina))} 
+                  disabled={paginaActual === Math.ceil(expedientes.length / expedientesPorPagina)} 
+                />
+              </Pagination>
             </div>
           )}
         </>
