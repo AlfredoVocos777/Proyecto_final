@@ -3,7 +3,7 @@ import { Table, Button, Modal, Alert, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL_USUARIOS } from "../Constants/endpoints";
-import { REGISTRO_USUARIO } from "../Routers/router";
+import { REGISTRO_USUARIO, PORTADA_ADMINISTRATIVO } from "../Routers/router";
 
 export default function ListarUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -66,7 +66,7 @@ export default function ListarUsuarios() {
     <div className="container mt-5 pt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Gestión de Usuarios</h2>
-        <Button variant="primary" onClick={() => navigate(REGISTRO_USUARIO)}>
+        <Button variant="primary" size="md" onClick={() => navigate(REGISTRO_USUARIO)}>
           + Crear Usuario
         </Button>
       </div>
@@ -81,7 +81,6 @@ export default function ListarUsuarios() {
               <th>Usuario</th>
               <th>Nombre</th>
               <th>Email</th>
-              <th>Tipo</th>
               <th>Rol</th>
               <th>Acciones</th>
             </tr>
@@ -89,7 +88,7 @@ export default function ListarUsuarios() {
           <tbody>
             {usuarios.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center">No hay usuarios registrados</td>
+                <td colSpan="6" className="text-center">No hay usuarios registrados</td>
               </tr>
             ) : (
               usuarios.map(u => (
@@ -98,7 +97,6 @@ export default function ListarUsuarios() {
                   <td>{u.usuario}</td>
                   <td>{u.nombre} {u.apellido}</td>
                   <td>{u.email}</td>
-                  <td>{u.tipo_usuario}</td>
                   <td>{u.rol || '-'}</td>
                   <td>
                     <div className="d-flex gap-2">
@@ -131,6 +129,17 @@ export default function ListarUsuarios() {
           <Button variant="danger" onClick={eliminarUsuario}>Eliminar</Button>
         </Modal.Footer>
       </Modal>
+
+      <div className="mt-4">
+        <Button 
+          variant="outline-secondary"
+          size="md"
+          onClick={() => navigate(PORTADA_ADMINISTRATIVO)}
+          title="Volver a la portada administrativa"
+        >
+          ← Volver
+        </Button>
+      </div>
     </div>
   );
 }

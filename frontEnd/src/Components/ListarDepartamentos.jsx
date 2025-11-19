@@ -3,7 +3,7 @@ import { Table, Button, Modal, Alert, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL_DEPARTAMENTOS } from "../Constants/endpoints";
-import { CREAR_DEPARTAMENTO } from "../Routers/router";
+import { CREAR_DEPARTAMENTO, PORTADA_ADMINISTRATIVO } from "../Routers/router";
 
 const ListarDepartamentos = () => {
   const [departamentos, setDepartamentos] = useState([]);
@@ -69,7 +69,7 @@ const ListarDepartamentos = () => {
     <div className="container mt-5 pt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Gestión de Departamentos</h2>
-        <Button variant="primary" onClick={() => navigate(CREAR_DEPARTAMENTO)}>
+        <Button variant="primary" size="md" onClick={() => navigate(CREAR_DEPARTAMENTO)}>
           + Crear Nuevo Departamento
         </Button>
       </div>
@@ -131,6 +131,17 @@ const ListarDepartamentos = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <div className="mt-4">
+        <Button 
+          variant="outline-secondary"
+          size="md"
+          onClick={() => navigate(PORTADA_ADMINISTRATIVO)}
+          title="Volver a la portada administrativa"
+        >
+          ← Volver
+        </Button>
+      </div>
     </div>
   );
 };

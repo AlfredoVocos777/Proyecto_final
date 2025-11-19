@@ -3,7 +3,7 @@ import { Table, Button, Modal, Alert, Spinner, Badge } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL_FIRMAS } from "../Constants/endpoints";
-import { CREAR_FIRMA } from "../Routers/router";
+import { CREAR_FIRMA, PORTADA_ADMINISTRATIVO } from "../Routers/router";
 
 const ListarFirmas = () => {
   const [firmas, setFirmas] = useState([]);
@@ -74,7 +74,7 @@ const ListarFirmas = () => {
     <div className="container mt-5 pt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Gestión de Firmas Digitales</h2>
-        <Button variant="primary" onClick={() => navigate(CREAR_FIRMA)}>
+        <Button variant="primary" size="md" onClick={() => navigate(CREAR_FIRMA)}>
           + Crear Nueva Firma
         </Button>
       </div>
@@ -150,6 +150,17 @@ const ListarFirmas = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <div className="mt-4">
+        <Button 
+          variant="outline-secondary"
+          size="md"
+          onClick={() => navigate(PORTADA_ADMINISTRATIVO)}
+          title="Volver a la portada administrativa"
+        >
+          ← Volver
+        </Button>
+      </div>
     </div>
   );
 };

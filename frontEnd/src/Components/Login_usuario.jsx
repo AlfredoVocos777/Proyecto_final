@@ -67,39 +67,30 @@ function Login_usuario() {
 
       // Redirigir después de 1.5 segundos para que se vea el mensaje
       setTimeout(() => {
-        // 4) Redirección según rol (tablas). Fallback a tipo_usuario.
+        // 4) Redirección según rol solamente
         const rolLower = (rolNombre || "").toLowerCase();
-        const tipoLower = (datosUsuario?.tipo_usuario || "").toLowerCase();
 
-        if (
-          ["administrativo", "admin ti"].includes(rolLower) ||
-          ["administrativo", "avanzado"].includes(tipoLower)
-        ) {
+        if (["administrativo", "admin ti"].includes(rolLower)) {
           userNavigate(PORTADA_ADMINISTRATIVO);
           return;
         }
 
-        // Redirección específica según rol
-        if (
-          ["técnico", "tecnico"].includes(rolLower) ||
-          tipoLower === "tecnico"
-        ) {
+        if (["técnico", "tecnico"].includes(rolLower)) {
           userNavigate(USUARIO_TECNICO);
           return;
         }
-        if (
-          ["jurídico", "juridico"].includes(rolLower) ||
-          tipoLower === "juridico"
-        ) {
+
+        if (["jurídico", "juridico"].includes(rolLower)) {
           userNavigate(USUARIO_JURIDICO);
           return;
         }
+
         if (rolLower === "director") {
           userNavigate(USUARIO_DIRECTOR);
           return;
         }
 
-        // Fallback a portada general
+        // Fallback a portada general (Presentante u otros)
         userNavigate(PORTADA);
       }, 1500);
     } catch (err) {

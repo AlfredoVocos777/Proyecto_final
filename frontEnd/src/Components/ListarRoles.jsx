@@ -3,7 +3,7 @@ import { Table, Button, Modal, Alert, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL_ROLES } from "../Constants/endpoints";
-import { CREAR_ROL } from "../Routers/router";
+import { CREAR_ROL, PORTADA_ADMINISTRATIVO } from "../Routers/router";
 
 const ListarRoles = () => {
   const [roles, setRoles] = useState([]);
@@ -11,6 +11,8 @@ const ListarRoles = () => {
   const [error, setError] = useState("");
   const [mostrarModal, setMostrarModal] = useState(false);
   const [rolAEliminar, setRolAEliminar] = useState(null);
+  const [mostrarPermisos, setMostrarPermisos] = useState(false);
+  const [rolPermisos, setRolPermisos] = useState(null);
   const navigate = useNavigate();
 
   const cargarRoles = async () => {
@@ -56,6 +58,16 @@ const ListarRoles = () => {
     setRolAEliminar(null);
   };
 
+  const verPermisos = (rol) => {
+    setRolPermisos(rol);
+    setMostrarPermisos(true);
+  };
+
+  const cerrarPermisos = () => {
+    setMostrarPermisos(false);
+    setRolPermisos(null);
+  };
+
   if (cargando) {
     return (
       <div className="text-center mt-5">
@@ -69,7 +81,7 @@ const ListarRoles = () => {
     <div className="container mt-5 pt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Gestión de Roles</h2>
-        <Button variant="primary" onClick={() => navigate(CREAR_ROL)}>
+        <Button variant="primary" size="md" onClick={() => navigate(CREAR_ROL)}>
           + Crear Nuevo Rol
         </Button>
       </div>
@@ -84,13 +96,14 @@ const ListarRoles = () => {
             <th>ID</th>
             <th>Nombre</th>
             <th>Descripción</th>
+            <th>Permisos</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {roles.length === 0 ? (
             <tr>
-              <td colSpan="4" className="text-center">
+              <td colSpan="5" className="text-center">
                 No hay roles registrados
               </td>
             </tr>
@@ -100,6 +113,15 @@ const ListarRoles = () => {
                 <td>{rol.id_rol}</td>
                 <td>{rol.nombre}</td>
                 <td>{rol.descripcion || "-"}</td>
+                <td className="text-center">
+                  <Button
+                    variant="info"
+                    size="sm"
+                    onClick={() => verPermisos(rol)}
+                  >
+                    Ver ({rol.permisos?.length || 0})
+                  </Button>
+                </td>
                 <td>
                   <Button
                     variant="danger"
@@ -116,7 +138,7 @@ const ListarRoles = () => {
       </Table>
       </div>
 
-      {/* Modal de confirmación */}
+      {/* Modal de confirmación de eliminación */}
       <Modal show={mostrarModal} onHide={cancelarEliminacion}>
         <Modal.Header closeButton>
           <Modal.Title>Confirmar Eliminación</Modal.Title>
@@ -135,6 +157,51 @@ const ListarRoles = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Modal de permisos */}
+      <Modal show={mostrarPermisos} onHide={cerrarPermisos} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Permisos del Rol: {rolPermisos?.nombre}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {rolPermisos?.permisos && rolPermisos.permisos.length > 0 ? (
+            <Table striped bordered size="sm">
+              <thead>
+                <tr>
+                  <th>Permiso</th>
+                  <th>Descripción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rolPermisos.permisos.map((p) => (
+                  <tr key={p.id_permiso}>
+                    <td><strong>{p.nombre}</strong></td>
+                    <td>{p.descripcion || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          ) : (
+            <p className="text-muted text-center">Este rol no tiene permisos asignados.</p>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={cerrarPermisos}>
+            Cerrar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <div className="mt-4">
+        <Button 
+          variant="outline-secondary"
+          size="md"
+          onClick={() => navigate(PORTADA_ADMINISTRATIVO)}
+          title="Volver a la portada administrativa"
+        >
+          ← Volver
+        </Button>
+      </div>
     </div>
   );
 };
