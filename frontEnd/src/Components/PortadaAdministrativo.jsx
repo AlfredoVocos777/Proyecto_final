@@ -45,6 +45,15 @@ const PortadaAdministrativo = () => {
 
         <div className="admin-card">
           <div className="admin-actions">
+            <button className="admin-btn primary" onClick={() => navigate(NUEVO_TRAMITE_DATOS)}>
+              Crear Nuevo Trámite
+            </button>
+            <button className="admin-btn info" onClick={() => navigate(CONSULTA_ADMIN)}>
+              Consultar y Asignar Expedientes
+            </button>
+            <button className="admin-btn success" onClick={() => navigate(LISTAR_USUARIOS)}>
+              Gestionar Usuarios
+            </button>
             <button className="admin-btn warn" onClick={() => navigate(LISTAR_ROLES)}>
               Gestionar Roles
             </button>
@@ -56,15 +65,6 @@ const PortadaAdministrativo = () => {
             </button>
             <button className="admin-btn dark" onClick={() => navigate(LISTAR_FIRMAS)}>
               Gestionar Firmas
-            </button>
-            <button className="admin-btn success" onClick={() => navigate(LISTAR_USUARIOS)}>
-              Gestionar Usuarios
-            </button>
-            <button className="admin-btn primary" onClick={() => navigate(NUEVO_TRAMITE_DATOS)}>
-              Crear Nuevo Trámite
-            </button>
-            <button className="admin-btn info" onClick={() => navigate(CONSULTA_ADMIN)}>
-              Consultar y Asignar Expedientes
             </button>
           </div>
         </div>

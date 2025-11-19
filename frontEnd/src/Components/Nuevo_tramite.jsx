@@ -8,6 +8,7 @@ import dniEjemplo from "../assets/dni-ejemplo.svg";
 import planoEjemplo from "../assets/plano-ejemplo.svg";
 import memoriaEjemplo from "../assets/memoria-ejemplo.svg";
 import tituloEjemplo from "../assets/titulo-ejemplo.svg";
+import notaElevacionEjemplo from "../assets/nota-elevacion-ejemplo.svg";
 import { URL_EXPEDIENTES, URL_SUBIR_DOCUMENTO } from "../Constants/endpoints";
 
 const NuevoTramite = () => {
@@ -236,6 +237,13 @@ const NuevoTramite = () => {
                 DNI del presentante (frente y dorso)
               </li>
               <li 
+                className={documentoSeleccionado === "nota" ? "documento-activo" : ""}
+                onClick={() => setDocumentoSeleccionado("nota")}
+                style={{ cursor: "pointer" }}
+              >
+                Nota de elevación (con firma y aclaración)
+              </li>
+              <li 
                 className={documentoSeleccionado === "plano" ? "documento-activo" : ""}
                 onClick={() => setDocumentoSeleccionado("plano")}
                 style={{ cursor: "pointer" }}
@@ -262,6 +270,9 @@ const NuevoTramite = () => {
             <div className="ejemploDocumento">
               {documentoSeleccionado === "dni" && (
                 <img src={dniEjemplo} alt="Ejemplo DNI" className="imagenEjemplo" />
+              )}
+              {documentoSeleccionado === "nota" && (
+                <img src={notaElevacionEjemplo} alt="Ejemplo Nota de Elevación" className="imagenEjemplo" />
               )}
               {documentoSeleccionado === "plano" && (
                 <img src={planoEjemplo} alt="Ejemplo Plano" className="imagenEjemplo" />
