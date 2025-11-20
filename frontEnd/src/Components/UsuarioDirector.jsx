@@ -99,7 +99,7 @@ export default function UsuarioDirector() {
                   const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
                   const recepcionado = historial.data.some(h => 
                     h.id_usuario_responsable === idUsuario && 
-                    (h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepción'))
+                    h.accion?.toLowerCase().includes('recepción')
                   );
                   return { ...exp, recepcionado };
                 } catch {
@@ -173,11 +173,9 @@ export default function UsuarioDirector() {
         const recepcionData = {
           id_expediente: idExpediente,
           id_usuario_responsable: usuarioLogueado.id_usuario,
-          accion: "Recepción por Dirección",
-          comentario: observacionesRecepcion || "Expediente recepcionado por el Director",
-          tipo_accion: "revisión"
+          comentario: observacionesRecepcion || "Expediente recepcionado por el Director"
         };
-        return axios.post(URL_HISTORIAL, recepcionData);
+        return axios.post(`${URL_HISTORIAL}/recepcionar`, recepcionData);
       });
 
       await Promise.all(promesas);
@@ -202,7 +200,7 @@ export default function UsuarioDirector() {
                     const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
                     const recepcionado = historial.data.some(h => 
                       h.id_usuario_responsable === usuarioLogueado.id_usuario && 
-                      (h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepción'))
+                      h.accion?.toLowerCase().includes('recepción')
                     );
                     return { ...exp, recepcionado };
                   } catch {

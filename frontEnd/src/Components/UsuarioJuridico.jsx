@@ -6,6 +6,7 @@ import { Modal, Button, Form, Alert } from "react-bootstrap";
 import "../CSS/UsuarioJuridico.css";
 
 export default function UsuarioJuridico() {
+  // Hooks principales
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [seccionActiva, setSeccionActiva] = useState("inicio");
@@ -13,23 +14,20 @@ export default function UsuarioJuridico() {
   const [loading, setLoading] = useState(true);
   const [expedientesPendientes, setExpedientesPendientes] = useState([]);
   const [loadingExpedientes, setLoadingExpedientes] = useState(false);
-  
-  // Estados para recepción
+  // Recepción
   const [expedientesSeleccionados, setExpedientesSeleccionados] = useState([]);
   const [showModalRecepcion, setShowModalRecepcion] = useState(false);
   const [observacionesRecepcion, setObservacionesRecepcion] = useState("");
   const [procesandoRecepcion, setProcesandoRecepcion] = useState(false);
   const [mensajeRecepcion, setMensajeRecepcion] = useState({ tipo: "", texto: "" });
-
-  // Estados para consulta de expediente
+  // Consulta
   const [showModalConsulta, setShowModalConsulta] = useState(false);
   const [numeroExpedienteConsulta, setNumeroExpedienteConsulta] = useState("");
   const [expedienteConsultado, setExpedienteConsultado] = useState(null);
   const [historialExpediente, setHistorialExpediente] = useState([]);
   const [loadingConsulta, setLoadingConsulta] = useState(false);
   const [mensajeConsulta, setMensajeConsulta] = useState({ tipo: "", texto: "" });
-
-  // Estados para subir documentación
+  // Documentación
   const [showModalDoc, setShowModalDoc] = useState(false);
   const [expedienteDoc, setExpedienteDoc] = useState(null);
   const [archivosStaged, setArchivosStaged] = useState([]);
@@ -38,6 +36,146 @@ export default function UsuarioJuridico() {
   const [mensajeDoc, setMensajeDoc] = useState({ tipo: "", texto: "" });
   const [documentosDoc, setDocumentosDoc] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  // Modal Ver
+  const [showModalVer, setShowModalVer] = useState(false);
+  const [expedienteVer, setExpedienteVer] = useState(null);
+  const [observacionVer, setObservacionVer] = useState("");
+  const [archivosVer, setArchivosVer] = useState([]);
+  const [subiendoVer, setSubiendoVer] = useState(false);
+  const [mensajeVer, setMensajeVer] = useState({ tipo: "", texto: "" });
+  // Pase
+  const [destinatarioPase, setDestinatarioPase] = useState("");
+  const [usuariosPase, setUsuariosPase] = useState([]);
+
+  // Obtener usuario actual desde localStorage
+  const usuarioActual = (() => {
+    try {
+      const raw = localStorage.getItem("usuarioLogueado");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  // Función para cargar usuarios director/técnico al abrir modal Ver
+  const abrirModalVer = async (exp) => {
+    setExpedienteVer(exp);
+    setShowModalVer(true);
+    setObservacionVer("");
+    setArchivosVer([]);
+    setMensajeVer({ tipo: "", texto: "" });
+    try {
+      const resp = await axios.get("http://localhost:8000/usuarios");
+      const lista = resp.data.filter(u => u.tipo_usuario === "director" || u.tipo_usuario === "técnico");
+      setUsuariosPase(lista);
+      setDestinatarioPase(lista[0]?.id_usuario || "");
+    } catch {
+      setUsuariosPase([]);
+      setDestinatarioPase("");
+    }
+  };
+  const cerrarModalVer = () => {
+    setShowModalVer(false);
+    setExpedienteVer(null);
+    setObservacionVer("");
+    setArchivosVer([]);
+    setMensajeVer({ tipo: "", texto: "" });
+  };
+  // Adjuntar archivos en modal Ver
+  const handleArchivosVer = (e) => {
+    setArchivosVer(Array.from(e.target.files));
+  };
+  // Guardar docs y observación solo al realizar el pase
+  const realizarPaseModal = async () => {
+    if (!destinatarioPase || !expedienteVer) return;
+    setSubiendoVer(true);
+    setMensajeVer({ tipo: '', texto: '' });
+    try {
+      // 1. Realizar el pase del expediente
+      await axios.post('http://localhost:8000/historial', {
+        id_expediente: expedienteVer.id_expediente ?? '',
+        id_usuario_responsable: destinatarioPase ?? '',
+        accion: 'Pase de expediente',
+        comentario: observacionVer ?? '',
+        tipo_accion: 'pase',
+        id_departamento: expedienteVer.id_departamento ?? null
+      });
+      // 2. Subir los archivos (si hay)
+      if (archivosVer.length > 0) {
+        const formData = new FormData();
+        archivosVer.forEach((file) => {
+          formData.append('files', file);
+        });
+        formData.append('id_expediente', expedienteVer.id_expediente);
+        formData.append('subido_por', usuarioActual.id_usuario);
+        await axios.post('http://localhost:8000/expedientes/documentos/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+      setMensajeVer({ tipo: 'success', texto: 'Pase realizado y documentos guardados.' });
+      setArchivosVer([]);
+      cerrarModalVer();
+      recargarExpedientes();
+    } catch (err) {
+      setMensajeVer({ tipo: 'danger', texto: 'Error al realizar el pase o guardar documentos.' });
+    }
+    setSubiendoVer(false);
+  };
+  // Actualizar expedientes tras pase
+  const recargarExpedientes = async () => {
+    const raw = localStorage.getItem("usuarioLogueado");
+    const user = raw ? JSON.parse(raw) : null;
+    const idUsuario = user?.id_usuario;
+    if (idUsuario) {
+      setLoadingExpedientes(true);
+      const res = await axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`);
+      const expedientes = res.data || [];
+      const expedientesConEstado = await Promise.all(
+        expedientes.map(async exp => {
+          try {
+            let datosExpediente = {};
+            try {
+              const expedienteResp = await axios.get(`${URL_EXPEDIENTES}/${exp.id_expediente}`);
+              datosExpediente = expedienteResp.data || {};
+            } catch (err) {}
+            const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
+            const recepcionPorUsuario = historial.data.find(h => h.id_usuario_responsable === idUsuario && h.accion?.toLowerCase().includes('recepción'));
+            const ultimaRecepcion = historial.data.filter(h => h.accion?.toLowerCase().includes('recepción')).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+            const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
+            return { ...exp, ...datosExpediente, recepcionado: !!recepcionPorUsuario, puedeHacerPase };
+          } catch {
+            return { ...exp, recepcionado: false, puedeHacerPase: false };
+          }
+        })
+      );
+      setExpedientesPendientes(expedientesConEstado);
+      setLoadingExpedientes(false);
+    }
+  };
+  // Función para realizar el pase al director
+  const realizarPase = async (exp) => {
+    try {
+      // Obtener usuario director
+      const usuariosResp = await axios.get("http://localhost:8000/usuarios");
+      const directores = usuariosResp.data.filter(u => u.tipo_usuario === "director");
+      if (directores.length === 0) {
+        alert("No hay usuario director disponible");
+        return;
+      }
+      const director = directores[0];
+      // Registrar pase en historial y asignar al director
+      await axios.post("http://localhost:8000/historial", {
+        id_expediente: exp.id_expediente,
+        id_usuario_responsable: director.id_usuario,
+        accion: "Pase a Director",
+        comentario: "Expediente enviado al director por área jurídica",
+        tipo_accion: "asignación"
+      });
+      alert("Pase realizado correctamente");
+    } catch (err) {
+      alert("Error al realizar el pase: " + (err.response?.data?.error || err.message));
+    }
+  };
 
   useEffect(() => {
     try {
@@ -69,21 +207,31 @@ export default function UsuarioJuridico() {
             const expedientesConEstado = await Promise.all(
               expedientes.map(async exp => {
                 try {
+                  // Obtener datos completos del expediente
+                  let datosExpediente = {};
+                  try {
+                    const expedienteResp = await axios.get(`${URL_EXPEDIENTES}/${exp.id_expediente}`);
+                    datosExpediente = expedienteResp.data || {};
+                  } catch (err) {
+                    console.error(`Error al obtener datos del expediente ${exp.id_expediente}:`, err);
+                  }
+
                   const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
                   
                   const recepcionPorUsuario = historial.data.find(h => 
                     h.id_usuario_responsable === idUsuario && 
-                    (h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepción'))
+                    h.accion?.toLowerCase().includes('recepción')
                   );
                   
                   const ultimaRecepcion = historial.data
-                    .filter(h => h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepción'))
-                    .sort((a, b) => new Date(b.fecha_accion) - new Date(a.fecha_accion))[0];
+                    .filter(h => h.accion?.toLowerCase().includes('recepción'))
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
                   
                   const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
                   
                   return { 
-                    ...exp, 
+                    ...exp,
+                    ...datosExpediente,
                     recepcionado: !!recepcionPorUsuario,
                     puedeHacerPase: puedeHacerPase 
                   };
@@ -158,11 +306,9 @@ export default function UsuarioJuridico() {
         const recepcionData = {
           id_expediente: idExpediente,
           id_usuario_responsable: usuarioLogueado.id_usuario,
-          accion: "Recepción jurídica de expediente",
-          comentario: observacionesRecepcion || "Expediente recepcionado por área jurídica",
-          tipo_accion: "revisión"
+          comentario: observacionesRecepcion || "Expediente recepcionado por área jurídica"
         };
-        return axios.post(URL_HISTORIAL, recepcionData);
+        return axios.post(`${URL_HISTORIAL}/recepcionar`, recepcionData);
       });
 
       await Promise.all(promesas);
@@ -172,47 +318,78 @@ export default function UsuarioJuridico() {
         texto: `${expedientesSeleccionados.length} expediente(s) recepcionado(s) exitosamente`
       });
 
+      // Pequeño delay para asegurar que la BD se actualizó
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Recargar expedientes
+      if (usuarioLogueado?.id_usuario) {
+        setLoadingExpedientes(true);
+        
+        const res = await axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`);
+        const expedientes = res.data || [];
+        console.log('📦 Expedientes del usuario:', expedientes);
+        
+        const expedientesConEstado = await Promise.all(
+          expedientes.map(async exp => {
+            try {
+              // Obtener datos completos del expediente
+              let datosExpediente = {};
+              try {
+                const expedienteResp = await axios.get(`${URL_EXPEDIENTES}/${exp.id_expediente}`);
+                datosExpediente = expedienteResp.data || {};
+              } catch (err) {
+                console.error(`Error al obtener datos del expediente ${exp.id_expediente}:`, err);
+              }
+
+              const historialResp = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
+              const historial = historialResp.data || [];
+              
+              console.log(`📋 Historial completo del expediente ${exp.numero_expediente}:`, historial);
+              console.log(`👤 ID Usuario actual: ${usuarioLogueado.id_usuario}`);
+              
+              // Buscar si este usuario recepcionó el expediente
+              const recepcionPorUsuario = historial.find(h => {
+                const esElUsuario = h.id_usuario_responsable === usuarioLogueado.id_usuario;
+                const esRecepcion = h.accion?.toLowerCase().includes('recepción');
+                console.log(`  Registro: usuario=${h.id_usuario_responsable}, accion="${h.accion}", esElUsuario=${esElUsuario}, esRecepcion=${esRecepcion}`);
+                return esElUsuario && esRecepcion;
+              });
+              
+              console.log(`✅ Recepción encontrada para exp ${exp.numero_expediente}:`, recepcionPorUsuario);
+              
+              const ultimaRecepcion = historial
+                .filter(h => h.accion?.toLowerCase().includes('recepción'))
+                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+              
+              const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === usuarioLogueado.id_usuario;
+              
+              const resultado = { 
+                ...exp,
+                ...datosExpediente,
+                recepcionado: !!recepcionPorUsuario,
+                puedeHacerPase: puedeHacerPase 
+              };
+              
+              console.log(`📊 Estado final exp ${exp.numero_expediente}:`, { recepcionado: resultado.recepcionado, puedeHacerPase: resultado.puedeHacerPase });
+              
+              return resultado;
+            } catch (err) {
+              console.error(`Error al procesar expediente ${exp.id_expediente}:`, err);
+              return { ...exp, recepcionado: false, puedeHacerPase: false };
+            }
+          })
+        );
+        
+        console.log('🔄 Expedientes actualizados completos:', expedientesConEstado);
+        setExpedientesPendientes(expedientesConEstado);
+        setLoadingExpedientes(false);
+      }
+
+      // Cerrar modal después de recargar
       setTimeout(() => {
         cerrarModalRecepcion();
         setExpedientesSeleccionados([]);
-        const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-        if (usuarioLogueado?.id_usuario) {
-          setLoadingExpedientes(true);
-          axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`)
-            .then(async res => {
-              const expedientes = res.data || [];
-              const expedientesConEstado = await Promise.all(
-                expedientes.map(async exp => {
-                  try {
-                    const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                    
-                    const recepcionPorUsuario = historial.data.find(h => 
-                      h.id_usuario_responsable === usuarioLogueado.id_usuario && 
-                      (h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepción'))
-                    );
-                    
-                    const ultimaRecepcion = historial.data
-                      .filter(h => h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepción'))
-                      .sort((a, b) => new Date(b.fecha_accion) - new Date(a.fecha_accion))[0];
-                    
-                    const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === usuarioLogueado.id_usuario;
-                    
-                    return { 
-                      ...exp, 
-                      recepcionado: !!recepcionPorUsuario,
-                      puedeHacerPase: puedeHacerPase 
-                    };
-                  } catch {
-                    return { ...exp, recepcionado: false, puedeHacerPase: false };
-                  }
-                })
-              );
-              setExpedientesPendientes(expedientesConEstado);
-            })
-            .catch(err => console.error("Error al recargar expedientes:", err))
-            .finally(() => setLoadingExpedientes(false));
-        }
-      }, 2000);
+      }, 1500);
     } catch (error) {
       console.error("Error al recepcionar:", error);
       setMensajeRecepcion({
@@ -283,10 +460,10 @@ export default function UsuarioJuridico() {
 
   // Menú específico para Usuario Jurídico
   const menuItems = [
+    { id: "bandeja-entrada", label: "Bandeja de Entrada", icon: "📥", permiso: "recepcion_pase" },
     { id: "realizar-pase", label: "Realizar Pase", icon: "➤", permiso: "realizar_pase" },
     { id: "deshacer-pase", label: "Deshacer Pase", icon: "↶", permiso: "deshacer_pase" },
     { id: "consultar-expediente", label: "Consultar Expediente", icon: "🔍", permiso: "consultar_expediente_detalle" },
-    { id: "recepcion-pase", label: "Recepción", icon: "📥", permiso: "recepcion_pase" },
     { id: "dictamen-legal", label: "Dictamen Legal", icon: "⚖️", permiso: "emitir_dictamen" },
     { id: "resoluciones", label: "Resoluciones", icon: "📜", permiso: "gestionar_resoluciones" },
     { id: "manual-usuario", label: "Manual de Usuario", icon: "📖", permiso: "ver_manual_usuario" },
@@ -304,12 +481,23 @@ export default function UsuarioJuridico() {
             <h1>Portal de Usuario Jurídico</h1>
             <p>Bienvenido al sistema de gestión de expedientes - Área Jurídica</p>
             
+            <Alert variant="info" className="mt-4">
+              <strong>📥 Bandeja de Entrada:</strong> Expedientes asignados pendientes de recepción.<br/>
+              <strong>➤ Realizar Pase:</strong> Expedientes recepcionados listos para su tratamiento.
+            </Alert>
+          </div>
+        );
+
+      case "bandeja-entrada":
+        return (
+          <div className="seccion-contenido">
+            <h2>📥 Bandeja de Entrada</h2>
+            <p>Expedientes asignados pendientes de recepción</p>
+            
             {loadingExpedientes ? (
               <p>Cargando expedientes...</p>
-            ) : expedientesPendientes.length > 0 ? (
+            ) : expedientesPendientes.filter(exp => !exp.recepcionado).length > 0 ? (
               <div className="expedientes-pendientes">
-                <h2>Expedientes con Pase Pendiente de Recepción</h2>
-                
                 <div className="acciones-seleccion">
                   <Button
                     variant="primary"
@@ -321,9 +509,8 @@ export default function UsuarioJuridico() {
                   <Button
                     variant="outline-secondary"
                     onClick={toggleSeleccionTodos}
-                    disabled={expedientesPendientes.filter(exp => !exp.recepcionado).length === 0}
                   >
-                    {expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length && expedientesPendientes.filter(exp => !exp.recepcionado).length > 0
+                    {expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length
                       ? "Deseleccionar Todos"
                       : "Seleccionar Todos"}
                   </Button>
@@ -336,70 +523,46 @@ export default function UsuarioJuridico() {
                         <th>
                           <input
                             type="checkbox"
-                            checked={
-                              expedientesPendientes.filter(exp => !exp.recepcionado).length > 0 &&
-                              expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length
-                            }
+                            checked={expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length}
                             onChange={toggleSeleccionTodos}
-                            disabled={expedientesPendientes.filter(exp => !exp.recepcionado).length === 0}
                           />
                         </th>
                         <th>Nº Expediente</th>
                         <th>Tipo</th>
                         <th>Estado</th>
-                        <th>Fecha Pase</th>
-                        <th>Desde</th>
-                        <th>Observaciones</th>
-                        <th>Acciones</th>
+                        <th>Fecha Asignación</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {expedientesPendientes.map(exp => (
-                        <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={expedientesSeleccionados.includes(exp.id_expediente)}
-                              onChange={() => toggleSeleccion(exp.id_expediente)}
-                              disabled={exp.recepcionado}
-                            />
-                          </td>
-                          <td>
-                            <strong>{exp.numero_expediente}</strong>
-                            {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
-                            {exp.recepcionado && !exp.puedeHacerPase && (
-                              <span className="badge bg-warning text-dark ms-2" title="Solo quien recepcionó puede hacer pases">
-                                🔒 Sin permiso de pase
+                      {expedientesPendientes
+                        .filter(exp => !exp.recepcionado)
+                        .map(exp => (
+                          <tr key={exp.id_expediente}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={expedientesSeleccionados.includes(exp.id_expediente)}
+                                onChange={() => toggleSeleccion(exp.id_expediente)}
+                              />
+                            </td>
+                            <td><strong>{exp.numero_expediente}</strong></td>
+                            <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
+                            <td>
+                              <span className={`badge-estado estado-${exp.estado_actual || exp.estado}`}>
+                                {exp.estado_actual || exp.estado || 'N/A'}
                               </span>
-                            )}
-                          </td>
-                          <td>{exp.tipo_tramite}</td>
-                          <td>
-                            <span className={`badge-estado estado-${exp.estado}`}>
-                              {exp.estado}
-                            </span>
-                          </td>
-                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                          <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                          <td>{exp.observaciones_pase || '-'}</td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-info"
-                              onClick={() => abrirModalDoc(exp)}
-                            >
-                              📄 Docs
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td>{new Date(exp.fecha_asignacion || exp.fecha_creacion).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
               </div>
             ) : (
-              <div className="sin-expedientes">
-                <p>No hay expedientes pendientes de recepción</p>
-              </div>
+              <Alert variant="success">
+                ✅ No hay expedientes pendientes de recepción. Todos los expedientes asignados han sido recepcionados.
+              </Alert>
             )}
           </div>
         );
@@ -421,7 +584,6 @@ export default function UsuarioJuridico() {
                       <tr>
                         <th>Nº Expediente</th>
                         <th>Tipo</th>
-                        <th>Estado</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
@@ -431,15 +593,10 @@ export default function UsuarioJuridico() {
                         .map(exp => (
                           <tr key={exp.id_expediente}>
                             <td><strong>{exp.numero_expediente}</strong></td>
-                            <td>{exp.tipo_tramite}</td>
+                            <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
                             <td>
-                              <span className={`badge-estado estado-${exp.estado}`}>
-                                {exp.estado}
-                              </span>
-                            </td>
-                            <td>
-                              <button className="btn btn-sm btn-primary">
-                                ➤ Realizar Pase
+                              <button className="btn btn-sm btn-info" onClick={() => abrirModalVer(exp)}>
+                                Ver
                               </button>
                             </td>
                           </tr>
@@ -560,7 +717,40 @@ export default function UsuarioJuridico() {
               {mensajeRecepcion.texto}
             </Alert>
           )}
-          <p><strong>Expedientes seleccionados:</strong> {expedientesSeleccionados.length}</p>
+          
+          <div className="mb-3">
+            <p><strong>Expedientes seleccionados:</strong> {expedientesSeleccionados.length}</p>
+            
+            {expedientesSeleccionados.length > 0 && (
+              <div className="tabla-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                <table className="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Nº Expediente</th>
+                      <th>Tipo</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expedientesPendientes
+                      .filter(exp => expedientesSeleccionados.includes(exp.id_expediente))
+                      .map(exp => (
+                        <tr key={exp.id_expediente}>
+                          <td><strong>{exp.numero_expediente}</strong></td>
+                          <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
+                          <td>
+                            <span className={`badge-estado estado-${exp.estado_actual || exp.estado}`}>
+                              {exp.estado_actual || exp.estado || 'N/A'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          
           <Form.Group className="mb-3">
             <Form.Label><strong>Observaciones Legales</strong></Form.Label>
             <Form.Control
@@ -781,6 +971,52 @@ export default function UsuarioJuridico() {
           >
             {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
           </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal Ver */}
+      <Modal show={showModalVer} onHide={cerrarModalVer} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Expediente: {expedienteVer?.numero_expediente}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {expedienteVer && (
+            <>
+              <p><strong>Tipo:</strong> {expedienteVer.tipo_expediente || expedienteVer.tipo_tramite || 'N/A'}</p>
+              <p><strong>Estado:</strong> {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}</p>
+              <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleDateString()}</p>
+              {/* Aquí podrías mostrar más datos si lo deseas */}
+              <hr />
+              <Form.Group controlId="formArchivosVer">
+                <Form.Label>Adjuntar Documentos</Form.Label>
+                <Form.Control type="file" multiple onChange={handleArchivosVer} />
+              </Form.Group>
+              <hr />
+              <h5>Observaciones</h5>
+              <Form.Group controlId="formObservacionVer">
+                <Form.Control as="textarea" rows={3} value={observacionVer} onChange={e => setObservacionVer(e.target.value)} placeholder="Escriba una observación..." />
+              </Form.Group>
+              <hr />
+              <h5>Realizar Pase</h5>
+              <Form.Group controlId="formDestinatarioPase">
+                <Form.Label>Destinatario</Form.Label>
+                <Form.Select value={destinatarioPase} onChange={e => setDestinatarioPase(e.target.value)}>
+                  {usuariosPase.map(u => (
+                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.tipo_usuario})</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+              <Button variant="primary" className="mt-2" onClick={realizarPaseModal} disabled={!destinatarioPase || subiendoVer}>
+                {subiendoVer ? "Procesando..." : "Realizar Pase"}
+              </Button>
+              {mensajeVer.texto && (
+                <Alert variant={mensajeVer.tipo} className="mt-3">{mensajeVer.texto}</Alert>
+              )}
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={cerrarModalVer}>Cerrar</Button>
         </Modal.Footer>
       </Modal>
     </div>

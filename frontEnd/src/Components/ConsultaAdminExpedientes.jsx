@@ -52,7 +52,67 @@ export default function ConsultaAdminExpedientes() {
     try {
       setLoading(true);
       const response = await axios.get(URL_EXPEDIENTES);
-      setExpedientes(response.data || []);
+      const expedientesData = response.data || [];
+      
+      // Obtener el último responsable de cada expediente desde el historial
+      const expedientesConResponsable = await Promise.all(
+        expedientesData.map(async (exp) => {
+          try {
+            const historialResp = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
+            const historial = historialResp.data || [];
+            
+            // Buscar la última recepción (identificada por la acción que contenga "recepción")
+            const ultimaRecepcion = historial.find(h => 
+              h.accion?.toLowerCase().includes('recepción')
+            );
+            
+            // Si no hay recepción, buscar la última asignación
+            const ultimaAsignacion = historial.find(h => 
+              h.tipo_accion === 'asignación' || h.accion?.toLowerCase().includes('asignación')
+            );
+            
+            let estadoRecepcion = 'sin_asignar';
+            let responsable = null;
+            let departamento = null;
+            
+            if (ultimaRecepcion) {
+              // Está recepcionado
+              estadoRecepcion = 'recepcionado';
+              responsable = {
+                nombre: ultimaRecepcion.usuario_nombre,
+                apellido: ultimaRecepcion.usuario_apellido
+              };
+              departamento = ultimaRecepcion.departamento_nombre;
+            } else if (ultimaAsignacion) {
+              // Está asignado pero no recepcionado
+              estadoRecepcion = 'pendiente_recepcion';
+              responsable = {
+                nombre: ultimaAsignacion.usuario_nombre,
+                apellido: ultimaAsignacion.usuario_apellido
+              };
+              departamento = ultimaAsignacion.departamento_nombre;
+            }
+            
+            return {
+              ...exp,
+              estado_recepcion: estadoRecepcion,
+              responsable_nombre: responsable?.nombre || null,
+              responsable_apellido: responsable?.apellido || null,
+              departamento: departamento
+            };
+          } catch (error) {
+            console.error(`Error al cargar historial de expediente ${exp.id_expediente}:`, error);
+            return { 
+              ...exp, 
+              estado_recepcion: 'sin_asignar',
+              responsable_nombre: null, 
+              responsable_apellido: null 
+            };
+          }
+        })
+      );
+      
+      setExpedientes(expedientesConResponsable);
     } catch (error) {
       console.error("Error al cargar expedientes:", error);
       setMensaje({ tipo: "danger", texto: "Error al cargar expedientes" });
@@ -255,12 +315,11 @@ export default function ConsultaAdminExpedientes() {
                 <tr>
                   <th>Nº Expediente</th>
                   <th>Tipo</th>
-                  <th>Descripción</th>
                   <th>Creado por</th>
                   <th>Estado</th>
                   <th>Prioridad</th>
                   <th>Fecha Creación</th>
-                  <th>Ubicación</th>
+                  <th>Recepcionado por</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -271,9 +330,6 @@ export default function ConsultaAdminExpedientes() {
                       <strong>{exp.numero_expediente}</strong>
                     </td>
                     <td>{exp.tipo_expediente || "N/A"}</td>
-                    <td className="descripcion-cell">
-                      {exp.descripcion || "Sin descripción"}
-                    </td>
                     <td>
                       {exp.usuario_nombre
                         ? `${exp.usuario_nombre} ${exp.usuario_apellido}`
@@ -290,7 +346,21 @@ export default function ConsultaAdminExpedientes() {
                       </span>
                     </td>
                     <td>{new Date(exp.fecha_creacion).toLocaleDateString()}</td>
-                    <td>{exp.ubicacion || "Sin especificar"}</td>
+                    <td>
+                      {exp.estado_recepcion === 'recepcionado' ? (
+                        <span style={{ color: '#28a745', fontWeight: 'bold' }}>
+                          {`${exp.responsable_nombre} ${exp.responsable_apellido}${exp.departamento ? ` (${exp.departamento})` : ''}`}
+                        </span>
+                      ) : exp.estado_recepcion === 'pendiente_recepcion' ? (
+                        <span style={{ color: '#ff9800', fontStyle: 'italic' }}>
+                          Pendiente de recepción
+                        </span>
+                      ) : (
+                        <span style={{ color: '#999', fontStyle: 'italic' }}>
+                          Sin asignar
+                        </span>
+                      )}
+                    </td>
                     <td className="acciones-cell">
                       <div
                         style={{

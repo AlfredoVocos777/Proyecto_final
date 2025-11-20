@@ -51,6 +51,9 @@ export const obtenerHistorialExpediente = (req, res) => {
   const sql = `
     SELECT 
       h.id_historial,
+      h.id_expediente,
+      h.id_usuario_responsable,
+      h.id_departamento,
       h.fecha,
       h.accion,
       h.comentario,
@@ -72,5 +75,47 @@ export const obtenerHistorialExpediente = (req, res) => {
     }
 
     res.json(results);
+  });
+};
+
+// Recepcionar un expediente asignado
+export const recepcionarExpediente = (req, res) => {
+  const {
+    id_expediente,
+    id_usuario_responsable,
+    comentario,
+    id_departamento
+  } = req.body;
+
+  // Validación básica
+  if (!id_expediente || !id_usuario_responsable) {
+    return res.status(400).json({ 
+      error: "Faltan datos requeridos: id_expediente e id_usuario_responsable" 
+    });
+  }
+
+  const historialData = {
+    id_expediente,
+    fecha: new Date(),
+    accion: "Recepción de expediente",
+    comentario: comentario || "Expediente recepcionado",
+    id_usuario_responsable,
+    id_departamento: id_departamento || null,
+    tipo_accion: "revisión"
+  };
+
+  const sql = "INSERT INTO historial_expediente SET ?";
+
+  connection.query(sql, historialData, (err, result) => {
+    if (err) {
+      console.error("❌ Error al recepcionar expediente:", err);
+      return res.status(500).json({ error: "Error al recepcionar el expediente" });
+    }
+
+    res.status(201).json({
+      mensaje: "Expediente recepcionado exitosamente",
+      id_historial: result.insertId,
+      recepcion: historialData
+    });
   });
 };
