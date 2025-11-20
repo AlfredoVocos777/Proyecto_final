@@ -1,12 +1,46 @@
 import connection from "../configDB/dataBase.js";
 
 export const listarRoles = (req, res) => {
-  connection.query("SELECT id_rol, nombre, descripcion FROM roles ORDER BY nombre ASC", (err, results) => {
+  // Primero obtener todos los roles
+  connection.query("SELECT id_rol, nombre, descripcion FROM roles ORDER BY nombre ASC", (err, roles) => {
     if (err) {
       console.error("Error al obtener roles:", err);
       return res.status(500).json({ error: "Error al obtener roles" });
     }
-    res.json(results);
+    
+    if (roles.length === 0) {
+      return res.json([]);
+    }
+    
+    // Para cada rol, obtener sus permisos
+    const rolesConPermisos = [];
+    let procesados = 0;
+    
+    roles.forEach((rol) => {
+      connection.query(
+        `SELECT p.id_permiso, p.nombre, p.descripcion 
+         FROM permisos p
+         INNER JOIN rol_permisos rp ON p.id_permiso = rp.id_permiso
+         WHERE rp.id_rol = ?`,
+        [rol.id_rol],
+        (errPermisos, permisos) => {
+          if (errPermisos) {
+            console.error("Error al obtener permisos:", errPermisos);
+            rol.permisos = [];
+          } else {
+            rol.permisos = permisos;
+          }
+          
+          rolesConPermisos.push(rol);
+          procesados++;
+          
+          // Cuando se procesaron todos, enviar respuesta
+          if (procesados === roles.length) {
+            res.json(rolesConPermisos);
+          }
+        }
+      );
+    });
   });
 };
 

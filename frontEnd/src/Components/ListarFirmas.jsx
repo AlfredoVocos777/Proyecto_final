@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Table, Button, Modal, Alert, Spinner, Badge } from "react-bootstrap";
+import { Table, Button, Modal, Alert, Spinner, Pagination, Badge } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL_FIRMAS } from "../Constants/endpoints";
-import { CREAR_FIRMA } from "../Routers/router";
+import { CREAR_FIRMA, PORTADA_ADMINISTRATIVO } from "../Routers/router";
 
 const ListarFirmas = () => {
   const [firmas, setFirmas] = useState([]);
@@ -11,6 +11,8 @@ const ListarFirmas = () => {
   const [error, setError] = useState("");
   const [mostrarModal, setMostrarModal] = useState(false);
   const [firmaAEliminar, setFirmaAEliminar] = useState(null);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const firmasPorPagina = 10;
   const navigate = useNavigate();
 
   const cargarFirmas = async () => {
@@ -74,7 +76,7 @@ const ListarFirmas = () => {
     <div className="container mt-5 pt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Gestión de Firmas Digitales</h2>
-        <Button variant="primary" onClick={() => navigate(CREAR_FIRMA)}>
+        <Button variant="primary" size="md" onClick={() => navigate(CREAR_FIRMA)}>
           + Crear Nueva Firma
         </Button>
       </div>
@@ -100,33 +102,67 @@ const ListarFirmas = () => {
               </td>
             </tr>
           ) : (
-            firmas.map((firma) => (
-              <tr key={firma.id_firma}>
-                <td>{firma.id_firma}</td>
-                <td>
-                  <div>
-                    <Badge bg="secondary">{firma.numero_expediente}</Badge>
-                    <br />
-                    <small className="text-muted">{firma.asunto}</small>
-                  </div>
-                </td>
-                <td>{firma.nombre_usuario || "-"}</td>
-                <td>{firma.metodo_firma || "-"}</td>
-                <td>{formatearFecha(firma.fecha_firma)}</td>
-                <td>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => confirmarEliminacion(firma)}
-                  >
-                    Eliminar
-                  </Button>
-                </td>
-              </tr>
-            ))
+            (() => {
+              const indiceInicio = (paginaActual - 1) * firmasPorPagina;
+              const indiceFin = indiceInicio + firmasPorPagina;
+              const firmasPagina = firmas.slice(indiceInicio, indiceFin);
+              
+              return firmasPagina.map((firma) => (
+                <tr key={firma.id_firma}>
+                  <td>{firma.id_firma}</td>
+                  <td>
+                    <div>
+                      <Badge bg="secondary">{firma.numero_expediente}</Badge>
+                      <br />
+                      <small className="text-muted">{firma.asunto}</small>
+                    </div>
+                  </td>
+                  <td>{firma.nombre_usuario || "-"}</td>
+                  <td>{firma.metodo_firma || "-"}</td>
+                  <td>{formatearFecha(firma.fecha_firma)}</td>
+                  <td>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => confirmarEliminacion(firma)}
+                    >
+                      Eliminar
+                    </Button>
+                  </td>
+                </tr>
+              ));
+            })()
           )}
         </tbody>
       </Table>
+
+      {firmas.length > firmasPorPagina && (
+        <div className="d-flex justify-content-center mt-3">
+          <Pagination>
+            <Pagination.First onClick={() => setPaginaActual(1)} disabled={paginaActual === 1} />
+            <Pagination.Prev onClick={() => setPaginaActual(paginaActual - 1)} disabled={paginaActual === 1} />
+            
+            {[...Array(Math.ceil(firmas.length / firmasPorPagina))].map((_, index) => (
+              <Pagination.Item
+                key={index + 1}
+                active={index + 1 === paginaActual}
+                onClick={() => setPaginaActual(index + 1)}
+              >
+                {index + 1}
+              </Pagination.Item>
+            ))}
+            
+            <Pagination.Next 
+              onClick={() => setPaginaActual(paginaActual + 1)} 
+              disabled={paginaActual === Math.ceil(firmas.length / firmasPorPagina)} 
+            />
+            <Pagination.Last 
+              onClick={() => setPaginaActual(Math.ceil(firmas.length / firmasPorPagina))} 
+              disabled={paginaActual === Math.ceil(firmas.length / firmasPorPagina)} 
+            />
+          </Pagination>
+        </div>
+      )}
 
       <Modal show={mostrarModal} onHide={cancelarEliminacion}>
         <Modal.Header closeButton>
@@ -150,6 +186,17 @@ const ListarFirmas = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <div className="mt-4">
+        <Button 
+          variant="outline-secondary"
+          size="md"
+          onClick={() => navigate(PORTADA_ADMINISTRATIVO)}
+          title="Volver a la portada administrativa"
+        >
+          ← Volver
+        </Button>
+      </div>
     </div>
   );
 };

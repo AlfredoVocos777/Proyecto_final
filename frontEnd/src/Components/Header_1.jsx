@@ -19,8 +19,8 @@ const Header_1 = () => {
         const nombre = [u?.nombre, u?.apellido].filter(Boolean).join(" ");
         const fallback = u?.usuario || "";
         setDisplayName(nombre || fallback);
-        // Priorizar tipo_usuario, luego rol
-        setRole(u?.tipo_usuario || u?.rol || "Usuario");
+        // Mostrar rol (prioridad a rol, no tipo_usuario)
+        setRole(u?.rol || "Usuario");
       }
     } catch (e) {
       // Ignorar errores de parseo

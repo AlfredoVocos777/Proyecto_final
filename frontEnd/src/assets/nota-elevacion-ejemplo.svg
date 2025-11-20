@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 510" width="600" height="510">
+  <!-- Fondo -->
+  <rect width="600" height="510" fill="#f8f9fa" stroke="#dee2e6" stroke-width="2"/>
+  
+  <!-- Título -->
+  <text x="300" y="30" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#495057">
+    Nota de Elevación
+  </text>
+  
+  <!-- Documento simulado -->
+  <g transform="translate(150, 60)">
+    <rect width="300" height="300" fill="#ffffff" stroke="#6f42c1" stroke-width="3" rx="8"/>
+    
+    <!-- Encabezado del documento -->
+    <rect x="15" y="15" width="270" height="25" fill="#e7d9f7" rx="3"/>
+    <text x="150" y="32" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#6f42c1">
+      NOTA DE ELEVACIÓN
+    </text>
+    
+    <!-- Contenido de la nota -->
+    <g transform="translate(20, 55)">
+      <!-- Fecha y lugar -->
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="10" fill="#495057">
+        Lugar y Fecha: ____________________
+      </text>
+      
+      <!-- Destinatario -->
+      <text x="0" y="20" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#495057">
+        Señor/a Director/a
+      </text>
+      <text x="0" y="32" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#495057">
+        Dirección Provincial del Agua
+      </text>
+      <text x="0" y="44" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#495057">
+        S ________ / ________ D
+      </text>
+      
+      <!-- Cuerpo de la nota -->
+      <text x="0" y="64" font-family="Arial, sans-serif" font-size="9" fill="#495057">
+        De mi/nuestra mayor consideración:
+      </text>
+      
+      <rect x="0" y="72" width="260" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="78" width="250" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="84" width="255" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="90" width="240" height="3" fill="#e9ecef" rx="1"/>
+      
+      <text x="0" y="103" font-family="Arial, sans-serif" font-size="9" fill="#495057">
+        Por la presente me dirijo a Ud. a fin de solicitar...
+      </text>
+      
+      <rect x="0" y="108" width="260" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="114" width="245" height="3" fill="#e9ecef" rx="1"/>
+      <rect x="0" y="120" width="250" height="3" fill="#e9ecef" rx="1"/>
+    </g>
+    
+    <!-- Sección de firma -->
+    <g transform="translate(20, 190)">
+      <text x="0" y="0" font-family="Arial, sans-serif" font-size="9" fill="#495057">
+        Sin otro particular, saludo a Ud. atentamente.
+      </text>
+      
+      <!-- Firma manuscrita simulada -->
+      <g transform="translate(160, 20)">
+        <path d="M 0 0 Q 10 -5, 20 0 T 40 5" stroke="#1e3a8a" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M 5 5 Q 15 10, 25 5 T 45 0" stroke="#1e3a8a" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </g>
+      
+      <!-- Línea para firma -->
+      <line x1="120" y1="35" x2="260" y2="35" stroke="#6c757d" stroke-width="1"/>
+      <text x="190" y="48" font-family="Arial, sans-serif" font-size="9" font-weight="bold" text-anchor="middle" fill="#6f42c1">
+        FIRMA
+      </text>
+      
+      <!-- Línea para aclaración -->
+      <line x1="120" y1="60" x2="260" y2="60" stroke="#6c757d" stroke-width="1"/>
+      <text x="190" y="73" font-family="Arial, sans-serif" font-size="9" font-weight="bold" text-anchor="middle" fill="#6f42c1">
+        ACLARACIÓN
+      </text>
+    </g>
+  </g>
+  
+  <!-- Instrucciones -->
+  <g transform="translate(0, 385)">
+    <text x="300" y="0" font-family="Arial, sans-serif" font-size="15" font-weight="bold" text-anchor="middle" fill="#212529">
+      La nota de elevación debe incluir:
+    </text>
+    
+    <g transform="translate(70, 25)">
+      <circle cx="0" cy="-3" r="4" fill="#6f42c1"/>
+      <text x="15" y="0" font-family="Arial, sans-serif" font-size="12" fill="#495057">
+        Lugar y fecha de emisión del documento
+      </text>
+    </g>
+    
+    <g transform="translate(70, 48)">
+      <circle cx="0" cy="-3" r="4" fill="#6f42c1"/>
+      <text x="15" y="0" font-family="Arial, sans-serif" font-size="12" fill="#495057">
+        Destinatario (Director/a de la Dirección Provincial del Agua)
+      </text>
+    </g>
+    
+    <g transform="translate(70, 71)">
+      <circle cx="0" cy="-3" r="4" fill="#6f42c1"/>
+      <text x="15" y="0" font-family="Arial, sans-serif" font-size="12" fill="#495057">
+        Motivo de la solicitud del trámite claramente explicado
+      </text>
+    </g>
+  </g>
+  
+  <!-- Nota importante destacada -->
+  <g transform="translate(40, 473)">
+    <rect x="0" y="0" width="520" height="22" fill="#fff3cd" stroke="#ffc107" stroke-width="2" rx="5"/>
+    <text x="260" y="15" font-family="Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#856404">
+      ⚠ IMPORTANTE: Debe contener FIRMA manuscrita y ACLARACIÓN del presentante
+    </text>
+  </g>
+</svg>

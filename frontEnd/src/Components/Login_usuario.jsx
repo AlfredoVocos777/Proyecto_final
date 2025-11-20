@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { URL_LOGIN, URL_ROLES } from "../Constants/endpoints";
 import { useNavigate } from "react-router-dom";
+import { Alert } from "react-bootstrap";
 //import { HOMEBOARD } from "../Routers/router";
 import { Link } from "react-router-dom"; /////////////////////para renderizar al Home
 
@@ -18,6 +19,7 @@ function Login_usuario() {
   const [usuario, setUsuario] = useState("");
   const [contraseña, setContraseña] = useState("");
   const [error, setError] = useState("");
+  const [exito, setExito] = useState(false);
 
   const userNavigate = useNavigate();
 
@@ -61,47 +63,41 @@ function Login_usuario() {
       };
       localStorage.setItem("usuarioLogueado", JSON.stringify(usuarioCompleto));
 
-      alert("Inicio de sesión exitoso");
+      setExito(true);
 
-      // 4) Redirección según rol (tablas). Fallback a tipo_usuario.
-      const rolLower = (rolNombre || "").toLowerCase();
-      const tipoLower = (datosUsuario?.tipo_usuario || "").toLowerCase();
+      // Redirigir después de 1.5 segundos para que se vea el mensaje
+      setTimeout(() => {
+        // 4) Redirección según rol solamente
+        const rolLower = (rolNombre || "").toLowerCase();
 
-      if (
-        ["administrativo", "admin ti"].includes(rolLower) ||
-        ["administrativo", "avanzado"].includes(tipoLower)
-      ) {
-        userNavigate(PORTADA_ADMINISTRATIVO);
-        return;
-      }
+        if (["administrativo", "admin ti"].includes(rolLower)) {
+          userNavigate(PORTADA_ADMINISTRATIVO);
+          return;
+        }
 
-      // Redirección específica según rol
-      if (
-        ["técnico", "tecnico"].includes(rolLower) ||
-        tipoLower === "tecnico"
-      ) {
-        userNavigate(USUARIO_TECNICO);
-        return;
-      }
-      if (
-        ["jurídico", "juridico"].includes(rolLower) ||
-        tipoLower === "juridico"
-      ) {
-        userNavigate(USUARIO_JURIDICO);
-        return;
-      }
-      if (rolLower === "director") {
-        userNavigate(USUARIO_DIRECTOR);
-        return;
-      }
+        if (["técnico", "tecnico"].includes(rolLower)) {
+          userNavigate(USUARIO_TECNICO);
+          return;
+        }
 
-      // Fallback a portada general
-      userNavigate(PORTADA);
+        if (["jurídico", "juridico"].includes(rolLower)) {
+          userNavigate(USUARIO_JURIDICO);
+          return;
+        }
+
+        if (rolLower === "director") {
+          userNavigate(USUARIO_DIRECTOR);
+          return;
+        }
+
+        // Fallback a portada general (Presentante u otros)
+        userNavigate(PORTADA);
+      }, 1500);
     } catch (err) {
       const msg =
         err.response?.data?.error || "Usuario o contraseña incorrectos";
       setError(msg);
-      alert(msg);
+      setExito(false);
     }
   };
   return (
@@ -129,7 +125,8 @@ function Login_usuario() {
       </p>
       <form className="login-form" onSubmit={manejarEnvio}>
         <h2>Iniciar sesión</h2>
-        {error && <div style={{ color: "red", marginBottom: 8 }}>{error}</div>}
+        {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
+        {exito && <Alert variant="success" className="mb-3">¡Inicio de sesión exitoso! Redirigiendo...</Alert>}
         <div>
           <input
             className="input-usuario"

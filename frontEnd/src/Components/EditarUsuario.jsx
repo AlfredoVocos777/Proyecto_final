@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import { URL_USUARIOS, URL_ROLES } from "../Constants/endpoints";
+import { URL_USUARIOS, URL_ROLES, URL_DEPARTAMENTOS } from "../Constants/endpoints";
 
 export default function EditarUsuario() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [roles, setRoles] = useState([]);
+  const [departamentos, setDepartamentos] = useState([]);
   const [form, setForm] = useState({
     nombre: "",
     apellido: "",
@@ -15,8 +16,8 @@ export default function EditarUsuario() {
     direccion: "",
     telefono: "",
     usuario: "",
-    tipo_usuario: "comun",
     id_rol: null,
+    id_departamento: null,
     contraseña: "",
   });
   const [loading, setLoading] = useState(true);
@@ -27,9 +28,10 @@ export default function EditarUsuario() {
     const load = async () => {
       try {
         setLoading(true);
-        const [uRes, rRes] = await Promise.all([
+        const [uRes, rRes, dRes] = await Promise.all([
           axios.get(`${URL_USUARIOS}/${id}`),
           axios.get(URL_ROLES),
+          axios.get(URL_DEPARTAMENTOS),
         ]);
         const u = uRes.data;
         setForm(f => ({
@@ -41,11 +43,12 @@ export default function EditarUsuario() {
           direccion: u.direccion || "",
           telefono: u.telefono || "",
           usuario: u.usuario || "",
-          tipo_usuario: (u.tipo_usuario || "comun").toLowerCase(),
           id_rol: u.id_rol || null,
+          id_departamento: u.id_departamento || null,
           contraseña: "",
         }));
         setRoles(rRes.data || []);
+        setDepartamentos(dRes.data || []);
         setError("");
       } catch (e) {
         console.error(e);
@@ -70,8 +73,8 @@ export default function EditarUsuario() {
       if (!payload.contraseña) delete payload.contraseña; // solo si quiere cambiarla
       await axios.put(`${URL_USUARIOS}/${id}`, payload);
       setOk("Usuario actualizado");
-      // opcional: volver al listado
-      // navigate('/GestionarUsuarios');
+      // Volver al listado después de 1 segundo
+      setTimeout(() => navigate('/GestionarUsuarios'), 1000);
     } catch (e) {
       console.error(e);
       setError("No se pudo actualizar el usuario");
@@ -118,13 +121,6 @@ export default function EditarUsuario() {
               <input className="form-input" name="usuario" value={form.usuario} onChange={onChange} />
             </div>
             <div>
-              <label>Tipo de usuario</label>
-              <select className="form-input" name="tipo_usuario" value={form.tipo_usuario} onChange={onChange}>
-                <option value="comun">Usuario común</option>
-                <option value="avanzado">Usuario avanzado</option>
-              </select>
-            </div>
-            <div>
               <label>Rol</label>
               <select className="form-input" name="id_rol" value={form.id_rol || ''} onChange={onChange}>
                 <option value="">(sin rol)</option>
@@ -133,6 +129,26 @@ export default function EditarUsuario() {
                 ))}
               </select>
             </div>
+            {/* Solo mostrar departamento si el rol NO es Presentante */}
+            {(() => {
+              const rolSeleccionado = roles.find(r => r.id_rol === parseInt(form.id_rol));
+              const esPresentante = rolSeleccionado?.nombre?.toLowerCase() === 'presentante';
+              
+              if (!esPresentante) {
+                return (
+                  <div>
+                    <label>Departamento</label>
+                    <select className="form-input" name="id_departamento" value={form.id_departamento || ''} onChange={onChange}>
+                      <option value="">Sin departamento</option>
+                      {departamentos.map(d => (
+                        <option key={d.id_departamento} value={d.id_departamento}>{d.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div>
               <label>Nueva contraseña (opcional)</label>
               <input className="form-input" name="contraseña" type="password" value={form.contraseña} onChange={onChange} />

@@ -77,7 +77,7 @@
   min-height: calc(100vh - 15px);
   width: 100%;
   background: var(--background-gradient);
-  margin-top: 15px;
+  margin-top: 100px; /* Espacio para el navbar */
   z-index: 1;
 }
 

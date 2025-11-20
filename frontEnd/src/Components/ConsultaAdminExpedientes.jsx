@@ -7,7 +7,7 @@ import {
   URL_HISTORIAL,
 } from "../Constants/endpoints";
 import { URL_DOCUMENTOS } from "../Constants/endpoints";
-import { Modal, Button, Form, Alert } from "react-bootstrap";
+import { Modal, Button, Form, Alert, Pagination } from "react-bootstrap";
 import "../CSS/Consulta.css";
 import { PORTADA_ADMINISTRATIVO } from "../Routers/router";
 import { URL_OBSERVACIONES } from "../Constants/endpoints";
@@ -54,7 +54,67 @@ export default function ConsultaAdminExpedientes() {
     try {
       setLoading(true);
       const response = await axios.get(URL_EXPEDIENTES);
-      setExpedientes(response.data || []);
+      const expedientesData = response.data || [];
+      
+      // Obtener el último responsable de cada expediente desde el historial
+      const expedientesConResponsable = await Promise.all(
+        expedientesData.map(async (exp) => {
+          try {
+            const historialResp = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
+            const historial = historialResp.data || [];
+            
+            // Buscar la última recepción (identificada por la acción que contenga "recepción")
+            const ultimaRecepcion = historial.find(h => 
+              h.accion?.toLowerCase().includes('recepción')
+            );
+            
+            // Si no hay recepción, buscar la última asignación
+            const ultimaAsignacion = historial.find(h => 
+              h.tipo_accion === 'asignación' || h.accion?.toLowerCase().includes('asignación')
+            );
+            
+            let estadoRecepcion = 'sin_asignar';
+            let responsable = null;
+            let departamento = null;
+            
+            if (ultimaRecepcion) {
+              // Está recepcionado
+              estadoRecepcion = 'recepcionado';
+              responsable = {
+                nombre: ultimaRecepcion.usuario_nombre,
+                apellido: ultimaRecepcion.usuario_apellido
+              };
+              departamento = ultimaRecepcion.departamento_nombre;
+            } else if (ultimaAsignacion) {
+              // Está asignado pero no recepcionado
+              estadoRecepcion = 'pendiente_recepcion';
+              responsable = {
+                nombre: ultimaAsignacion.usuario_nombre,
+                apellido: ultimaAsignacion.usuario_apellido
+              };
+              departamento = ultimaAsignacion.departamento_nombre;
+            }
+            
+            return {
+              ...exp,
+              estado_recepcion: estadoRecepcion,
+              responsable_nombre: responsable?.nombre || null,
+              responsable_apellido: responsable?.apellido || null,
+              departamento: departamento
+            };
+          } catch (error) {
+            console.error(`Error al cargar historial de expediente ${exp.id_expediente}:`, error);
+            return { 
+              ...exp, 
+              estado_recepcion: 'sin_asignar',
+              responsable_nombre: null, 
+              responsable_apellido: null 
+            };
+          }
+        })
+      );
+      
+      setExpedientes(expedientesConResponsable);
     } catch (error) {
       console.error("Error al cargar expedientes:", error);
       setMensaje({ tipo: "danger", texto: "Error al cargar expedientes" });
@@ -213,15 +273,10 @@ export default function ConsultaAdminExpedientes() {
   }
 
   // Calcular expedientes a mostrar según página actual
-  const indexUltimo = paginaActual * expedientesPorPagina;
-  const indexPrimero = indexUltimo - expedientesPorPagina;
-  const expedientesPaginados = expedientes.slice(indexPrimero, indexUltimo);
+  const indiceInicio = (paginaActual - 1) * expedientesPorPagina;
+  const indiceFin = indiceInicio + expedientesPorPagina;
+  const expedientesPaginados = expedientes.slice(indiceInicio, indiceFin);
   const totalPaginas = Math.ceil(expedientes.length / expedientesPorPagina);
-
-  const cambiarPagina = (numeroPagina) => {
-    setPaginaActual(numeroPagina);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   return (
     <div className="consulta-container">
@@ -256,26 +311,17 @@ export default function ConsultaAdminExpedientes() {
         </div>
       ) : (
         <>
-          <div className="info-paginacion mb-3">
-            <p>
-              Mostrando {indexPrimero + 1} a{" "}
-              {Math.min(indexUltimo, expedientes.length)} de{" "}
-              {expedientes.length} expedientes
-            </p>
-          </div>
-
           <div className="tabla-container">
             <table className="tabla-expedientes">
               <thead>
                 <tr>
                   <th>Nº Expediente</th>
                   <th>Tipo</th>
-                  <th>Descripción</th>
                   <th>Creado por</th>
                   <th>Estado</th>
                   <th>Prioridad</th>
                   <th>Fecha Creación</th>
-                  <th>Ubicación</th>
+                  <th>Recepcionado por</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -286,9 +332,6 @@ export default function ConsultaAdminExpedientes() {
                       <strong>{exp.numero_expediente}</strong>
                     </td>
                     <td>{exp.tipo_expediente || "N/A"}</td>
-                    <td className="descripcion-cell">
-                      {exp.descripcion || "Sin descripción"}
-                    </td>
                     <td>
                       {exp.usuario_nombre
                         ? `${exp.usuario_nombre} ${exp.usuario_apellido}`
@@ -305,7 +348,21 @@ export default function ConsultaAdminExpedientes() {
                       </span>
                     </td>
                     <td>{new Date(exp.fecha_creacion).toLocaleDateString()}</td>
-                    <td>{exp.ubicacion || "Sin especificar"}</td>
+                    <td>
+                      {exp.estado_recepcion === 'recepcionado' ? (
+                        <span style={{ color: '#28a745', fontWeight: 'bold' }}>
+                          {`${exp.responsable_nombre} ${exp.responsable_apellido}${exp.departamento ? ` (${exp.departamento})` : ''}`}
+                        </span>
+                      ) : exp.estado_recepcion === 'pendiente_recepcion' ? (
+                        <span style={{ color: '#ff9800', fontStyle: 'italic' }}>
+                          Pendiente de recepción
+                        </span>
+                      ) : (
+                        <span style={{ color: '#999', fontStyle: 'italic' }}>
+                          Sin asignar
+                        </span>
+                      )}
+                    </td>
                     <td className="acciones-cell">
                       <div
                         style={{
@@ -338,27 +395,31 @@ export default function ConsultaAdminExpedientes() {
           </div>
 
           {/* Controles de Paginación */}
-          {totalPaginas > 1 && (
-            <div className="paginacion-container mt-3">
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => cambiarPagina(paginaActual - 1)}
-                disabled={paginaActual === 1}
-              >
-                Anterior
-              </button>
-
-              <span className="paginacion-info mx-3">
-                Página {paginaActual} de {totalPaginas}
-              </span>
-
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => cambiarPagina(paginaActual + 1)}
-                disabled={paginaActual === totalPaginas}
-              >
-                Siguiente
-              </button>
+          {expedientes.length > expedientesPorPagina && (
+            <div className="d-flex justify-content-center mt-3">
+              <Pagination>
+                <Pagination.First onClick={() => setPaginaActual(1)} disabled={paginaActual === 1} />
+                <Pagination.Prev onClick={() => setPaginaActual(paginaActual - 1)} disabled={paginaActual === 1} />
+                
+                {[...Array(Math.ceil(expedientes.length / expedientesPorPagina))].map((_, index) => (
+                  <Pagination.Item
+                    key={index + 1}
+                    active={index + 1 === paginaActual}
+                    onClick={() => setPaginaActual(index + 1)}
+                  >
+                    {index + 1}
+                  </Pagination.Item>
+                ))}
+                
+                <Pagination.Next 
+                  onClick={() => setPaginaActual(paginaActual + 1)} 
+                  disabled={paginaActual === Math.ceil(expedientes.length / expedientesPorPagina)} 
+                />
+                <Pagination.Last 
+                  onClick={() => setPaginaActual(Math.ceil(expedientes.length / expedientesPorPagina))} 
+                  disabled={paginaActual === Math.ceil(expedientes.length / expedientesPorPagina)} 
+                />
+              </Pagination>
             </div>
           )}
         </>
