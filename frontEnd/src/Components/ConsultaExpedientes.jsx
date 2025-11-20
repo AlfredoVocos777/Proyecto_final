@@ -40,10 +40,11 @@ function ConsultaExpedientes() {
   const [filtroTipo, setFiltroTipo] = useState("");
 
   // estados de los roles
-  const [observacionesAdmin, setObservacionesAdmin] = useState("");
-  const [observacionesTecnico, setObservacionesTecnico] = useState("");
-  const [observacionesJuridico, setObservacionesJuridico] = useState("");
-  const [observacionesDirector, setObservacionesDirector] = useState("");
+  const [observacionesAdmin, setObservacionesAdmin] = useState([]);
+const [observacionesTecnico, setObservacionesTecnico] = useState([]);
+const [observacionesJuridico, setObservacionesJuridico] = useState([]);
+const [observacionesDirector, setObservacionesDirector] = useState([]);
+
 
   // nuevos estados para subir documentos en el modal ver
 
@@ -243,16 +244,16 @@ function ConsultaExpedientes() {
       const data = res.data;
 
       // Admin
-      setObservacionesAdmin(data.admin ? data.admin.observacion : "");
+      setObservacionesAdmin(data.Administrativo || [])
 
       // Técnico
-      setObservacionesTecnico(data.tecnico ? data.tecnico.observacion : "");
+      setObservacionesTecnico(data.Técnico || []);
 
       // Jurídico
-      setObservacionesJuridico(data.juridico ? data.juridico.observacion : "");
+      setObservacionesJuridico(data.Jurídico || []);
 
       // Director
-      setObservacionesDirector(data.director ? data.director.observacion : "");
+      ssetObservacionesDirector(data.Director || []);
     } catch (error) {
       console.error("Error al cargar observaciones", error);
     }
@@ -631,37 +632,38 @@ function ConsultaExpedientes() {
         <Modal.Body>
           {expedienteSeleccionado && (
             <Form onSubmit={actualizarExpediente}>
+
+
+              {/*------Datos generales del expediente---------- */}
+
               <div className="datos-grid">
                 <Form.Group>
                   <Form.Label>Expediente</Form.Label>
-                  <Form.Control
-                    value={expedienteSeleccionado.numero_expediente}
-                    disabled
-                  />
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.numero_expediente}
+                  </Form.Label>
                 </Form.Group>
+
 
                 <Form.Group>
                   <Form.Label>Fecha</Form.Label>
-                  <Form.Control
-                    value={expedienteSeleccionado.fecha_creacion}
-                    disabled
-                  />
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.fecha_creacion}
+                  </Form.Label>
                 </Form.Group>
 
                 <Form.Group>
                   <Form.Label>Usuario Presentante</Form.Label>
-                  <Form.Control
-                    value={expedienteSeleccionado.id_usuario_presentante}
-                    disabled
-                  />
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.id_usuario_presentante}
+                  </Form.Label>
                 </Form.Group>
 
                 <Form.Group>
                   <Form.Label>Estado</Form.Label>
-                  <Form.Control
-                    value={expedienteSeleccionado.estado_actual}
-                    disabled
-                  />
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.estado_actual}
+                  </Form.Label>
                 </Form.Group>
               </div>
 
@@ -670,56 +672,112 @@ function ConsultaExpedientes() {
               <div className="observaciones-box">
                 <h5>Observaciones</h5>
                 <div className="observacion-item">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Administrador</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={3}
-                      value={observacionesAdmin || ""}
-                      placeholder="Sin observaciones"
-                      disabled
-                    />
-                  </Form.Group>
+                  <h5>Administrativo</h5>
+                  
+                  <div className="observaciones-scroll">
+                    {observacionesAdmin.length > 0 ? (
+                      observacionesAdmin.map((obs, i) => (
+                        <Form.Control
+                          key={i}
+                          as="textarea"
+                          rows={3}
+                          className="mb-2"
+                          disabled
+                          value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
+                        />
+                      ))
+                    ) : (
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        disabled
+                        value="Sin observaciones"
+                      />
+                    )}
+                    </div>
                 </div>
 
-                <div className="observacion-item">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Técnico</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={3}
-                      value={observacionesTecnico || ""}
-                      placeholder="Sin observaciones"
-                      disabled
-                    />
-                  </Form.Group>
-                </div>
 
                 <div className="observacion-item">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Juridico</Form.Label>
+                  <h5>Técnico</h5>
+
+                  <div className="observaciones-scroll">
+                  {observacionesTecnico.length > 0 ? (
+                    observacionesTecnico.map((obs, i) => (
+                      <Form.Control
+                        key={i}
+                        as="textarea"
+                        rows={2}
+                        className="mb-2"
+                        disabled
+                        value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
+                      />
+                    ))
+                  ) : (
                     <Form.Control
                       as="textarea"
-                      rows={3}
-                      value={observacionesJuridico || ""}
-                      placeholder="Sin observaciones"
+                      rows={2}
                       disabled
+                      value="Sin observaciones"
                     />
-                  </Form.Group>
+                  )}
+                </div>
                 </div>
 
+
                 <div className="observacion-item">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Director</Form.Label>
+                  <h5>Jurídico</h5>
+
+                  <div className="observaciones-scroll">
+                  {observacionesJuridico.length > 0 ? (
+                    observacionesJuridico.map((obs, i) => (
+                      <Form.Control
+                        key={i}
+                        as="textarea"
+                        rows={2}
+                        className="mb-2"
+                        disabled
+                        value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
+                      />
+                    ))
+                  ) : (
                     <Form.Control
                       as="textarea"
-                      rows={3}
-                      value={observacionesDirector || ""}
-                      placeholder="Sin observaciones"
+                      rows={2}
                       disabled
+                      value="Sin observaciones"
                     />
-                  </Form.Group>
+                  )}
                 </div>
+                </div>
+
+
+                <div className="observacion-item">
+                <h5>Director</h5>
+                
+                <div className="observaciones-scroll">
+                {observacionesDirector.length > 0 ? (
+                  observacionesDirector.map((obs, i) => (
+                    <Form.Control
+                      key={i}
+                      as="textarea"
+                      rows={2}
+                      className="mb-2"
+                      disabled
+                      value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
+                    />
+                  ))
+                ) : (
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    disabled
+                    value="Sin observaciones"
+                  />
+                )}
+              </div>
+              </div>
+
               </div>
 
               {/*Agregar documentos en el modal ver*/}
@@ -769,16 +827,25 @@ function ConsultaExpedientes() {
                       </div>
                     )}
 
-                    {modalUploadedFiles.length > 0 && (
-                      <div>
-                        <h6>Archivos subidos:</h6>
-                        <ul>
-                          {modalUploadedFiles.map((f, i) => (
-                            <li key={i}>✓ {f.nombre}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    {modalUploadedFiles.map((f, i) => (
+                      <li
+                        key={i}
+                        className="d-flex align-items-center justify-content-between mb-2"
+                      >
+                        <span>✓ {f.nombre}</span>
+
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() =>
+                            window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank")
+                          }
+                        >
+                          Ver
+                        </Button>
+                      </li>
+                    ))}
+
                   </>
                 )}
               </div>

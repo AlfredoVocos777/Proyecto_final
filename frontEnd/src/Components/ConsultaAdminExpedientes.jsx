@@ -25,6 +25,8 @@ export default function ConsultaAdminExpedientes() {
   const [procesando, setProcesando] = useState(false);
   const [estadoNuevo, setEstadoNuevo] = useState("");
   const [observacionAdmin, setObservacionAdmin] = useState("");
+  const [errorObs, setErrorObs] = useState("");
+
 
   // Detalle de expediente
   const [showModalDetalle, setShowModalDetalle] = useState(false);
@@ -527,6 +529,8 @@ export default function ConsultaAdminExpedientes() {
 
               <div className="historial-expediente">
                 <h5 className="mb-3">📜 Historial de Acciones</h5>
+                <br />
+
                 {/*Observaciones grales*/}
 
                 <Form.Group className="mb-3">
@@ -537,36 +541,71 @@ export default function ConsultaAdminExpedientes() {
                     type="text"
                     placeholder="Escriba observaciones generales del expediente..."
                     value={observacionAdmin || ""}
-                    onChange={(e) => setObservacionAdmin(e.target.value)}
+                    onChange={(e) => {
+                      setObservacionAdmin(e.target.value);
+                      setErrorObs(""); // limpia error si empieza a escribir
+                    }}
+                    
+                    isInvalid={!!errorObs}
                     disabled={subiendoDoc}
                   />
+
+                  <Form.Control.Feedback type="invalid">
+                    {errorObs}
+                  </Form.Control.Feedback>
+
                   <Button
                     className="mt-2"
                     size="sm"
                     variant="primary"
                     onClick={async () => {
+
+                      if (!observacionAdmin.trim()) {
+                        setErrorObs("Debe escribir una observación antes de guardar.");
+                        return;
+                      }
+
                       if (!expedienteDetalle) return;
-                      const usuario = JSON.parse(
+                        const usuario = JSON.parse(
                         localStorage.getItem("usuarioLogueado")
                       );
                       try {
-                        await axios.post(`${URL_OBSERVACIONES}`, {
+                        await axios.post(URL_OBSERVACIONES, {
                           id_expediente: expedienteDetalle.id_expediente,
-                          id_usuario: usuario?.id_usuario,
+                          id_usuario: usuario.id_usuario,
                           observacion: observacionAdmin,
                         });
+
                         alert("Observación guardada ✅");
                         setObservacionAdmin(""); // opcional: limpiar input
+                        setErrorObs("");
+
                       } catch (err) {
                         console.error(err);
                         alert("No se pudo guardar la observación.");
+
                       }
+
+            
+                      console.log("Enviando observación:", {
+                      id_expediente: expedienteDetalle.id_expediente,
+                      id_usuario: usuario?.id_usuario,
+                      rol: usuario?.rol,
+                      observacion: observacionAdmin,
+                    });
+
+
                     }}
                   >
                     Guardar Observación
                   </Button>
                 </Form.Group>
-
+                
+                    <hr />
+                  <br />
+                  
+                  
+                  
                 {/* Carga de documentación */}
                 <div className="mb-3">
                   <div className="row g-2 align-items-end">

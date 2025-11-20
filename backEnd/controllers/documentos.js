@@ -218,3 +218,76 @@ export const registrarDocumentosEnBD = async (expedienteId, archivosTemporales) 
     
     return resultados;
 };
+
+
+// este codigo pertenece al modal ver de la consulta del presentante para subir y ver documentos
+// subir y registrar directamente en BD
+export const subirYRegistrar = async (req, res) => {
+    const { id_expediente, subido_por } = req.body;
+    const files = req.files || [];
+
+    if (!id_expediente)
+        return res.status(400).json({ error: 'Falta el id_expediente' });
+
+    if (!files.length)
+        return res.status(400).json({ error: 'No se subieron archivos' });
+
+    try {
+        const resultados = [];
+
+        for (const file of files) {
+            const documento = {
+                id_expediente,
+                nombre_archivo: file.originalname,
+                tipo: file.mimetype,
+                ruta_archivo: file.path,
+                fecha_subida: new Date(),
+                subido_por,
+                tamaño_archivo: file.size,
+                hash_integridad: null
+            };
+
+            const result = await new Promise((resolve, reject) => {
+                const sql = 'INSERT INTO Documentos SET ?';
+                connection.query(sql, documento, (err, result) => {
+                    if (err) return reject(err);
+                    resolve(result);
+                });
+            });
+
+            resultados.push({
+                id_documento: result.insertId,
+                nombre: documento.nombre_archivo
+            });
+        }
+
+        res.status(201).json({ resultados });
+
+    } catch (error) {
+        console.error("Error al subir y registrar documentos:", error);
+        res.status(500).json({ error: "Error al registrar los documentos en BD" });
+    }
+};
+
+
+// Ver un documento
+export const verDocumento = (req, res) => {
+    const { id_documento } = req.params;
+
+    const sql = 'SELECT ruta_archivo FROM Documentos WHERE id_documento = ?';
+
+    connection.query(sql, [id_documento], (err, results) => {
+        if (err) {
+            console.error("Error al buscar documento:", err);
+            return res.status(500).json({ error: "Error al buscar el documento" });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: "Documento no encontrado" });
+        }
+
+        const rutaArchivo = results[0].ruta_archivo;
+        res.sendFile(rutaArchivo);
+    });
+};
+

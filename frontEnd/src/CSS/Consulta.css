@@ -124,7 +124,7 @@
 }
 
 .modal-ver .modal-header {
-  background: linear-gradient(135deg, #3c7df0, #6ea8fe);
+  background: linear-gradient(135deg, #3c7df0, #8ebbff);
   color: white;
   padding: 18px 24px;
 }
@@ -155,18 +155,17 @@
   color: #333;
 }
 
-.modal-ver .form-control {
-  background: #ffffff;
-  border-radius: 10px;
-  border: 1px solid #d4d4d4;
-  padding: 10px 14px;
-  font-size: 0.95rem;
+
+.expediente-label {
+  display: block;
+  padding: 8px 12px;
+  background-color: #d5ebff; /* azul suave */
+  color: #004a80;
+  border-radius: 6px;
+  font-weight: bold;
 }
 
-.modal-ver .form-control:disabled {
-  background: #ececec;
-  color: #555;
-}
+
 
 /* ------------------------------ */
 /*     OBSERVACIONES POR ROL      */
@@ -315,3 +314,26 @@
   display: none !important;
 }
 
+
+
+/* barra de scroll para observaciones */
+
+.observaciones-scroll {
+  max-height: 180px; /* altura visible: 2 o 3 observaciones */
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+/* Opcional: mejorar diseño de scrollbar */
+.observaciones-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.observaciones-scroll::-webkit-scrollbar-thumb {
+  background: #c2c2c2;
+  border-radius: 4px;
+}
+
+.observaciones-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
