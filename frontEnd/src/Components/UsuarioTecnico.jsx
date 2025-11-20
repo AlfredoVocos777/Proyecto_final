@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS } from "../Constants/endpoints";
+import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS,URL_OBSERVACIONES } from "../Constants/endpoints";
 import { Modal, Button, Form, Alert } from "react-bootstrap";
 import "../CSS/UsuarioTecnico.css";
 
@@ -48,6 +48,10 @@ export default function UsuarioTecnico() {
   const [mensajeVer, setMensajeVer] = useState({ tipo: "", texto: "" });
   const [destinatarioPase, setDestinatarioPase] = useState("");
   const [usuariosPase, setUsuariosPase] = useState([]);
+
+  //observaciones generales modal ver
+  const [observacionTecnico, setObservacionTecnico] = useState("");
+  const [errorObs, setErrorObs] = useState("");
 
   useEffect(() => {
     try {
@@ -858,6 +862,82 @@ export default function UsuarioTecnico() {
               disabled={subiendoDoc}
             />
           </Form.Group>
+
+         
+                        {/*Observaciones grales*/}
+          
+                          <Form.Group className="mb-3">
+                            <Form.Label>
+                              <strong>Observaciones generales:</strong>
+                            </Form.Label>
+                            <Form.Control
+                              type="text"
+                              placeholder="Escriba observaciones generales del expediente..."
+                              value={observacionTecnico || ""}
+                              onChange={(e) => {
+                                setObservacionTecnico(e.target.value);
+                                setErrorObs(""); // limpia error si empieza a escribir
+                              }}
+                              
+                              isInvalid={!!errorObs}
+                              disabled={subiendoDoc}
+                            />
+          
+                            <Form.Control.Feedback type="invalid">
+                              {errorObs}
+                            </Form.Control.Feedback>
+          
+                            <Button
+                              className="mt-2"
+                              size="sm"
+                              variant="primary"
+                              onClick={async () => {
+          
+                                if (!observacionTecnico.trim()) {
+                                  setErrorObs("Debe escribir una observación antes de guardar.");
+                                  return;
+                                }
+          
+                                if (!expedienteDoc) return;
+                                  const usuario = JSON.parse(
+                                  localStorage.getItem("usuarioLogueado")
+                                );
+                                try {
+                                  await axios.post(URL_OBSERVACIONES, {
+                                    id_expediente: expedienteDoc.id_expediente,
+                                    id_usuario: usuario.id_usuario,
+                                    observacion: observacionTecnico,
+                                  });
+          
+                                  alert("Observación guardada ✅");
+                                  setObservacionTecnico(""); // opcional: limpiar input
+                                  setErrorObs("");
+          
+                                } catch (err) {
+                                  console.error(err);
+                                  alert("No se pudo guardar la observación.");
+          
+                                }
+          
+                      
+                                console.log("Enviando observación:", {
+                                id_expediente: expedienteDoc.id_expediente,
+                                id_usuario: usuario?.id_usuario,
+                                rol: usuario?.rol,
+                                observacion: observacionTecnico,
+                              });
+          
+          
+                              }}
+                            >
+                              Guardar Observación
+                            </Button>
+                          </Form.Group>
+                              <br />
+                              
+                              <br />
+
+                              {/*--------------------------------------*/}
 
           {loadingDocs ? (
             <p>Cargando documentos existentes...</p>
