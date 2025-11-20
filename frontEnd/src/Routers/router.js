@@ -22,3 +22,6 @@ export const USUARIO_JURIDICO = '/UsuarioJuridico';
 export const USUARIO_DIRECTOR = '/UsuarioDirector';
 export const CONSULTA_ADMIN = '/ConsultaAdminExpedientes';
 
+export const EXPEDIENTES_FINALIZADOS = '/ExpedientesFinalizados';
+export const EXPEDIENTES_ARCHIVADOS = '/ExpedientesArchivados';
+

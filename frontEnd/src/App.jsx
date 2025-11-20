@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import { LOGIN_USUARIO , REGISTRO_USUARIO, NUEVO_TRAMITE_DATOS, NUEVO_TRAMITE, PORTADA, PORTADA_ADMINISTRATIVO, CONSULTA, CONSULTA_ADMIN, NUEVO_TRAMITE_PAGO, NUEVO_TRAMITE_EXPEDIENTES, CREAR_ROL, CREAR_PERMISO, CREAR_DEPARTAMENTO, CREAR_FIRMA, LISTAR_ROLES, LISTAR_PERMISOS, LISTAR_DEPARTAMENTOS, LISTAR_FIRMAS, LISTAR_USUARIOS, EDITAR_USUARIO, USUARIO_TECNICO, USUARIO_JURIDICO, USUARIO_DIRECTOR} from "./Routers/router";
+import { LOGIN_USUARIO , REGISTRO_USUARIO, NUEVO_TRAMITE_DATOS, NUEVO_TRAMITE, PORTADA, PORTADA_ADMINISTRATIVO, CONSULTA, CONSULTA_ADMIN, NUEVO_TRAMITE_PAGO, NUEVO_TRAMITE_EXPEDIENTES, CREAR_ROL, CREAR_PERMISO, CREAR_DEPARTAMENTO, CREAR_FIRMA, LISTAR_ROLES, LISTAR_PERMISOS, LISTAR_DEPARTAMENTOS, LISTAR_FIRMAS, LISTAR_USUARIOS, EDITAR_USUARIO, USUARIO_TECNICO, USUARIO_JURIDICO, USUARIO_DIRECTOR, EXPEDIENTES_FINALIZADOS, EXPEDIENTES_ARCHIVADOS } from "./Routers/router";
 import LoginPage from "./Pages/LoginPage";
 import RegistroPage from "./Pages/RegistroPage";
 import PortadaPage from "./Pages/PortadaPage";
@@ -26,6 +26,8 @@ import UsuarioTecnicoPage from "./Pages/UsuarioTecnicoPage";
 import UsuarioJuridicoPage from "./Pages/UsuarioJuridicoPage";
 import UsuarioDirectorPage from "./Pages/UsuarioDirectorPage";
 import { RequireAdmin, RequireTecnico, RequireJuridico, RequireDirector } from "./Routers/guards";
+import ExpedientesFinalizadosPage from "./Pages/ExpedientesFinalizadosPage";
+import ExpedientesArchivadosPage from "./Pages/ExpedientesArchivadosPage";
 
 function App() {
   return (
@@ -45,6 +47,8 @@ function App() {
         />
         <Route path={CONSULTA} element={<ConsultaExpedientesPage />} />
         <Route path={CONSULTA_ADMIN} element={<RequireAdmin><ConsultaAdminExpedientesPage /></RequireAdmin>} />
+          <Route path={EXPEDIENTES_FINALIZADOS} element={<RequireAdmin><ExpedientesFinalizadosPage /></RequireAdmin>} />
+          <Route path={EXPEDIENTES_ARCHIVADOS} element={<RequireAdmin><ExpedientesArchivadosPage /></RequireAdmin>} />
   <Route path={CREAR_ROL} element={<RequireAdmin><CrearRolPage /></RequireAdmin>} />
   <Route path={CREAR_PERMISO} element={<RequireAdmin><CrearPermisoPage /></RequireAdmin>} />
   <Route path={CREAR_DEPARTAMENTO} element={<RequireAdmin><CrearDepartamentoPage /></RequireAdmin>} />

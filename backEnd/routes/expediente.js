@@ -5,11 +5,14 @@ import {
   obtenerExpedientePorId,
   actualizarExpediente,
   archivarExpediente,
-  obtenerPasesPorUsuario
+  obtenerPasesPorUsuario,
+  obtenerExpedientesFinalizados
 } from "../controllers/expediente.js";
 
 const router = express.Router();
 
+
+router.get("/finalizados", obtenerExpedientesFinalizados);
 router.get("/", obtenerExpediente);
 router.get("/:id", obtenerExpedientePorId);
 router.get("/pases/usuario/:id_usuario", obtenerPasesPorUsuario);
