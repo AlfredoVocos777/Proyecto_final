@@ -351,255 +351,203 @@ export default function UsuarioTecnico() {
     : menuItems;
 
   const renderContenido = () => {
-    switch (seccionActiva) {
-      case "inicio":
-        return (
-          <div className="seccion-contenido seccion-inicio">
-            <h1>Portal de Usuario Técnico</h1>
-            <p>Bienvenido al sistema de gestión de expedientes - Área Técnica</p>
-            
-            {loadingExpedientes ? (
-              <p>Cargando expedientes...</p>
-            ) : expedientesPendientes.length > 0 ? (
-              <div className="expedientes-pendientes">
-                <h2>Expedientes con Pase Pendiente de Recepción</h2>
-                
-                <div className="acciones-seleccion">
-                  <Button
-                    variant="primary"
-                    onClick={abrirModalRecepcion}
-                    disabled={expedientesSeleccionados.length === 0}
-                  >
-                    Recepcionar Seleccionados ({expedientesSeleccionados.length})
-                  </Button>
-                  <Button
-                    variant="outline-secondary"
-                    onClick={toggleSeleccionTodos}
-                    disabled={expedientesPendientes.filter(exp => !exp.recepcionado).length === 0}
-                  >
-                    {expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length && expedientesPendientes.filter(exp => !exp.recepcionado).length > 0
-                      ? "Deseleccionar Todos"
-                      : "Seleccionar Todos"}
-                  </Button>
-                </div>
-
-                <div className="tabla-container">
-                  <table className="tabla-expedientes">
-                    <thead>
-                      <tr>
-                        <th>
-                          <input
-                            type="checkbox"
-                            checked={
-                              expedientesPendientes.filter(exp => !exp.recepcionado).length > 0 &&
-                              expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length
-                            }
-                            onChange={toggleSeleccionTodos}
-                            disabled={expedientesPendientes.filter(exp => !exp.recepcionado).length === 0}
-                          />
-                        </th>
-                        <th>Nº Expediente</th>
-                        <th>Tipo</th>
-                        <th>Estado</th>
-                        <th>Fecha Pase</th>
-                        <th>Desde</th>
-                        <th>Observaciones</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expedientesPendientes.map(exp => (
-                        <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={expedientesSeleccionados.includes(exp.id_expediente)}
-                              onChange={() => toggleSeleccion(exp.id_expediente)}
-                              disabled={exp.recepcionado}
-                            />
-                          </td>
-                          <td>
-                            <strong>{exp.numero_expediente}</strong>
-                            {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
-                            {exp.recepcionado && !exp.puedeHacerPase && (
-                              <span className="badge bg-warning text-dark ms-2" title="Solo quien recepcionó puede hacer pases">
-                                🔒 Sin permiso de pase
-                              </span>
-                            )}
-                          </td>
-                          <td>{exp.tipo_tramite}</td>
-                          <td>
-                            <span className={`badge-estado estado-${exp.estado}`}>
-                              {exp.estado}
-                            </span>
-                          </td>
-                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                          <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                          <td>{exp.observaciones_pase || '-'}</td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-info"
-                              onClick={() => abrirModalDoc(exp)}
-                            >
-                              📄 Docs
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+  switch (seccionActiva) {
+    case "realizar-pase": {
+      // Mostrar expedientes recepcionados por el usuario técnico y que puede hacer pase
+      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      const expedientesMap = new Map();
+      for (const exp of expedientesPendientes) {
+        if (exp.recepcionado && exp.puedeHacerPase && exp.id_profesional_asignado === usuarioLogueado.id_usuario) {
+          expedientesMap.set(exp.id_expediente, exp);
+        }
+      }
+      const expedientesRecepcionados = Array.from(expedientesMap.values());
+      return (
+        <div className="seccion-contenido seccion-pase">
+          <h2>Realizar Pase de Expedientes</h2>
+          {expedientesRecepcionados.length === 0 ? (
+            <Alert variant="info">No tienes expedientes recepcionados para realizar pase.</Alert>
+          ) : (
+            <div className="tabla-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <table className="table table-sm table-bordered">
+                <thead>
+                  <tr>
+                    <th>Nº Expediente</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expedientesRecepcionados.map(exp => (
+                    <tr key={exp.id_expediente}>
+                      <td><strong>{exp.numero_expediente}</strong></td>
+                      <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
+                      <td>{exp.estado_actual || exp.estado || 'N/A'}</td>
+                      <td>
+                        <Button variant="primary" size="sm" onClick={() => { setExpedienteVer(exp); setShowModalVer(true); }}>
+                          Realizar Pase
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
+    case "inicio":
+    case "bandeja": {
+      // Mostrar solo el último registro por id_expediente, evitando duplicados y usando el id del usuario técnico
+      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      const expedientesMap = new Map();
+      for (const exp of expedientesPendientes) {
+        if (exp.id_profesional_asignado === usuarioLogueado.id_usuario && !exp.reenviado) {
+          expedientesMap.set(exp.id_expediente, exp);
+        }
+      }
+      const expedientesUnicos = Array.from(expedientesMap.values());
+      return (
+        <div className="seccion-contenido seccion-inicio">
+          <h1>Portal de Usuario Técnico</h1>
+          <p>Bienvenido al sistema de gestión de expedientes - Área Técnica</p>
+          {loadingExpedientes ? (
+            <p>Cargando expedientes...</p>
+          ) : expedientesUnicos.length > 0 ? (
+            <div className="expedientes-pendientes">
+              <h2>Bandeja de Entrada - Expedientes asignados</h2>
+              <div className="acciones-seleccion">
+                <Button
+                  variant="primary"
+                  onClick={abrirModalRecepcion}
+                  disabled={expedientesSeleccionados.length === 0}
+                >
+                  Recepcionar Seleccionados ({expedientesSeleccionados.length})
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  onClick={toggleSeleccionTodos}
+                  disabled={expedientesUnicos.filter(exp => !exp.recepcionado).length === 0}
+                >
+                  {expedientesSeleccionados.length === expedientesUnicos.filter(exp => !exp.recepcionado).length && expedientesUnicos.filter(exp => !exp.recepcionado).length > 0
+                    ? "Deseleccionar Todos"
+                    : "Seleccionar Todos"}
+                </Button>
               </div>
-            ) : (
-              <div className="sin-expedientes">
-                <p>No hay expedientes pendientes de recepción</p>
-              </div>
-            )}
-          </div>
-        );
-
-      case "realizar-pase":
-        return (
-          <div className="seccion-contenido">
-            <h2>Realizar Pase Técnico</h2>
-            <Alert variant="info" className="mb-3">
-              <strong>Importante:</strong> Solo puede realizar pases de expedientes que usted haya recepcionado previamente.
-            </Alert>
-            
-            {expedientesPendientes.filter(exp => exp.puedeHacerPase).length > 0 ? (
-              <>
-                <p>Expedientes disponibles para realizar pase:</p>
-                <div className="tabla-container">
-                  <table className="tabla-expedientes">
-                    <thead>
-                      <tr>
-                        <th>Nº Expediente</th>
-                        <th>Tipo</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expedientesPendientes
-                        .filter(exp => exp.puedeHacerPase)
-                        .map(exp => (
-                          <tr key={exp.id_expediente}>
-                            <td><strong>{exp.numero_expediente}</strong></td>
-                            <td>{exp.tipo_tramite}</td>
-                            <td>
-                              <span className={`badge-estado estado-${exp.estado}`}>
-                                {exp.estado}
-                              </span>
-                            </td>
-                            <td>
-                              <button className="btn btn-sm btn-primary">
-                                ➤ Realizar Pase
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <Alert variant="warning">
-                No tiene expedientes disponibles para realizar pases. Debe recepcionar expedientes primero.
-              </Alert>
-            )}
-          </div>
-        );
-
-      case "consultar-expediente":
-        return (
-          <div className="seccion-contenido">
-            <h2>Consultar Expediente</h2>
-            <Button variant="primary" onClick={abrirModalConsulta}>
-              🔍 Buscar Expediente
-            </Button>
-          </div>
-        );
-
-      case "recepcion-pase":
-        return (
-          <div className="seccion-contenido">
-            <h2>Recepción de Expedientes</h2>
-            <p>Gestione la recepción de expedientes asignados al área técnica.</p>
-          </div>
-        );
-
-      case "analisis-tecnico":
-        return (
-          <div className="seccion-contenido">
-            <h2>Análisis Técnico</h2>
-            <p>Realice análisis técnicos de los expedientes asignados.</p>
-          </div>
-        );
-
-      case "informes-tecnicos":
-        return (
-          <div className="seccion-contenido">
-            <h2>Informes Técnicos</h2>
-            <p>Genere y consulte informes técnicos de los expedientes.</p>
-          </div>
-        );
-
-      case "manual-usuario":
-        return (
-          <div className="seccion-contenido">
-            <h2>Manual de Usuario - Área Técnica</h2>
-            <p>Consulte la documentación y guías de uso del sistema para usuarios técnicos.</p>
-          </div>
-        );
-
-      case "bandeja":
-        return (
-          <div className="seccion-contenido">
-            <h2>Bandeja de Entrada</h2>
-            {loadingExpedientes ? (
-              <p>Cargando expedientes...</p>
-            ) : expedientesPendientes.length === 0 ? (
-              <Alert variant="info">No tienes expedientes pendientes.</Alert>
-            ) : (
-              <div className="tabla-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                <table className="table table-sm table-bordered">
+              <div className="tabla-container">
+                <table className="tabla-expedientes">
                   <thead>
                     <tr>
+                      <th>
+                        <input
+                          type="checkbox"
+                          checked={
+                            expedientesUnicos.filter(exp => !exp.recepcionado).length > 0 &&
+                            expedientesSeleccionados.length === expedientesUnicos.filter(exp => !exp.recepcionado).length
+                          }
+                          onChange={toggleSeleccionTodos}
+                          disabled={expedientesUnicos.filter(exp => !exp.recepcionado).length === 0}
+                        />
+                      </th>
                       <th>Nº Expediente</th>
                       <th>Tipo</th>
                       <th>Estado</th>
+                      <th>Fecha Pase</th>
+                      <th>Desde</th>
+                      <th>Observaciones</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {expedientesPendientes.map(exp => (
-                      <tr key={exp.id_expediente}>
-                        <td><strong>{exp.numero_expediente}</strong></td>
-                        <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
-                        <td>{exp.estado_actual || exp.estado || 'N/A'}</td>
+                    {expedientesUnicos.map(exp => (
+                      <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
                         <td>
-                          <Button variant="info" size="sm" onClick={() => abrirModalVer(exp)}>
-                            Ver
-                          </Button>
+                          <input
+                            type="checkbox"
+                            checked={expedientesSeleccionados.includes(exp.id_expediente)}
+                            onChange={() => toggleSeleccion(exp.id_expediente)}
+                            disabled={exp.recepcionado}
+                          />
+                        </td>
+                        <td>
+                          <strong>{exp.numero_expediente}</strong>
+                          {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
+                          {exp.recepcionado && !exp.puedeHacerPase && (
+                            <span className="badge bg-warning text-dark ms-2" title="Solo quien recepcionó puede hacer pases">
+                              🔒 Sin permiso de pase
+                            </span>
+                          )}
+                        </td>
+                        <td>{exp.tipo_tramite}</td>
+                        <td>
+                          <span className={`badge-estado estado-${exp.estado}`}>
+                            {exp.estado}
+                          </span>
+                        </td>
+                        <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
+                        <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
+                        <td>{exp.observaciones_pase || '-'}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-info"
+                            onClick={() => abrirModalDoc(exp)}
+                          >
+                            📄 Docs
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
-        );
-
-      default:
-        return (
-          <div className="seccion-contenido">
-            <h2>Sección en desarrollo</h2>
-            <p>Esta funcionalidad estará disponible próximamente.</p>
-          </div>
-        );
+            </div>
+          ) : (
+            <div className="sin-expedientes">
+              <p>No hay expedientes pendientes de recepción</p>
+            </div>
+          )}
+        </div>
+      );
     }
-  };
+    case "recepcion-pase":
+      return (
+        <div className="seccion-contenido">
+          <h2>Recepción de Expedientes</h2>
+          <p>Gestione la recepción de expedientes asignados al área técnica.</p>
+        </div>
+      );
+    case "analisis-tecnico":
+      return (
+        <div className="seccion-contenido">
+          <h2>Análisis Técnico</h2>
+          <p>Realice análisis técnicos de los expedientes asignados.</p>
+        </div>
+      );
+    case "informes-tecnicos":
+      return (
+        <div className="seccion-contenido">
+          <h2>Informes Técnicos</h2>
+          <p>Genere y consulte informes técnicos de los expedientes.</p>
+        </div>
+      );
+    case "manual-usuario":
+      return (
+        <div className="seccion-contenido">
+          <h2>Manual de Usuario - Área Técnica</h2>
+          <p>Consulte la documentación y guías de uso del sistema para usuarios técnicos.</p>
+        </div>
+      );
+    default:
+      return (
+        <div className="seccion-contenido">
+          <h2>Sección en desarrollo</h2>
+          <p>Esta funcionalidad estará disponible próximamente.</p>
+        </div>
+      );
+  }
+};
 
   // Función para cerrar el modal Ver
   const cerrarModalVer = () => {

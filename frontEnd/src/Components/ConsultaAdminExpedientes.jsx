@@ -15,6 +15,11 @@ import { URL_OBSERVACIONES } from "../Constants/endpoints";
 export default function ConsultaAdminExpedientes() {
   const navigate = useNavigate();
   const [expedientes, setExpedientes] = useState([]);
+  // Filtros de búsqueda
+  const [filtroNumero, setFiltroNumero] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroResponsable, setFiltroResponsable] = useState("");
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -295,6 +300,48 @@ export default function ConsultaAdminExpedientes() {
         usuarios técnicos, jurídicos o director
       </p>
 
+      {/* Filtros de búsqueda */}
+      <div className="filtros-consulta mb-3">
+        <Form className="row g-2">
+          <Form.Group className="col-md-3">
+            <Form.Label>Nº Expediente</Form.Label>
+            <Form.Control
+              type="text"
+              value={filtroNumero}
+              onChange={e => setFiltroNumero(e.target.value)}
+              placeholder="Buscar por número..."
+            />
+          </Form.Group>
+          <Form.Group className="col-md-3">
+            <Form.Label>Tipo</Form.Label>
+            <Form.Control
+              type="text"
+              value={filtroTipo}
+              onChange={e => setFiltroTipo(e.target.value)}
+              placeholder="Buscar por tipo..."
+            />
+          </Form.Group>
+          <Form.Group className="col-md-3">
+            <Form.Label>Estado</Form.Label>
+            <Form.Control
+              type="text"
+              value={filtroEstado}
+              onChange={e => setFiltroEstado(e.target.value)}
+              placeholder="Buscar por estado..."
+            />
+          </Form.Group>
+          <Form.Group className="col-md-3">
+            <Form.Label>Responsable</Form.Label>
+            <Form.Control
+              type="text"
+              value={filtroResponsable}
+              onChange={e => setFiltroResponsable(e.target.value)}
+              placeholder="Buscar por responsable..."
+            />
+          </Form.Group>
+        </Form>
+      </div>
+
       {mensaje.tipo && mensaje.texto && !showModal && (
         <Alert
           variant={mensaje.tipo}
@@ -326,7 +373,15 @@ export default function ConsultaAdminExpedientes() {
                 </tr>
               </thead>
               <tbody>
-                {expedientesPaginados.map((exp) => (
+                {expedientes
+                  .filter(exp =>
+                    (!filtroNumero || exp.numero_expediente?.toLowerCase().includes(filtroNumero.toLowerCase())) &&
+                    (!filtroTipo || exp.tipo_expediente?.toLowerCase().includes(filtroTipo.toLowerCase())) &&
+                    (!filtroEstado || exp.estado_actual?.toLowerCase().includes(filtroEstado.toLowerCase())) &&
+                    (!filtroResponsable || (`${exp.responsable_nombre || ""} ${exp.responsable_apellido || ""}`.toLowerCase().includes(filtroResponsable.toLowerCase())) )
+                  )
+                  .slice(indiceInicio, indiceFin)
+                  .map((exp) => (
                   <tr key={exp.id_expediente}>
                     <td>
                       <strong>{exp.numero_expediente}</strong>
@@ -400,7 +455,6 @@ export default function ConsultaAdminExpedientes() {
               <Pagination>
                 <Pagination.First onClick={() => setPaginaActual(1)} disabled={paginaActual === 1} />
                 <Pagination.Prev onClick={() => setPaginaActual(paginaActual - 1)} disabled={paginaActual === 1} />
-                
                 {[...Array(Math.ceil(expedientes.length / expedientesPorPagina))].map((_, index) => (
                   <Pagination.Item
                     key={index + 1}
@@ -410,7 +464,6 @@ export default function ConsultaAdminExpedientes() {
                     {index + 1}
                   </Pagination.Item>
                 ))}
-                
                 <Pagination.Next 
                   onClick={() => setPaginaActual(paginaActual + 1)} 
                   disabled={paginaActual === Math.ceil(expedientes.length / expedientesPorPagina)} 

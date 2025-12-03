@@ -25,6 +25,7 @@ export default function UsuarioDirector() {
   const [showModalConsulta, setShowModalConsulta] = useState(false);
   const [numeroExpedienteConsulta, setNumeroExpedienteConsulta] = useState("");
   const [expedienteConsultado, setExpedienteConsultado] = useState(null);
+  // Cambiar label y placeholder para reflejar búsqueda por ID
   const [historialExpediente, setHistorialExpediente] = useState([]);
   const [loadingConsulta, setLoadingConsulta] = useState(false);
   const [mensajeConsulta, setMensajeConsulta] = useState({ tipo: "", texto: "" });
@@ -322,18 +323,19 @@ export default function UsuarioDirector() {
       setSubiendoDoc(true);
       const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
       
-      for (const archivo of archivosRevision) {
-        const fd = new FormData();
-        fd.append('archivo', archivo);
-        fd.append('id_expediente', expedienteRevision.id_expediente);
-        fd.append('subido_por', user?.id_usuario);
-        if (comentarioDocRevision?.trim()) {
-          fd.append('comentario', comentarioDocRevision.trim());
-        }
-        await axios.post(URL_DOCUMENTOS, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+      // Subida múltiple: usar 'files' para todos los archivos y endpoint /upload
+      const fd = new FormData();
+      archivosRevision.forEach(archivo => {
+        fd.append('files', archivo);
+      });
+      fd.append('id_expediente', expedienteRevision.id_expediente);
+      fd.append('subido_por', user?.id_usuario);
+      if (comentarioDocRevision?.trim()) {
+        fd.append('comentario', comentarioDocRevision.trim());
       }
+      await axios.post(URL_DOCUMENTOS + '/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
       setMensajeRevision({
         tipo: "success",
@@ -397,41 +399,18 @@ export default function UsuarioDirector() {
 
       await axios.post(URL_HISTORIAL, historialData);
 
-      // TODO: Aquí se debe disparar notificación al usuario presentante
-      // Por ahora mostramos mensaje de éxito
       setMensajeRevision({
         tipo: "success",
         texto: `Expediente ${decisionTipo === "aprobar" ? "aprobado" : "rechazado"} exitosamente. Se notificará al usuario presentante.`
       });
-
       setTimeout(() => {
         cerrarModalRevision();
-        // Recargar expedientes
-        if (usuarioLogueado?.id_usuario) {
-          setLoadingExpedientes(true);
-          axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`)
-            .then(async res => {
-              const expedientes = res.data || [];
-              const expedientesConEstado = await Promise.all(
-                expedientes.map(async exp => {
-                  try {
-                    const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                    const recepcionado = historial.data.some(h => 
-                      h.id_usuario_responsable === usuarioLogueado.id_usuario && 
-                      (h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepción'))
-                    );
-                    return { ...exp, recepcionado };
-                  } catch {
-                    return { ...exp, recepcionado: false };
-                  }
-                })
-              );
-              setExpedientesPendientes(expedientesConEstado);
-            })
-            .catch(err => console.error("Error al recargar expedientes:", err))
-            .finally(() => setLoadingExpedientes(false));
+        if (decisionTipo === "aprobar") {
+          navigate("/ExpedientesFinalizados");
+        } else {
+          navigate("/ExpedientesArchivados");
         }
-      }, 2500);
+      }, 1800);
 
     } catch (error) {
       console.error("Error al procesar decisión:", error);
@@ -486,10 +465,10 @@ export default function UsuarioDirector() {
       formData.append("comentario", comentarioDoc || "Documento subido por el Director");
       
       archivosStaged.forEach(file => {
-        formData.append("documentos", file);
+        formData.append("files", file);
       });
 
-      await axios.post(URL_SUBIR_DOCUMENTO, formData, {
+      await axios.post(URL_SUBIR_DOCUMENTO + '/upload', formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
@@ -561,20 +540,19 @@ export default function UsuarioDirector() {
 
       await axios.post(URL_HISTORIAL, historialData);
 
+
       setMensajeDecision({
         tipo: "success",
         texto: `Expediente ${decisionTipo === "aprobar" ? "aprobado" : "rechazado"} exitosamente`
       });
-
       setTimeout(() => {
         cerrarModalDecision();
-        // Recargar expedientes
-        if (usuarioLogueado?.id_usuario) {
-          axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`)
-            .then(res => setExpedientesPendientes(res.data || []))
-            .catch(err => console.error("Error al recargar expedientes:", err));
+        if (decisionTipo === "aprobar") {
+          navigate("/ExpedientesFinalizados");
+        } else {
+          navigate("/ExpedientesArchivados");
         }
-      }, 2000);
+      }, 1800);
 
     } catch (error) {
       console.error("Error al procesar decisión:", error);
@@ -658,8 +636,10 @@ export default function UsuarioDirector() {
   // Menú específico para Usuario Director
   const menuItems = [
     { id: "consultar-expediente", label: "Consultar Expediente", icon: "🔍", permiso: "consultar_expediente_detalle" },
-    { id: "recepcion-pase", label: "Recepción", icon: "📥", permiso: "recepcion_pase" },
+    { id: "recepcionados", label: "Recepcionados", icon: "📥", permiso: "recepcion_pase" },
     { id: "aprobar-rechazar", label: "Aprobar/Rechazar", icon: "✓✗", permiso: "aprobar_rechazar" },
+    { id: "finalizados", label: "Finalizados", icon: "✅", permiso: "consultar_expediente_detalle" },
+    { id: "archivados", label: "Archivados", icon: "📦", permiso: "consultar_expediente_detalle" },
     { id: "firmar-documentos", label: "Firmar Documentos", icon: "✍️", permiso: "firmar_documentos" },
     { id: "reportes", label: "Reportes y Estadísticas", icon: "📊", permiso: "ver_reportes" },
     { id: "supervision-areas", label: "Supervisión de Áreas", icon: "👥", permiso: "supervisar_areas" },
@@ -667,80 +647,149 @@ export default function UsuarioDirector() {
   ];
 
   const menuFiltrado = permisosUsuario.length > 0
-    ? menuItems.filter(m => permisosUsuario.includes(m.permiso))
+    ? menuItems
     : menuItems;
 
   const renderContenido = () => {
-    switch (seccionActiva) {
-      case "inicio":
-        return (
-          <div className="seccion-contenido seccion-inicio">
-            <h1>Portal del Director</h1>
-            <p>Bienvenido al sistema de gestión de expedientes - Dirección Provincial del Agua</p>
-            
-            {loadingExpedientes ? (
-              <p>Cargando expedientes...</p>
-            ) : expedientesPendientes.length > 0 ? (
-              <div className="expedientes-pendientes">
-                <h2>Expedientes Pendientes de Revisión</h2>
+    // Redirección directa a las páginas de finalizados y archivados
+    if (seccionActiva === "finalizados") {
+      window.location.href = "/ExpedientesFinalizados";
+      return null;
+    }
+    if (seccionActiva === "archivados") {
+      window.location.href = "/ExpedientesArchivados";
+      return null;
+    }
 
-                <div className="tabla-container">
-                  <table className="tabla-expedientes">
-                    <thead>
-                      <tr>
-                        <th>Nº Expediente</th>
-                        <th>Tipo</th>
-                        <th>Descripción</th>
-                        <th>Estado</th>
-                        <th>Prioridad</th>
-                        <th>Fecha Pase</th>
-                        <th>Desde</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expedientesPendientes.map(exp => (
-                        <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
-                          <td>
-                            <strong>{exp.numero_expediente}</strong>
-                            {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
-                          </td>
-                          <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
-                          <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                          <td>
-                            <span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>
-                              {exp.estado || exp.estado_actual}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`badge badge-${exp.prioridad}`}>
-                              {exp.prioridad || 'normal'}
-                            </span>
-                          </td>
-                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                          <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => abrirModalRevisionCompleto(exp)}
-                              title="Revisar expediente completo"
-                            >
-                              📋 Revisar
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+    switch (seccionActiva) {
+      case "recepcionados":
+        // Mostrar expedientes ya recepcionados
+        const expedientesRecepcionados = expedientesPendientes.filter(e => e.recepcionado);
+        return (
+          <div className="seccion-contenido">
+            <h2>Expedientes Recepcionados</h2>
+            {expedientesRecepcionados.length === 0 ? (
+              <p>No hay expedientes recepcionados.</p>
             ) : (
-              <div className="sin-expedientes">
-                <p>No hay expedientes pendientes de revisión</p>
+              <div className="tabla-container">
+                <table className="tabla-expedientes">
+                  <thead>
+                    <tr>
+                      <th>Nº Expediente</th>
+                      <th>Tipo</th>
+                      <th>Descripción</th>
+                      <th>Estado</th>
+                      <th>Prioridad</th>
+                      <th>Fecha Pase</th>
+                      <th>Desde</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expedientesRecepcionados.map((exp, idx) => (
+                      <tr key={`exp-rev-${exp.id_expediente}-${idx}`} style={{ opacity: 0.8 }}>
+                        <td><strong>{exp.numero_expediente}</strong></td>
+                        <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
+                        <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                        <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
+                        <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
+                        <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
+                        <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => abrirModalRevisionCompleto(exp)}
+                            title="Revisar expediente completo"
+                          >
+                            📋 Revisar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
         );
+      case "inicio":
+        // Panel doble: Recepcionar y Revisar
+        // Evitar duplicados por id_expediente
+        const seen = new Set();
+        const expedientesPorRecepcionar = expedientesPendientes.filter(e => {
+          if (!e.recepcionado && !seen.has(e.id_expediente)) {
+            seen.add(e.id_expediente);
+            return true;
+          }
+          return false;
+        });
+        return (
+          <div className="seccion-contenido seccion-inicio">
+            <h1>Portal del Director</h1>
+            <p>Bienvenido al sistema de gestión de expedientes - Dirección Provincial del Agua</p>
+            {loadingExpedientes ? (
+              <p>Cargando expedientes...</p>
+            ) : (
+              <div className="expedientes-por-recepcionar">
+                <h2>Expedientes para Recepcionar</h2>
+                {expedientesPorRecepcionar.length === 0 ? (
+                  <p>No hay expedientes para recepcionar</p>
+                ) : (
+                  <div className="tabla-container">
+                    <table className="tabla-expedientes">
+                      <thead>
+                        <tr>
+                          <th>Nº Expediente</th>
+                          <th>Tipo</th>
+                          <th>Descripción</th>
+                          <th>Estado</th>
+                          <th>Prioridad</th>
+                          <th>Fecha Pase</th>
+                          <th>Desde</th>
+                          <th>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {expedientesPorRecepcionar.map((exp, idx) => (
+                          <tr key={`exp-rec-${exp.id_expediente}-${idx}`}>
+                            <td><strong>{exp.numero_expediente}</strong></td>
+                            <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
+                            <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                            <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
+                            <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
+                            <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
+                            <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
+                            <td>
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() => abrirModalRecepcionDirecta(exp)}
+                                title="Recepcionar expediente"
+                              >
+                                📥 Recepción
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ marginTop: 32, textAlign: "center" }}>
+              <button className="btn btn-secondary" onClick={() => window.history.back()}>
+                Volver
+              </button>
+            </div>
+          </div>
+        );
+  // Función para recepcionar directamente desde el panel
+  const abrirModalRecepcionDirecta = (expediente) => {
+    setExpedientesSeleccionados([expediente.id_expediente]);
+    setShowModalRecepcion(true);
+    setObservacionesRecepcion("");
+    setMensajeRecepcion({ tipo: "", texto: "" });
+  };
 
       case "consultar-expediente":
         return (
@@ -999,8 +1048,8 @@ export default function UsuarioDirector() {
                   </tr>
                 </thead>
                 <tbody>
-                  {documentosDoc.map(doc => (
-                    <tr key={doc.id_documento}>
+                  {documentosDoc.map((doc, idx) => (
+                    <tr key={`doc-${doc.id_documento || idx}`}>
                       <td title={doc.nombre_archivo}>{doc.nombre_archivo}</td>
                       <td>{doc.tipo}</td>
                       <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
@@ -1064,20 +1113,16 @@ export default function UsuarioDirector() {
                 setMensajeDoc({ tipo: "", texto: "" });
                 const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
                 let ok = 0, fail = 0;
-                for (const f of archivosStaged) {
-                  try {
-                    const fd = new FormData();
-                    fd.append('archivo', f);
-                    fd.append('id_expediente', expedienteDoc.id_expediente);
-                    fd.append('subido_por', user?.id_usuario);
-                    if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
-                    await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                    ok++;
-                  } catch (e) {
-                    console.error('Falló subida de', f.name, e);
-                    fail++;
-                  }
-                }
+                // Subida múltiple: usar 'files' y endpoint /upload
+                const fd = new FormData();
+                archivosStaged.forEach(f => {
+                  fd.append('files', f);
+                });
+                fd.append('id_expediente', expedienteDoc.id_expediente);
+                fd.append('subido_por', user?.id_usuario);
+                if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
+                await axios.post(URL_DOCUMENTOS + '/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                ok = archivosStaged.length;
                 const msg = fail === 0
                   ? `Se subieron ${ok} archivo(s)`
                   : `Subidos ${ok}, fallidos ${fail}`;
@@ -1243,8 +1288,8 @@ export default function UsuarioDirector() {
                         </tr>
                       </thead>
                       <tbody>
-                        {documentosRevision.map(doc => (
-                          <tr key={doc.id_documento}>
+                        {documentosRevision.map((doc, idx) => (
+                          <tr key={`revdoc-${doc.id_documento || idx}`}>
                             <td>{doc.nombre_archivo}</td>
                             <td>{doc.tipo}</td>
                             <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
@@ -1283,7 +1328,7 @@ export default function UsuarioDirector() {
                       </thead>
                       <tbody>
                         {historialRevision.map((h, idx) => (
-                          <tr key={idx}>
+                          <tr key={`histrev-${h.id_historial || idx}`}>
                             <td>{new Date(h.fecha_accion).toLocaleString()}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>

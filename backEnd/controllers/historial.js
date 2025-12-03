@@ -36,6 +36,20 @@ export const crearAsignacion = (req, res) => {
       return res.status(500).json({ error: "Error al crear la asignación" });
     }
 
+    // Actualizar el campo id_profesional_asignado en la tabla expedientes
+    if (tipo_accion === "asignación") {
+      connection.query(
+        "UPDATE expedientes SET id_profesional_asignado = ? WHERE id_expediente = ?",
+        [id_usuario_responsable, id_expediente],
+        (err2) => {
+          if (err2) {
+            console.error("❌ Error al actualizar id_profesional_asignado:", err2);
+            // No se retorna error para no interrumpir la asignación
+          }
+        }
+      );
+    }
+
     res.status(201).json({
       mensaje: "Asignación creada exitosamente",
       id_historial: result.insertId,

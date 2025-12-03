@@ -213,32 +213,37 @@ export const obtenerExpedientesFinalizados = (req, res) => {
   });
 };
 export const obtenerPasesPorUsuario = (req, res) => {
-  const { id_usuario } = req.params;
 
+  const { id_usuario } = req.params;
+  // Selecciona solo el último pase de cada expediente y agrega el campo ultimo_destino
   const sql = `
-    SELECT 
-      h.id_historial AS id_pase,
-      h.fecha AS fecha_pase,
-      h.comentario AS observaciones,
-      e.id_expediente,
-      e.numero_expediente,
-      e.tipo_expediente,
-      e.descripcion,
-      e.estado_actual,
-      e.prioridad,
-      e.fecha_creacion,
-      e.id_profesional_asignado,
-      u.nombre AS nombre_asignado,
-      u.apellido AS apellido_asignado,
-      d.nombre AS departamento_actual
-    FROM historial_expediente h
-    INNER JOIN expedientes e ON h.id_expediente = e.id_expediente
+    SELECT h1.id_historial AS id_pase,
+           h1.fecha AS fecha_pase,
+           h1.comentario AS observaciones,
+           e.id_expediente,
+           e.numero_expediente,
+           e.tipo_expediente,
+           e.descripcion,
+           e.estado_actual,
+           e.prioridad,
+           e.fecha_creacion,
+           e.id_profesional_asignado,
+           u.nombre AS nombre_asignado,
+           u.apellido AS apellido_asignado,
+           d.nombre AS departamento_actual,
+           h1.id_usuario_responsable AS ultimo_destino
+    FROM historial_expediente h1
+    INNER JOIN expedientes e ON h1.id_expediente = e.id_expediente
     LEFT JOIN usuario u ON e.id_profesional_asignado = u.id_usuario
-    LEFT JOIN departamentos d ON h.id_departamento = d.id_departamento
-    WHERE h.id_usuario_responsable = ? 
-      AND h.tipo_accion = 'asignación'
+    LEFT JOIN departamentos d ON h1.id_departamento = d.id_departamento
+    INNER JOIN (
+      SELECT id_expediente, MAX(fecha) AS max_fecha
+      FROM historial_expediente
+      GROUP BY id_expediente
+    ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
+    WHERE h1.id_usuario_responsable = ?
       AND e.estado_actual IN ('en revisión', 'aprobado')
-    ORDER BY h.fecha DESC
+    ORDER BY h1.fecha DESC
   `;
 
   connection.query(sql, [id_usuario], (err, results) => {
@@ -246,6 +251,11 @@ export const obtenerPasesPorUsuario = (req, res) => {
       console.error("❌ Error al obtener pases del usuario:", err);
       return res.status(500).json({ error: "Error al obtener pases del usuario" });
     }
-    res.json(results);
+    // Para compatibilidad con el frontend, devolver ultimo_destino como string (puede ser id o nombre)
+    const resultsConDestino = results.map(r => ({
+      ...r,
+      ultimo_destino: r.ultimo_destino // id_usuario_responsable del último pase
+    }));
+    res.json(resultsConDestino);
   });
 };

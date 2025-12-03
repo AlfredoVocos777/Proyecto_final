@@ -65,66 +65,63 @@ const ExpedientesFinalizados = () => {
           ) : error ? (
             <p style={{ color: "red" }}>Error: {error}</p>
           ) : (
-            <table className="expedientes-table">
-              <thead>
-                <tr>
-                  <th>N° Expediente</th>
-                  <th>Tipo</th>
-                  <th>Descripción</th>
-                  <th>Presentante</th>
-                  <th>Fecha</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(expedientes.length === 0
-                  ? [
-                      {
-                        id_expediente: 1,
-                        numero_expediente: "2025/0001",
-                        tipo_expediente: "Permiso de obra",
-                        descripcion: "Solicitud de permiso para obra hidráulica.",
-                        usuario_nombre: "Juan",
-                        usuario_apellido: "Pérez",
-                        fecha_creacion: new Date("2025-11-01"),
-                        estado_actual: "aprobado"
-                      },
-                      {
-                        id_expediente: 2,
-                        numero_expediente: "2025/0002",
-                        tipo_expediente: "Reclamo",
-                        descripcion: "Reclamo por inundación en barrio norte.",
-                        usuario_nombre: "Ana",
-                        usuario_apellido: "García",
-                        fecha_creacion: new Date("2025-11-05"),
-                        estado_actual: "rechazado"
-                      },
-                      {
-                        id_expediente: 3,
-                        numero_expediente: "2025/0003",
-                        tipo_expediente: "Solicitud de informe",
-                        descripcion: "Pedido de informe sobre caudal de río.",
-                        usuario_nombre: "Luis",
-                        usuario_apellido: "Martínez",
-                        fecha_creacion: new Date("2025-11-10"),
-                        estado_actual: "aprobado"
-                      }
-                    ]
-                  : expedientes
-                ).map((exp) => (
-                  <tr key={exp.id_expediente}>
-                    <td>{exp.numero_expediente}</td>
-                    <td>{exp.tipo_expediente}</td>
-                    <td>{exp.descripcion}</td>
-                    <td>{exp.usuario_nombre} {exp.usuario_apellido}</td>
-                    <td>{new Date(exp.fecha_creacion).toLocaleDateString()}</td>
-                    <td style={{ color: exp.estado_actual === "aprobado" ? "green" : "red" }}>
-                      {exp.estado_actual.charAt(0).toUpperCase() + exp.estado_actual.slice(1)}
-                    </td>
+            <>
+              <table className="expedientes-table">
+                <thead>
+                  <tr>
+                    <th>N° Expediente</th>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
+                    <th>Presentante</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(expedientes.length === 0
+                    ? [
+                        {
+                          id_expediente: 1,
+                          numero_expediente: "2025/0001",
+                          tipo_expediente: "Permiso de obra",
+                          descripcion: "Solicitud de permiso para obra hidráulica.",
+                          usuario_nombre: "Juan",
+                          usuario_apellido: "Pérez",
+                          fecha_creacion: new Date("2025-11-01"),
+                          estado_actual: "aprobado"
+                        },
+                        {
+                          id_expediente: 3,
+                          numero_expediente: "2025/0003",
+                          tipo_expediente: "Solicitud de informe",
+                          descripcion: "Pedido de informe sobre caudal de río.",
+                          usuario_nombre: "Luis",
+                          usuario_apellido: "Martínez",
+                          fecha_creacion: new Date("2025-11-10"),
+                          estado_actual: "aprobado"
+                        }
+                      ]
+                    : expedientes.filter(e => e.estado_actual === "aprobado")
+                  ).map((exp) => (
+                    <tr key={exp.id_expediente}>
+                      <td>{exp.numero_expediente}</td>
+                      <td>{exp.tipo_expediente}</td>
+                      <td>{exp.descripcion}</td>
+                      <td>{exp.usuario_nombre} {exp.usuario_apellido}</td>
+                      <td>{new Date(exp.fecha_creacion).toLocaleDateString()}</td>
+                      <td style={{ color: "green" }}>
+                        {exp.estado_actual.charAt(0).toUpperCase() + exp.estado_actual.slice(1)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 32, textAlign: "center" }}>
+                <button className="btn btn-secondary" onClick={() => window.history.back()}>
+                  Volver
+                </button>
+              </div>
+            </>
           )}
         </main>
       </div>
