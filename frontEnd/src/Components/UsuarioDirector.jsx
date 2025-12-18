@@ -3,6 +3,92 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_FIRMAS, URL_SUBIR_DOCUMENTO, URL_UPLOADS } from "../Constants/endpoints";
 import { Modal, Button, Form, Alert } from "react-bootstrap";
+  // Estados para OTP
+  const [showModalOTP, setShowModalOTP] = useState(false);
+  const [expedienteOTP, setExpedienteOTP] = useState(null);
+  const [codigoOTP, setCodigoOTP] = useState("");
+  const [procesandoOTP, setProcesandoOTP] = useState(false);
+  const [mensajeOTP, setMensajeOTP] = useState({ tipo: "", texto: "" });
+  const [otpEnviado, setOtpEnviado] = useState(false);
+  // Iniciar flujo OTP: solicitar/generar OTP y abrir modal
+  const iniciarValidacionOTP = async (exp) => {
+    setExpedienteOTP(exp);
+    setShowModalOTP(true);
+    setCodigoOTP("");
+    setMensajeOTP({ tipo: "", texto: "" });
+    setOtpEnviado(false);
+    try {
+      setProcesandoOTP(true);
+      // Obtener email del usuario logueado (director)
+      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      const email = usuarioLogueado?.email;
+      if (!email) {
+        setMensajeOTP({ tipo: "danger", texto: "No se encontró el email del usuario logueado." });
+        setProcesandoOTP(false);
+        return;
+      }
+      // Buscar la firma digital asociada a este expediente y usuario
+      // (puedes ajustar esto según tu lógica, aquí se asume 1 firma por expediente y usuario)
+      const resFirmas = await axios.get(`/firmas?expediente=${exp.id_expediente}&usuario=${usuarioLogueado.id_usuario}`);
+      const firma = resFirmas.data && resFirmas.data.length > 0 ? resFirmas.data[0] : null;
+      if (!firma) {
+        setMensajeOTP({ tipo: "danger", texto: "No se encontró registro de firma digital para este expediente." });
+        setProcesandoOTP(false);
+        return;
+      }
+      // Iniciar OTP
+      await axios.post("/firmas/iniciar-otp", {
+        id_firma: firma.id_firma,
+        email_destino: email
+      });
+      setOtpEnviado(true);
+      setMensajeOTP({ tipo: "success", texto: "Se envió un código OTP a su correo electrónico." });
+    } catch (error) {
+      setMensajeOTP({ tipo: "danger", texto: error.response?.data?.error || "Error al enviar OTP" });
+    } finally {
+      setProcesandoOTP(false);
+    }
+  };
+
+  // Validar OTP ingresado
+  const validarOTP = async () => {
+    if (!codigoOTP.trim()) {
+      setMensajeOTP({ tipo: "warning", texto: "Ingrese el código OTP recibido por email." });
+      return;
+    }
+    try {
+      setProcesandoOTP(true);
+      setMensajeOTP({ tipo: "", texto: "" });
+      // Buscar la firma digital asociada
+      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      const resFirmas = await axios.get(`/firmas?expediente=${expedienteOTP.id_expediente}&usuario=${usuarioLogueado.id_usuario}`);
+      const firma = resFirmas.data && resFirmas.data.length > 0 ? resFirmas.data[0] : null;
+      if (!firma) {
+        setMensajeOTP({ tipo: "danger", texto: "No se encontró registro de firma digital para este expediente." });
+        setProcesandoOTP(false);
+        return;
+      }
+      // Validar OTP
+      await axios.post("/firmas/validar-otp", {
+        id_firma: firma.id_firma,
+        codigo_otp: codigoOTP.trim()
+      });
+      setMensajeOTP({ tipo: "success", texto: "OTP validado correctamente. Trámite firmado digitalmente." });
+      // Actualizar UI: cerrar modal y recargar expedientes
+      setTimeout(() => {
+        setShowModalOTP(false);
+        setExpedienteOTP(null);
+        setCodigoOTP("");
+        setMensajeOTP({ tipo: "", texto: "" });
+        // Recargar expedientes (puedes ajustar esto según tu lógica)
+        window.location.reload();
+      }, 1800);
+    } catch (error) {
+      setMensajeOTP({ tipo: "danger", texto: error.response?.data?.error || "OTP incorrecto o error de validación" });
+    } finally {
+      setProcesandoOTP(false);
+    }
+  };
 import "../CSS/UsuarioDirector.css";
 
 export default function UsuarioDirector() {
@@ -637,10 +723,9 @@ export default function UsuarioDirector() {
   const menuItems = [
     { id: "consultar-expediente", label: "Consultar Expediente", icon: "🔍", permiso: "consultar_expediente_detalle" },
     { id: "recepcionados", label: "Recepcionados", icon: "📥", permiso: "recepcion_pase" },
-    { id: "aprobar-rechazar", label: "Aprobar/Rechazar", icon: "✓✗", permiso: "aprobar_rechazar" },
     { id: "finalizados", label: "Finalizados", icon: "✅", permiso: "consultar_expediente_detalle" },
     { id: "archivados", label: "Archivados", icon: "📦", permiso: "consultar_expediente_detalle" },
-    { id: "firmar-documentos", label: "Firmar Documentos", icon: "✍️", permiso: "firmar_documentos" },
+    { id: "firmar-documentos", label: "Firma Digital", icon: "✍️", permiso: "firmar_documentos" },
     { id: "reportes", label: "Reportes y Estadísticas", icon: "📊", permiso: "ver_reportes" },
     { id: "supervision-areas", label: "Supervisión de Áreas", icon: "👥", permiso: "supervisar_areas" },
     { id: "manual-usuario", label: "Manual de Usuario", icon: "📖", permiso: "ver_manual_usuario" },
@@ -818,10 +903,86 @@ export default function UsuarioDirector() {
         );
 
       case "firmar-documentos":
+        // Filtrar expedientes aprobados o rechazados (pendientes de validación OTP)
+        // Cuando se implemente el campo validado_otp, agregar: && !exp.validado_otp
+        const expedientesFirmaDigital = expedientesPendientes.filter(
+          exp => ["aprobado", "rechazado"].includes((exp.estado || exp.estado_actual)?.toLowerCase())
+        );
         return (
           <div className="seccion-contenido">
-            <h2>Firmar Documentos</h2>
-            <p>Firme digitalmente resoluciones y documentos oficiales.</p>
+            <h2>Firma Digital - Validación de Trámite</h2>
+            {expedientesFirmaDigital.length === 0 ? (
+              <p>No hay expedientes pendientes de validación digital.</p>
+            ) : (
+              <div className="tabla-container">
+                <table className="tabla-expedientes">
+                  <thead>
+                    <tr>
+                      <th>Nº Expediente</th>
+                      <th>Tipo</th>
+                      <th>Descripción</th>
+                      <th>Estado</th>
+                      <th>Prioridad</th>
+                      <th>Fecha Pase</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expedientesFirmaDigital.map((exp, idx) => (
+                      <tr key={`exp-firma-${exp.id_expediente}-${idx}`}>
+                        <td><strong>{exp.numero_expediente}</strong></td>
+                        <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
+                        <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                        <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
+                        <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
+                        <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => iniciarValidacionOTP(exp)}
+                            title="Validar trámite con OTP"
+                            disabled={procesandoOTP}
+                          >
+                            🔐 Validar OTP
+                          </button>
+                              {/* Modal de Validación OTP */}
+                              <Modal show={showModalOTP} onHide={() => setShowModalOTP(false)} centered>
+                                <Modal.Header closeButton>
+                                  <Modal.Title>Validar Trámite con OTP</Modal.Title>
+                                </Modal.Header>
+                                <Modal.Body>
+                                  {mensajeOTP.tipo && mensajeOTP.texto && (
+                                    <Alert variant={mensajeOTP.tipo}>{mensajeOTP.texto}</Alert>
+                                  )}
+                                  <p>Se enviará un código de un solo uso (OTP) a su correo electrónico registrado.<br/>Ingrese el código recibido para validar el trámite.</p>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>Código OTP</Form.Label>
+                                    <Form.Control
+                                      type="text"
+                                      value={codigoOTP}
+                                      onChange={e => setCodigoOTP(e.target.value)}
+                                      placeholder="Ingrese el código recibido"
+                                      disabled={!otpEnviado || procesandoOTP}
+                                      maxLength={10}
+                                    />
+                                  </Form.Group>
+                                </Modal.Body>
+                                <Modal.Footer>
+                                  <Button variant="secondary" onClick={() => setShowModalOTP(false)} disabled={procesandoOTP}>
+                                    Cancelar
+                                  </Button>
+                                  <Button variant="primary" onClick={validarOTP} disabled={!otpEnviado || procesandoOTP}>
+                                    {procesandoOTP ? "Validando..." : "Validar OTP"}
+                                  </Button>
+                                </Modal.Footer>
+                              </Modal>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         );
 

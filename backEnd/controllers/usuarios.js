@@ -1,3 +1,14 @@
+// Obtener usuarios jurídicos para pase
+export const obtenerUsuariosJuridicos = (req, res) => {
+  // Puedes filtrar por departamento, expediente, etc. si lo necesitas
+  const sql = `SELECT id_usuario, nombre, apellido, tipo_usuario FROM usuario WHERE tipo_usuario = 'jurídico'`;
+  connection.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: "Error al obtener usuarios jurídicos" });
+    }
+    res.json(results);
+  });
+};
 import connection from "../configDB/dataBase.js";
 import bcrypt from "bcryptjs";
 

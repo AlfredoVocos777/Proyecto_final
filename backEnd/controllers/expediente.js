@@ -5,10 +5,25 @@ export const obtenerExpediente = (req, res) => {
   const sql = `
     SELECT 
       e.*,
-      u.nombre AS usuario_nombre,
-      u.apellido AS usuario_apellido
+      u.nombre AS usuario_presentante_nombre,
+      u.apellido AS usuario_presentante_apellido,
+      COALESCE(ur.id_usuario, ut.id_usuario) AS usuario_asignado_id,
+      COALESCE(ur.nombre, ut.nombre) AS usuario_asignado_nombre,
+      COALESCE(ur.apellido, ut.apellido) AS usuario_asignado_apellido
     FROM expedientes e
     LEFT JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
+    LEFT JOIN (
+      SELECT h1.id_expediente, h1.id_usuario_responsable, u2.nombre, u2.apellido, u2.id_usuario
+      FROM historial_expediente h1
+      INNER JOIN (
+        SELECT id_expediente, MAX(fecha) AS max_fecha
+        FROM historial_expediente
+        WHERE LOWER(accion) LIKE '%recepcion%'
+        GROUP BY id_expediente
+      ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
+      LEFT JOIN usuario u2 ON h1.id_usuario_responsable = u2.id_usuario
+    ) ur ON e.id_expediente = ur.id_expediente
+    LEFT JOIN usuario ut ON e.id_profesional_asignado = ut.id_usuario
     ORDER BY e.fecha_creacion DESC
   `;
   

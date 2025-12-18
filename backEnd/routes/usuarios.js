@@ -6,11 +6,13 @@ import {
   loginUsuario,
   eliminarUsuario,
   actualizarUsuario,
+  obtenerUsuariosJuridicos
 } from "../controllers/usuarios.js";
 
 const router = express.Router();
 
 router.get("/", obtenerUsuarios);
+router.get("/juridicos", obtenerUsuariosJuridicos);
 router.get("/:id", obtenerUsuarioPorId);
 router.post("/", crearUsuario);
 router.post("/login", loginUsuario);

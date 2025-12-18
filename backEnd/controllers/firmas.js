@@ -1,3 +1,56 @@
+// Iniciar validación OTP: genera OTP, lo guarda y lo envía por email (envío pendiente de implementar)
+export const iniciarOTP = (req, res) => {
+  const { id_firma, email_destino } = req.body;
+  if (!id_firma || !email_destino) {
+    return res.status(400).json({ error: "Faltan datos obligatorios" });
+  }
+  // Generar OTP de 6 dígitos
+  const codigo_otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const fecha_envio_otp = new Date();
+  // Guardar OTP y datos en la base
+  const sql = `UPDATE firmas_digitales SET codigo_otp = ?, fecha_envio_otp = ?, email_destino = ?, otp_validado = 0 WHERE id_firma = ?`;
+  connection.query(sql, [codigo_otp, fecha_envio_otp, email_destino, id_firma], (err, result) => {
+    if (err) {
+      console.error("Error al guardar OTP:", err);
+      return res.status(500).json({ error: "Error al guardar OTP" });
+    }
+    // Aquí se debe enviar el email con el OTP (pendiente)
+    res.json({ success: true, codigo_otp, message: "OTP generado y guardado. Envío de email pendiente." });
+  });
+};
+
+// Validar OTP ingresado por el usuario
+export const validarOTP = (req, res) => {
+  const { id_firma, codigo_otp } = req.body;
+  if (!id_firma || !codigo_otp) {
+    return res.status(400).json({ error: "Faltan datos obligatorios" });
+  }
+  // Buscar la firma y comparar el OTP
+  const sql = `SELECT * FROM firmas_digitales WHERE id_firma = ?`;
+  connection.query(sql, [id_firma], (err, results) => {
+    if (err) {
+      console.error("Error al buscar firma para OTP:", err);
+      return res.status(500).json({ error: "Error al validar OTP" });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "Firma no encontrada" });
+    }
+    const firma = results[0];
+    if (firma.codigo_otp !== codigo_otp) {
+      return res.status(401).json({ error: "Código OTP incorrecto" });
+    }
+    // Marcar como validado
+    const fecha_validacion_otp = new Date();
+    const updateSql = `UPDATE firmas_digitales SET otp_validado = 1, fecha_validacion_otp = ? WHERE id_firma = ?`;
+    connection.query(updateSql, [fecha_validacion_otp, id_firma], (err2) => {
+      if (err2) {
+        console.error("Error al actualizar validación OTP:", err2);
+        return res.status(500).json({ error: "Error al actualizar validación OTP" });
+      }
+      res.json({ success: true, message: "OTP validado correctamente" });
+    });
+  });
+};
 import connection from "../configDB/dataBase.js";
 
 export const listarFirmas = (req, res) => {

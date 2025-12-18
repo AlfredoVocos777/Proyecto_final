@@ -28,6 +28,10 @@ export default function UsuarioTecnico() {
   const [historialExpediente, setHistorialExpediente] = useState([]);
   const [loadingConsulta, setLoadingConsulta] = useState(false);
   const [mensajeConsulta, setMensajeConsulta] = useState({ tipo: "", texto: "" });
+  // Estados para consulta general de expedientes
+  const [expedientesTodos, setExpedientesTodos] = useState([]);
+  const [filtroConsulta, setFiltroConsulta] = useState("");
+  const [loadingTodos, setLoadingTodos] = useState(false);
 
   // Estados para subir documentación
   const [showModalDoc, setShowModalDoc] = useState(false);
@@ -54,6 +58,12 @@ export default function UsuarioTecnico() {
   const [errorObs, setErrorObs] = useState("");
 
   useEffect(() => {
+        // Cargar todos los expedientes para la consulta general
+        setLoadingTodos(true);
+        axios.get(URL_EXPEDIENTES)
+          .then(res => setExpedientesTodos(res.data || []))
+          .catch(() => setExpedientesTodos([]))
+          .finally(() => setLoadingTodos(false));
     try {
       const raw = localStorage.getItem("usuarioLogueado");
       const user = raw ? JSON.parse(raw) : null;
@@ -307,14 +317,20 @@ export default function UsuarioTecnico() {
     setSubiendoVer(true);
     setMensajeVer({ tipo: '', texto: '' });
     try {
-      await axios.post('http://localhost:8000/historial', {
+      const resp = await axios.post('http://localhost:8000/historial', {
         id_expediente: expedienteVer.id_expediente ?? '',
         id_usuario_responsable: destinatarioPase ?? '',
         accion: 'Pase de expediente',
         comentario: observacionVer ?? '',
-        tipo_accion: 'pase',
+        tipo_accion: 'asignación',
         id_departamento: expedienteVer.id_departamento ?? null
       });
+      console.log('Respuesta pase:', resp.data);
+      if (resp.status !== 201) {
+        setMensajeVer({ tipo: 'danger', texto: resp.data?.error || 'No se pudo realizar el pase.' });
+        setSubiendoVer(false);
+        return;
+      }
       if (archivosVer.length > 0) {
         const formData = new FormData();
         archivosVer.forEach((file) => {
@@ -322,16 +338,22 @@ export default function UsuarioTecnico() {
         });
         formData.append('id_expediente', expedienteVer.id_expediente);
         formData.append('subido_por', usuarioActual.id_usuario);
-        await axios.post('http://localhost:8000/expedientes/documentos/upload', formData, {
+        const respDoc = await axios.post('http://localhost:8000/expedientes/documentos/subirYRegistrar', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
+        if (respDoc.status !== 201) {
+          setMensajeVer({ tipo: 'warning', texto: respDoc.data?.error || 'Pase realizado pero algunos documentos no se guardaron.' });
+        }
       }
       setMensajeVer({ tipo: 'success', texto: 'Pase realizado y documentos guardados.' });
       setArchivosVer([]);
-      cerrarModalVer();
-      recargarExpedientes();
+      setTimeout(() => {
+        cerrarModalVer();
+        recargarExpedientes();
+      }, 1200);
     } catch (err) {
-      setMensajeVer({ tipo: 'danger', texto: 'Error al realizar el pase o guardar documentos.' });
+      console.error('Error pase:', err);
+      setMensajeVer({ tipo: 'danger', texto: err.response?.data?.error || 'Error al realizar el pase o guardar documentos.' });
     }
     setSubiendoVer(false);
   };
@@ -352,6 +374,65 @@ export default function UsuarioTecnico() {
 
   const renderContenido = () => {
   switch (seccionActiva) {
+        case "consultar-expediente": {
+          // Filtro simple por número, estado o texto
+          const expedientesFiltrados = expedientesTodos.filter(exp => {
+            const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+            return texto.includes(filtroConsulta.toLowerCase());
+          });
+          return (
+            <div className="seccion-contenido seccion-consulta">
+              <h2>Consulta de Expedientes</h2>
+              <Form.Group className="mb-3" style={{maxWidth: 400}}>
+                <Form.Label>Filtrar por número, estado o usuario</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Buscar..."
+                  value={filtroConsulta}
+                  onChange={e => setFiltroConsulta(e.target.value)}
+                  disabled={loadingTodos}
+                />
+              </Form.Group>
+              {loadingTodos ? (
+                <p>Cargando expedientes...</p>
+              ) : (
+                <div className="tabla-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  <table className="table table-sm table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Nº Expediente</th>
+                        <th>Estado</th>
+                        <th>Descripción</th>
+                        <th>Usuario Asignado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expedientesFiltrados.map(exp => {
+                        // Lógica para mostrar 'Pendiente de recepción' si no fue recepcionado
+                        let usuarioAsignado = 'Sin asignar';
+                        if (exp.usuario_asignado_nombre) {
+                          usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
+                        }
+                        if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
+                          usuarioAsignado = 'Pendiente de recepción';
+                        }
+                        return (
+                          <tr key={exp.id_expediente}>
+                            <td>{exp.numero_expediente}</td>
+                            <td>{exp.estado_actual}</td>
+                            <td>{exp.descripcion}</td>
+                            <td>{usuarioAsignado}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {expedientesFiltrados.length === 0 && <p>No se encontraron expedientes.</p>}
+                </div>
+              )}
+            </div>
+          );
+        }
     case "realizar-pase": {
       // Mostrar expedientes recepcionados por el usuario técnico y que puede hacer pase
       const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
@@ -385,7 +466,17 @@ export default function UsuarioTecnico() {
                       <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
                       <td>{exp.estado_actual || exp.estado || 'N/A'}</td>
                       <td>
-                        <Button variant="primary" size="sm" onClick={() => { setExpedienteVer(exp); setShowModalVer(true); }}>
+                        <Button variant="primary" size="sm" onClick={async () => {
+                          setExpedienteVer(exp);
+                          // Cargar usuarios jurídicos como destinatarios
+                          try {
+                            const resp = await axios.get('http://localhost:8000/usuarios/juridicos');
+                            setUsuariosPase(resp.data || []);
+                          } catch (err) {
+                            setUsuariosPase([]);
+                          }
+                          setShowModalVer(true);
+                        }}>
                           Realizar Pase
                         </Button>
                       </td>
@@ -1008,6 +1099,7 @@ export default function UsuarioTecnico() {
               <Form.Group controlId="formDestinatarioPase">
                 <Form.Label>Destinatario</Form.Label>
                 <Form.Select value={destinatarioPase} onChange={e => setDestinatarioPase(e.target.value)}>
+                  <option value="">Seleccione destinatario</option>
                   {usuariosPase.map(u => (
                     <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.tipo_usuario})</option>
                   ))}
