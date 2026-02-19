@@ -1,15 +1,67 @@
-import { useEffect, useState } from "react";
+  // Función para confirmar decisión en el modal de revisión (aprobar/rechazar)
+  const confirmarDecisionRevision = async () => {
+    if (!decisionTipo || !comentarioDecision.trim() || procesandoDecision) return;
+    try {
+      setProcesandoDecision(true);
+      setMensajeRevision({ tipo: '', texto: '' });
+      const usuarioLogueado = JSON.parse(localStorage.getItem('usuarioLogueado'));
+      const nuevoEstado = decisionTipo === 'aprobar' ? 'aprobado' : 'rechazado';
+      // Actualizar estado del expediente
+      const payloadUpdate = {
+        tipo_expediente: expedienteRevision.tipo_tramite || expedienteRevision.tipo_expediente,
+        descripcion: expedienteRevision.descripcion,
+        prioridad: expedienteRevision.prioridad || 'normal',
+        estado_actual: nuevoEstado,
+      };
+      await axios.put(`${URL_EXPEDIENTES}/${expedienteRevision.id_expediente}`, payloadUpdate);
+      // Registrar en historial
+      const historialData = {
+        id_expediente: expedienteRevision.id_expediente,
+        id_usuario_responsable: usuarioLogueado.id_usuario,
+        accion: decisionTipo === 'aprobar' ? 'Aprobación Dirección' : 'Rechazo Dirección',
+        comentario: comentarioDecision || `Expediente ${decisionTipo === 'aprobar' ? 'aprobado' : 'rechazado'} por el Director`,
+        tipo_accion: decisionTipo === 'aprobar' ? 'aprobación' : 'rechazo',
+      };
+      await axios.post(URL_HISTORIAL, historialData);
+      setMensajeRevision({
+        tipo: 'success',
+        texto: `Expediente ${decisionTipo === 'aprobar' ? 'aprobado' : 'rechazado'} exitosamente.`
+      });
+      setTimeout(() => {
+        setShowModalRevision(false);
+        setExpedienteRevision(null);
+        setDecisionTipo('');
+        setComentarioDecision('');
+        setComentarioDocRevision('');
+        setArchivosRevision([]);
+        setMensajeRevision({ tipo: '', texto: '' });
+        setDocumentosRevision([]);
+        setHistorialRevision([]);
+        // Recargar expedientes
+        window.location.reload();
+      }, 1800);
+    } catch (error) {
+      setMensajeRevision({
+        tipo: 'danger',
+        texto: error.response?.data?.error || 'Error al procesar la decisión'
+      });
+    } finally {
+      setProcesandoDecision(false);
+    }
+  };
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_FIRMAS, URL_SUBIR_DOCUMENTO, URL_UPLOADS } from "../Constants/endpoints";
+import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES } from "../Constants/endpoints";
 import { Modal, Button, Form, Alert } from "react-bootstrap";
-  // Estados para OTP
-  const [showModalOTP, setShowModalOTP] = useState(false);
-  const [expedienteOTP, setExpedienteOTP] = useState(null);
-  const [codigoOTP, setCodigoOTP] = useState("");
+import "../CSS/UsuarioDirector.css";
+
+export default function UsuarioDirector() {
+  // Aquí van todos los hooks y lógica del componente
   const [procesandoOTP, setProcesandoOTP] = useState(false);
   const [mensajeOTP, setMensajeOTP] = useState({ tipo: "", texto: "" });
   const [otpEnviado, setOtpEnviado] = useState(false);
+
   // Iniciar flujo OTP: solicitar/generar OTP y abrir modal
   const iniciarValidacionOTP = async (exp) => {
     setExpedienteOTP(exp);
@@ -27,12 +79,12 @@ import { Modal, Button, Form, Alert } from "react-bootstrap";
         setProcesandoOTP(false);
         return;
       }
-      // Buscar la firma digital asociada a este expediente y usuario
+      // Buscar la firma electrónica asociada a este expediente y usuario
       // (puedes ajustar esto según tu lógica, aquí se asume 1 firma por expediente y usuario)
       const resFirmas = await axios.get(`/firmas?expediente=${exp.id_expediente}&usuario=${usuarioLogueado.id_usuario}`);
       const firma = resFirmas.data && resFirmas.data.length > 0 ? resFirmas.data[0] : null;
       if (!firma) {
-        setMensajeOTP({ tipo: "danger", texto: "No se encontró registro de firma digital para este expediente." });
+        setMensajeOTP({ tipo: "danger", texto: "No se encontró registro de firma electrónica para este expediente." });
         setProcesandoOTP(false);
         return;
       }
@@ -59,12 +111,12 @@ import { Modal, Button, Form, Alert } from "react-bootstrap";
     try {
       setProcesandoOTP(true);
       setMensajeOTP({ tipo: "", texto: "" });
-      // Buscar la firma digital asociada
+      // Buscar la firma electrónica asociada
       const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
       const resFirmas = await axios.get(`/firmas?expediente=${expedienteOTP.id_expediente}&usuario=${usuarioLogueado.id_usuario}`);
       const firma = resFirmas.data && resFirmas.data.length > 0 ? resFirmas.data[0] : null;
       if (!firma) {
-        setMensajeOTP({ tipo: "danger", texto: "No se encontró registro de firma digital para este expediente." });
+        setMensajeOTP({ tipo: "danger", texto: "No se encontró registro de firma electrónica para este expediente." });
         setProcesandoOTP(false);
         return;
       }
@@ -73,7 +125,7 @@ import { Modal, Button, Form, Alert } from "react-bootstrap";
         id_firma: firma.id_firma,
         codigo_otp: codigoOTP.trim()
       });
-      setMensajeOTP({ tipo: "success", texto: "OTP validado correctamente. Trámite firmado digitalmente." });
+      setMensajeOTP({ tipo: "success", texto: "OTP validado correctamente. Trámite firmado electrónicamente." });
       // Actualizar UI: cerrar modal y recargar expedientes
       setTimeout(() => {
         setShowModalOTP(false);
@@ -89,9 +141,6 @@ import { Modal, Button, Form, Alert } from "react-bootstrap";
       setProcesandoOTP(false);
     }
   };
-import "../CSS/UsuarioDirector.css";
-
-export default function UsuarioDirector() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [seccionActiva, setSeccionActiva] = useState("inicio");
@@ -102,10 +151,10 @@ export default function UsuarioDirector() {
   
   // Estados para recepción
   const [expedientesSeleccionados, setExpedientesSeleccionados] = useState([]);
-  const [showModalRecepcion, setShowModalRecepcion] = useState(false);
   const [observacionesRecepcion, setObservacionesRecepcion] = useState("");
   const [procesandoRecepcion, setProcesandoRecepcion] = useState(false);
   const [mensajeRecepcion, setMensajeRecepcion] = useState({ tipo: "", texto: "" });
+  const [showModalRecepcion, setShowModalRecepcion] = useState(false);
 
   // Estados para consulta de expediente
   const [showModalConsulta, setShowModalConsulta] = useState(false);
@@ -116,15 +165,7 @@ export default function UsuarioDirector() {
   const [loadingConsulta, setLoadingConsulta] = useState(false);
   const [mensajeConsulta, setMensajeConsulta] = useState({ tipo: "", texto: "" });
 
-  // Estados para subir documentación
-  const [showModalDoc, setShowModalDoc] = useState(false);
-  const [expedienteDoc, setExpedienteDoc] = useState(null);
-  const [archivosStaged, setArchivosStaged] = useState([]);
-  const [comentarioDoc, setComentarioDoc] = useState("");
-  const [subiendoDoc, setSubiendoDoc] = useState(false);
-  const [mensajeDoc, setMensajeDoc] = useState({ tipo: "", texto: "" });
-  const [documentosDoc, setDocumentosDoc] = useState([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
+  // ...
 
   // Estados para aprobar/rechazar expediente (integrado en modal de revisión)
   const [showModalRevision, setShowModalRevision] = useState(false);
@@ -144,13 +185,8 @@ export default function UsuarioDirector() {
   const [expedienteDecision, setExpedienteDecision] = useState(null);
   const [mensajeDecision, setMensajeDecision] = useState({ tipo: "", texto: "" });
 
-  // Estados para firmar documento
-  const [showModalFirma, setShowModalFirma] = useState(false);
-  const [documentoAFirmar, setDocumentoAFirmar] = useState(null);
-  const [firmasDisponibles, setFirmasDisponibles] = useState([]);
-  const [firmaSeleccionada, setFirmaSeleccionada] = useState("");
-  const [procesandoFirma, setProcesandoFirma] = useState(false);
-  const [mensajeFirma, setMensajeFirma] = useState({ tipo: "", texto: "" });
+
+
 
   useEffect(() => {
     try {
@@ -158,12 +194,12 @@ export default function UsuarioDirector() {
       const user = raw ? JSON.parse(raw) : null;
       const idRol = user?.id_rol;
       const idUsuario = user?.id_usuario;
-      
+
       if (!idRol) {
         setLoading(false);
         return;
       }
-      
+
       // Cargar permisos
       axios.get(`${URL_ROLES}/${idRol}`)
         .then(res => {
@@ -172,7 +208,7 @@ export default function UsuarioDirector() {
         })
         .catch(() => {})
         .finally(() => setLoading(false));
-      
+
       // Cargar expedientes asignados
       if (idUsuario) {
         setLoadingExpedientes(true);
@@ -248,6 +284,7 @@ export default function UsuarioDirector() {
     setObservacionesRecepcion("");
     setMensajeRecepcion({ tipo: "", texto: "" });
   };
+  
 
   const confirmarRecepcion = async () => {
     try {
@@ -366,16 +403,7 @@ export default function UsuarioDirector() {
     setArchivosRevision([]);
     setMensajeRevision({ tipo: "", texto: "" });
     
-    // Cargar documentos del expediente
-    setLoadingDocsRevision(true);
-    try {
-      const resDocs = await axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`);
-      setDocumentosRevision(resDocs.data || []);
-    } catch (err) {
-      console.error('Error al cargar documentos:', err);
-    } finally {
-      setLoadingDocsRevision(false);
-    }
+
 
     // Cargar historial del expediente
     try {
@@ -410,71 +438,7 @@ export default function UsuarioDirector() {
       const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
       
       // Subida múltiple: usar 'files' para todos los archivos y endpoint /upload
-      const fd = new FormData();
-      archivosRevision.forEach(archivo => {
-        fd.append('files', archivo);
-      });
-      fd.append('id_expediente', expedienteRevision.id_expediente);
-      fd.append('subido_por', user?.id_usuario);
-      if (comentarioDocRevision?.trim()) {
-        fd.append('comentario', comentarioDocRevision.trim());
-      }
-      await axios.post(URL_DOCUMENTOS + '/upload', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
 
-      setMensajeRevision({
-        tipo: "success",
-        texto: `${archivosRevision.length} archivo(s) subido(s) exitosamente`
-      });
-
-      // Recargar documentos
-      const resDocs = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteRevision.id_expediente}`);
-      setDocumentosRevision(resDocs.data || []);
-      
-      setArchivosRevision([]);
-      setComentarioDocRevision("");
-
-    } catch (error) {
-      console.error("Error al subir documentos:", error);
-      setMensajeRevision({
-        tipo: "danger",
-        texto: error.response?.data?.error || "Error al subir documentos"
-      });
-    } finally {
-      setSubiendoDoc(false);
-    }
-  };
-
-  const confirmarDecisionRevision = async () => {
-    if (!decisionTipo) {
-      setMensajeRevision({ tipo: "warning", texto: "Debe seleccionar Aprobar o Rechazar" });
-      return;
-    }
-
-    if (!comentarioDecision.trim()) {
-      setMensajeRevision({ tipo: "warning", texto: "Debe agregar un comentario sobre la decisión" });
-      return;
-    }
-
-    try {
-      setProcesandoDecision(true);
-      setMensajeRevision({ tipo: "", texto: "" });
-
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-      const nuevoEstado = decisionTipo === "aprobar" ? "aprobado" : "rechazado";
-      
-      // Actualizar estado del expediente
-      const payloadUpdate = {
-        tipo_expediente: expedienteRevision.tipo_tramite || expedienteRevision.tipo_expediente,
-        descripcion: expedienteRevision.descripcion,
-        prioridad: expedienteRevision.prioridad || "normal",
-        estado_actual: nuevoEstado,
-      };
-      
-      await axios.put(`${URL_EXPEDIENTES}/${expedienteRevision.id_expediente}`, payloadUpdate);
-
-      // Registrar en historial
       const historialData = {
         id_expediente: expedienteRevision.id_expediente,
         id_usuario_responsable: usuarioLogueado.id_usuario,
@@ -509,77 +473,7 @@ export default function UsuarioDirector() {
     }
   };
 
-  const abrirModalDoc = (expediente) => {
-    setExpedienteDoc(expediente);
-    setShowModalDoc(true);
-    setArchivosStaged([]);
-    setComentarioDoc("");
-    setMensajeDoc({ tipo: "", texto: "" });
-    setLoadingDocs(true);
-    axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
-      .then(res => setDocumentosDoc(res.data || []))
-      .catch(err => console.error('Error al cargar documentos:', err))
-      .finally(() => setLoadingDocs(false));
-  };
 
-  const cerrarModalDoc = () => {
-    setShowModalDoc(false);
-    setExpedienteDoc(null);
-    setArchivosStaged([]);
-    setComentarioDoc("");
-    setMensajeDoc({ tipo: "", texto: "" });
-    setDocumentosDoc([]);
-  };
-
-  const handleArchivosChange = (e) => {
-    const files = Array.from(e.target.files);
-    setArchivosStaged(files);
-  };
-
-  const subirDocumento = async () => {
-    if (archivosStaged.length === 0) {
-      setMensajeDoc({ tipo: "warning", texto: "Debe seleccionar al menos un archivo" });
-      return;
-    }
-
-    try {
-      setSubiendoDoc(true);
-      setMensajeDoc({ tipo: "", texto: "" });
-
-      const formData = new FormData();
-      formData.append("id_expediente", expedienteDoc.id_expediente);
-      formData.append("comentario", comentarioDoc || "Documento subido por el Director");
-      
-      archivosStaged.forEach(file => {
-        formData.append("files", file);
-      });
-
-      await axios.post(URL_SUBIR_DOCUMENTO + '/upload', formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
-
-      setMensajeDoc({
-        tipo: "success",
-        texto: "Documento(s) subido(s) exitosamente"
-      });
-
-      // Recargar documentos
-      const res = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-      setDocumentosDoc(res.data || []);
-      
-      setArchivosStaged([]);
-      setComentarioDoc("");
-
-    } catch (error) {
-      console.error("Error al subir documento:", error);
-      setMensajeDoc({
-        tipo: "danger",
-        texto: error.response?.data?.error || "Error al subir el documento"
-      });
-    } finally {
-      setSubiendoDoc(false);
-    }
-  };
 
   const abrirModalDecision = (expediente, tipo) => {
     setExpedienteDecision(expediente);
@@ -698,11 +592,7 @@ export default function UsuarioDirector() {
         texto: "Documento firmado exitosamente"
       });
 
-      // Recargar documentos
-      if (expedienteDoc) {
-        const res = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-        setDocumentosDoc(res.data || []);
-      }
+
 
       setTimeout(() => {
         cerrarModalFirma();
@@ -725,7 +615,7 @@ export default function UsuarioDirector() {
     { id: "recepcionados", label: "Recepcionados", icon: "📥", permiso: "recepcion_pase" },
     { id: "finalizados", label: "Finalizados", icon: "✅", permiso: "consultar_expediente_detalle" },
     { id: "archivados", label: "Archivados", icon: "📦", permiso: "consultar_expediente_detalle" },
-    { id: "firmar-documentos", label: "Firma Digital", icon: "✍️", permiso: "firmar_documentos" },
+    // Eliminado 'Firma Digital' del menú. Solo se usará 'Firma Electrónica'.
     { id: "reportes", label: "Reportes y Estadísticas", icon: "📊", permiso: "ver_reportes" },
     { id: "supervision-areas", label: "Supervisión de Áreas", icon: "👥", permiso: "supervisar_areas" },
     { id: "manual-usuario", label: "Manual de Usuario", icon: "📖", permiso: "ver_manual_usuario" },
@@ -747,6 +637,57 @@ export default function UsuarioDirector() {
     }
 
     switch (seccionActiva) {
+            case "firma-electronica":
+              // Filtrar expedientes aprobados o rechazados (pendientes de validación OTP)
+              const expedientesFirmaElectronica = expedientesPendientes.filter(
+                exp => ["aprobado", "rechazado"].includes((exp.estado || exp.estado_actual)?.toLowerCase())
+              );
+              return (
+                <div className="seccion-contenido">
+                  <h2>Firma Electrónica - Validación de Trámite</h2>
+                  {expedientesFirmaElectronica.length === 0 ? (
+                    <p>No hay expedientes pendientes de firma electrónica.</p>
+                  ) : (
+                    <div className="tabla-container">
+                      <table className="tabla-expedientes">
+                        <thead>
+                          <tr>
+                            <th>Nº Expediente</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            <th>Prioridad</th>
+                            <th>Fecha Pase</th>
+                            <th>Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {expedientesFirmaElectronica.map((exp, idx) => (
+                            <tr key={`exp-firma-elec-${exp.id_expediente}-${idx}`}>
+                              <td><strong>{exp.numero_expediente}</strong></td>
+                              <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
+                              <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                              <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
+                              <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
+                              <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
+                              <td>
+                                <button
+                                  className="btn btn-sm btn-primary"
+                                  onClick={() => iniciarValidacionOTP(exp)}
+                                  title="Firmar electrónicamente el expediente"
+                                  disabled={procesandoOTP}
+                                >
+                                  🖊️ Firma Electrónica
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
       case "recepcionados":
         // Mostrar expedientes ya recepcionados
         const expedientesRecepcionados = expedientesPendientes.filter(e => e.recepcionado);
@@ -868,6 +809,7 @@ export default function UsuarioDirector() {
             </div>
           </div>
         );
+
   // Función para recepcionar directamente desde el panel
   const abrirModalRecepcionDirecta = (expediente) => {
     setExpedientesSeleccionados([expediente.id_expediente]);
@@ -902,89 +844,7 @@ export default function UsuarioDirector() {
           </div>
         );
 
-      case "firmar-documentos":
-        // Filtrar expedientes aprobados o rechazados (pendientes de validación OTP)
-        // Cuando se implemente el campo validado_otp, agregar: && !exp.validado_otp
-        const expedientesFirmaDigital = expedientesPendientes.filter(
-          exp => ["aprobado", "rechazado"].includes((exp.estado || exp.estado_actual)?.toLowerCase())
-        );
-        return (
-          <div className="seccion-contenido">
-            <h2>Firma Digital - Validación de Trámite</h2>
-            {expedientesFirmaDigital.length === 0 ? (
-              <p>No hay expedientes pendientes de validación digital.</p>
-            ) : (
-              <div className="tabla-container">
-                <table className="tabla-expedientes">
-                  <thead>
-                    <tr>
-                      <th>Nº Expediente</th>
-                      <th>Tipo</th>
-                      <th>Descripción</th>
-                      <th>Estado</th>
-                      <th>Prioridad</th>
-                      <th>Fecha Pase</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expedientesFirmaDigital.map((exp, idx) => (
-                      <tr key={`exp-firma-${exp.id_expediente}-${idx}`}>
-                        <td><strong>{exp.numero_expediente}</strong></td>
-                        <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
-                        <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                        <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
-                        <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
-                        <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                        <td>
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => iniciarValidacionOTP(exp)}
-                            title="Validar trámite con OTP"
-                            disabled={procesandoOTP}
-                          >
-                            🔐 Validar OTP
-                          </button>
-                              {/* Modal de Validación OTP */}
-                              <Modal show={showModalOTP} onHide={() => setShowModalOTP(false)} centered>
-                                <Modal.Header closeButton>
-                                  <Modal.Title>Validar Trámite con OTP</Modal.Title>
-                                </Modal.Header>
-                                <Modal.Body>
-                                  {mensajeOTP.tipo && mensajeOTP.texto && (
-                                    <Alert variant={mensajeOTP.tipo}>{mensajeOTP.texto}</Alert>
-                                  )}
-                                  <p>Se enviará un código de un solo uso (OTP) a su correo electrónico registrado.<br/>Ingrese el código recibido para validar el trámite.</p>
-                                  <Form.Group className="mb-3">
-                                    <Form.Label>Código OTP</Form.Label>
-                                    <Form.Control
-                                      type="text"
-                                      value={codigoOTP}
-                                      onChange={e => setCodigoOTP(e.target.value)}
-                                      placeholder="Ingrese el código recibido"
-                                      disabled={!otpEnviado || procesandoOTP}
-                                      maxLength={10}
-                                    />
-                                  </Form.Group>
-                                </Modal.Body>
-                                <Modal.Footer>
-                                  <Button variant="secondary" onClick={() => setShowModalOTP(false)} disabled={procesandoOTP}>
-                                    Cancelar
-                                  </Button>
-                                  <Button variant="primary" onClick={validarOTP} disabled={!otpEnviado || procesandoOTP}>
-                                    {procesandoOTP ? "Validando..." : "Validar OTP"}
-                                  </Button>
-                                </Modal.Footer>
-                              </Modal>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
+      // Eliminado el case 'firmar-documentos'. Solo queda 'firma-electronica'.
 
       case "reportes":
         return (
@@ -1029,17 +889,28 @@ export default function UsuarioDirector() {
         </button>
         {sidebarOpen && (
           <nav className="director-menu">
-            {menuFiltrado.map((item) => (
-              <button
-                key={item.id}
-                className={`director-menu-btn ${seccionActiva === item.id ? "active" : ""}`}
-                onClick={() => setSeccionActiva(item.id)}
-              >
-                <span className="director-icon">{item.icon}</span>
-                <span className="director-label">{item.label}</span>
-              </button>
+            {menuFiltrado.map((item, idx) => (
+              <>
+                <button
+                  key={item.id}
+                  className={`director-menu-btn ${seccionActiva === item.id ? "active" : ""}`}
+                  onClick={() => setSeccionActiva(item.id)}
+                >
+                  <span className="director-icon">{item.icon}</span>
+                  <span className="director-label">{item.label}</span>
+                </button>
+                {item.id === 'recepcionados' && (
+                  <button
+                    key="firma-electronica"
+                    className={`director-menu-btn ${seccionActiva === 'firma-electronica' ? 'active' : ''}`}
+                    onClick={() => setSeccionActiva('firma-electronica')}
+                  >
+                    <span className="director-icon">🖊️</span>
+                    <span className="director-label">Firma Electrónica</span>
+                  </button>
+                )}
+              </>
             ))}
-            
             <button className="director-menu-btn director-salir" onClick={handleSalir}>
               <span className="director-icon">🚪</span>
               <span className="director-label">Salir</span>
@@ -1160,149 +1031,7 @@ export default function UsuarioDirector() {
         </Modal.Footer>
       </Modal>
 
-      {/* Modal de Documentos */}
-      <Modal show={showModalDoc} onHide={() => setShowModalDoc(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Documentos del Expediente {expedienteDoc?.numero_expediente}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {mensajeDoc.tipo && mensajeDoc.texto && (
-            <Alert variant={mensajeDoc.tipo}>{mensajeDoc.texto}</Alert>
-          )}
 
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Seleccionar archivos oficiales</strong></Form.Label>
-            <Form.Control
-              type="file"
-              multiple
-              onChange={(e) => setArchivosStaged(Array.from(e.target.files))}
-              disabled={subiendoDoc}
-            />
-            <Form.Text>Archivos seleccionados: {archivosStaged.length}</Form.Text>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Comentario de Dirección</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              placeholder="Descripción de los documentos desde Dirección..."
-              value={comentarioDoc}
-              onChange={(e) => setComentarioDoc(e.target.value)}
-              disabled={subiendoDoc}
-            />
-          </Form.Group>
-
-          {loadingDocs ? (
-            <p>Cargando documentos existentes...</p>
-          ) : documentosDoc.length > 0 && (
-            <div className="documentos-existentes mt-4">
-              <h6>Documentos existentes</h6>
-              <table className="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Tipo</th>
-                    <th>Tamaño</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documentosDoc.map((doc, idx) => (
-                    <tr key={`doc-${doc.id_documento || idx}`}>
-                      <td title={doc.nombre_archivo}>{doc.nombre_archivo}</td>
-                      <td>{doc.tipo}</td>
-                      <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString() : '-'}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => {
-                              const url = `${URL_UPLOADS}/${doc.ruta_archivo}`;
-                              window.open(url, '_blank');
-                            }}
-                            title="Ver documento"
-                          >
-                            👁️
-                          </button>
-                          <button
-                            className="btn btn-outline-success btn-sm"
-                            onClick={() => abrirModalFirma(doc)}
-                            title="Firmar documento"
-                          >
-                            ✍️
-                          </button>
-                          <button
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={async () => {
-                              if (!window.confirm('¿Eliminar este documento?')) return;
-                              try {
-                                await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                setDocumentosDoc(resp.data || []);
-                              } catch (err) {
-                                console.error('Error al eliminar documento:', err);
-                                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                              }
-                            }}
-                            title="Eliminar documento"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary"
-            disabled={archivosStaged.length === 0 || subiendoDoc}
-            onClick={async () => {
-              try {
-                if (!archivosStaged.length) return;
-                setSubiendoDoc(true);
-                setMensajeDoc({ tipo: "", texto: "" });
-                const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-                let ok = 0, fail = 0;
-                // Subida múltiple: usar 'files' y endpoint /upload
-                const fd = new FormData();
-                archivosStaged.forEach(f => {
-                  fd.append('files', f);
-                });
-                fd.append('id_expediente', expedienteDoc.id_expediente);
-                fd.append('subido_por', user?.id_usuario);
-                if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
-                await axios.post(URL_DOCUMENTOS + '/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                ok = archivosStaged.length;
-                const msg = fail === 0
-                  ? `Se subieron ${ok} archivo(s)`
-                  : `Subidos ${ok}, fallidos ${fail}`;
-                setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
-                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                setDocumentosDoc(resp.data || []);
-                setArchivosStaged([]);
-              } catch (err) {
-                console.error('Error en guardado de documentos:', err);
-                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
-              } finally {
-                setSubiendoDoc(false);
-              }
-            }}
-          >
-            {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
 
       {/* Modal de Decisión (Aprobar/Rechazar) */}
       <Modal show={showModalDecision} onHide={cerrarModalDecision} centered>
@@ -1430,55 +1159,12 @@ export default function UsuarioDirector() {
                   </tbody>
                 </table>
               </div>
-
-              {/* Documentos Existentes */}
+              {/* Historial del expediente */}
               <div className="mb-4">
-                <h5 className="text-primary">📎 Documentos del Expediente</h5>
-                {loadingDocsRevision ? (
-                  <p>Cargando documentos...</p>
-                ) : documentosRevision.length > 0 ? (
-                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    <table className="table table-sm table-striped">
-                      <thead>
-                        <tr>
-                          <th>Nombre</th>
-                          <th>Tipo</th>
-                          <th>Tamaño</th>
-                          <th>Fecha</th>
-                          <th>Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {documentosRevision.map((doc, idx) => (
-                          <tr key={`revdoc-${doc.id_documento || idx}`}>
-                            <td>{doc.nombre_archivo}</td>
-                            <td>{doc.tipo}</td>
-                            <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                            <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString() : '-'}</td>
-                            <td>
-                              <button
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() => window.open(`${URL_UPLOADS}/${doc.ruta_archivo}`, '_blank')}
-                              >
-                                👁️ Ver
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <Alert variant="info">No hay documentos adjuntos en este expediente</Alert>
-                )}
-              </div>
-
-              {/* Historial de Movimientos */}
-              <div className="mb-4">
-                <h5 className="text-primary">📜 Historial de Movimientos</h5>
-                {historialRevision.length > 0 ? (
-                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    <table className="table table-sm table-striped">
+                <h5 className="text-secondary">🕓 Historial del Expediente</h5>
+                {historialRevision && historialRevision.length > 0 ? (
+                  <div className="tabla-container">
+                    <table className="table table-bordered table-sm">
                       <thead>
                         <tr>
                           <th>Fecha</th>
@@ -1489,8 +1175,8 @@ export default function UsuarioDirector() {
                       </thead>
                       <tbody>
                         {historialRevision.map((h, idx) => (
-                          <tr key={`histrev-${h.id_historial || idx}`}>
-                            <td>{new Date(h.fecha_accion).toLocaleString()}</td>
+                          <tr key={`historial-rev-${idx}`}>
+                            <td>{h.fecha ? new Date(h.fecha).toLocaleString() : '-'}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>
                             <td>{h.comentario}</td>
@@ -1503,58 +1189,13 @@ export default function UsuarioDirector() {
                   <Alert variant="info">No hay historial registrado</Alert>
                 )}
               </div>
-
               <hr />
-
-              {/* Subir Nuevos Documentos */}
-              <div className="mb-4">
-                <h5 className="text-success">📤 Subir Documentos Oficiales (Opcional)</h5>
-                <Form.Group className="mb-3">
-                  <Form.Label><strong>Seleccionar archivos</strong></Form.Label>
-                  <Form.Control
-                    type="file"
-                    multiple
-                    onChange={(e) => setArchivosRevision(Array.from(e.target.files))}
-                    disabled={subiendoDoc || procesandoDecision}
-                  />
-                  <Form.Text>
-                    {archivosRevision.length > 0 
-                      ? `${archivosRevision.length} archivo(s) seleccionado(s)` 
-                      : 'Puede adjuntar resoluciones, dictámenes u otros documentos oficiales'}
-                  </Form.Text>
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label><strong>Comentario sobre los documentos</strong></Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    placeholder="Describa los documentos que está adjuntando..."
-                    value={comentarioDocRevision}
-                    onChange={(e) => setComentarioDocRevision(e.target.value)}
-                    disabled={subiendoDoc || procesandoDecision}
-                  />
-                </Form.Group>
-
-                <Button 
-                  variant="outline-success"
-                  onClick={subirDocumentosRevision}
-                  disabled={archivosRevision.length === 0 || subiendoDoc || procesandoDecision}
-                  className="me-2"
-                >
-                  {subiendoDoc ? 'Subiendo...' : '📤 Subir Documentos'}
-                </Button>
-              </div>
-
-              <hr />
-
               {/* Decisión Final */}
               <div className="mb-3">
                 <h5 className="text-danger">⚖️ Decisión Final del Director</h5>
                 <Alert variant="warning">
                   <strong>Importante:</strong> Esta decisión es definitiva y se notificará al usuario presentante del trámite.
                 </Alert>
-
                 <Form.Group className="mb-3">
                   <Form.Label><strong>Seleccione su decisión *</strong></Form.Label>
                   <div className="d-flex gap-3">
@@ -1578,7 +1219,6 @@ export default function UsuarioDirector() {
                     />
                   </div>
                 </Form.Group>
-
                 <Form.Group className="mb-3">
                   <Form.Label>
                     <strong>
@@ -1612,14 +1252,14 @@ export default function UsuarioDirector() {
           <Button 
             variant="secondary" 
             onClick={cerrarModalRevision}
-            disabled={procesandoDecision || subiendoDoc}
+            disabled={procesandoDecision}
           >
             Cancelar
           </Button>
           <Button 
             variant={decisionTipo === 'aprobar' ? 'success' : decisionTipo === 'rechazar' ? 'danger' : 'primary'}
             onClick={confirmarDecisionRevision}
-            disabled={!decisionTipo || !comentarioDecision.trim() || procesandoDecision || subiendoDoc}
+            disabled={!decisionTipo || !comentarioDecision.trim() || procesandoDecision}
           >
             {procesandoDecision 
               ? 'Procesando...' 
@@ -1632,71 +1272,6 @@ export default function UsuarioDirector() {
         </Modal.Footer>
       </Modal>
 
-      {/* Modal de Firma Digital */}
-      <Modal show={showModalFirma} onHide={cerrarModalFirma} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>✍️ Firmar Documento Digitalmente</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {mensajeFirma.tipo && mensajeFirma.texto && (
-            <Alert variant={mensajeFirma.tipo}>{mensajeFirma.texto}</Alert>
-          )}
-
-          {documentoAFirmar && (
-            <>
-              <div className="mb-3">
-                <strong>Documento:</strong> {documentoAFirmar.nombre_archivo}
-                <br />
-                <strong>Tipo:</strong> {documentoAFirmar.tipo}
-                <br />
-                <strong>Fecha subida:</strong> {documentoAFirmar.fecha_subida 
-                  ? new Date(documentoAFirmar.fecha_subida).toLocaleString() 
-                  : '-'}
-              </div>
-
-              <Form.Group className="mb-3">
-                <Form.Label><strong>Seleccione su firma digital *</strong></Form.Label>
-                <Form.Select
-                  value={firmaSeleccionada}
-                  onChange={(e) => setFirmaSeleccionada(e.target.value)}
-                  disabled={procesandoFirma || firmasDisponibles.length === 0}
-                >
-                  <option value="">Seleccione una firma...</option>
-                  {firmasDisponibles.map(firma => (
-                    <option key={firma.id_firma} value={firma.id_firma}>
-                      {firma.nombre_firma} - {firma.tipo_firma}
-                    </option>
-                  ))}
-                </Form.Select>
-                {firmasDisponibles.length === 0 && (
-                  <Form.Text className="text-danger">
-                    No tiene firmas digitales registradas. Debe crear una en el sistema.
-                  </Form.Text>
-                )}
-              </Form.Group>
-
-              <Alert variant="info">
-                <small>
-                  La firma digital se aplicará al documento seleccionado y quedará registrada 
-                  en el sistema como parte del expediente oficial.
-                </small>
-              </Alert>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={cerrarModalFirma} disabled={procesandoFirma}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary"
-            onClick={confirmarFirma}
-            disabled={procesandoFirma || !firmaSeleccionada || firmasDisponibles.length === 0}
-          >
-            {procesandoFirma ? 'Firmando...' : '✍️ Firmar Documento'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
     </div>
   );
 }
