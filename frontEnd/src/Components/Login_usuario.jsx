@@ -16,6 +16,9 @@ import {
 } from "../Routers/router";
 
 function Login_usuario() {
+    useEffect(() => {
+      localStorage.removeItem("usuarioLogueado");
+    }, []);
   const [usuario, setUsuario] = useState("");
   const [contraseña, setContraseña] = useState("");
   const [error, setError] = useState("");
@@ -155,6 +158,11 @@ function Login_usuario() {
         <p>¿No tienes una cuenta?</p>
         <Link to="/Registro_usuario" className="link-crear-cuenta">
           Crear cuenta
+        </Link>
+      </div>
+      <div className="recuperar-contrasena">
+        <Link to="/recuperar-contrasena" className="link-recuperar-contrasena">
+          Recuperar contraseña
         </Link>
       </div>
     </div>

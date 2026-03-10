@@ -21,6 +21,8 @@ export const USUARIO_TECNICO = '/UsuarioTecnico';
 export const USUARIO_JURIDICO = '/UsuarioJuridico';
 export const USUARIO_DIRECTOR = '/UsuarioDirector';
 export const CONSULTA_ADMIN = '/ConsultaAdminExpedientes';
+export const RECUPERAR_CONTRASENA = '/recuperar-contrasena';
+export const RESET_PASSWORD = '/reset-password/:token';
 
 export const EXPEDIENTES_FINALIZADOS = '/ExpedientesFinalizados';
 export const EXPEDIENTES_ARCHIVADOS = '/ExpedientesArchivados';

@@ -65,15 +65,7 @@ const PortadaAdministrativo = () => {
             <button className="admin-btn muted" onClick={() => navigate(LISTAR_DEPARTAMENTOS)}>
               Gestionar Departamentos
             </button>
-            <button className="admin-btn dark" onClick={() => navigate(LISTAR_FIRMAS)}>
-              Gestionar Firmas
-            </button>
-            <button className="admin-btn finalizados" onClick={() => navigate(EXPEDIENTES_FINALIZADOS)}>
-              Expedientes Finalizados
-            </button>
-            <button className="admin-btn archivados" onClick={() => navigate(EXPEDIENTES_ARCHIVADOS)}>
-              Expedientes Archivados
-            </button>
+            {/* Botones eliminados: Gestionar Firmas, Expedientes Finalizados, Expedientes Archivados */}
           </div>
         </div>
       </div>
