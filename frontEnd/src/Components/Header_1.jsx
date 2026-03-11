@@ -51,9 +51,9 @@ const Header_1 = () => {
     <header className="navbar">
       {/* Logo DPA a la izquierda con link */}
       <div className="logoDpa">
-        <Link to="/">
+        <a href="https://www.dpatuc.gob.ar/" target="_blank" rel="noopener noreferrer">
           <img src={logoDpa} alt="logo_dpa" />
-        </Link>
+        </a>
       </div>
 
       {/* Información de usuario logueado */}

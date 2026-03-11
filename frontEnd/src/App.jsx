@@ -1,12 +1,45 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
-import { LOGIN_USUARIO , REGISTRO_USUARIO, NUEVO_TRAMITE_DATOS, NUEVO_TRAMITE, PORTADA, PORTADA_ADMINISTRATIVO, CONSULTA, CONSULTA_ADMIN, NUEVO_TRAMITE_PAGO, NUEVO_TRAMITE_EXPEDIENTES, CREAR_ROL, CREAR_PERMISO, CREAR_DEPARTAMENTO, CREAR_FIRMA, LISTAR_ROLES, LISTAR_PERMISOS, LISTAR_DEPARTAMENTOS, LISTAR_FIRMAS, LISTAR_USUARIOS, EDITAR_USUARIO, USUARIO_TECNICO, USUARIO_JURIDICO, USUARIO_DIRECTOR, EXPEDIENTES_FINALIZADOS, EXPEDIENTES_ARCHIVADOS, RECUPERAR_CONTRASENA } from "./Routers/router";
+import {
+  LOGIN_USUARIO,
+  REGISTRO_USUARIO,
+  PORTADA,
+  PORTADA_ADMINISTRATIVO,
+  CONSULTA,
+  CONSULTA_ADMIN,
+  CONSULTA_EXPEDIENTES_ESTADO,
+  EXPEDIENTES_EN_REVISION,
+  EXPEDIENTES_FINALIZADOS,
+  EXPEDIENTES_ARCHIVADOS,
+  NUEVO_TRAMITE_DATOS,
+  NUEVO_TRAMITE,
+  NUEVO_TRAMITE_PAGO,
+  NUEVO_TRAMITE_EXPEDIENTES,
+  CREAR_ROL,
+  CREAR_PERMISO,
+  CREAR_DEPARTAMENTO,
+  CREAR_FIRMA,
+  LISTAR_ROLES,
+  LISTAR_PERMISOS,
+  LISTAR_DEPARTAMENTOS,
+  LISTAR_FIRMAS,
+  LISTAR_USUARIOS,
+  EDITAR_USUARIO,
+  USUARIO_TECNICO,
+  USUARIO_JURIDICO,
+  USUARIO_DIRECTOR,
+  RECUPERAR_CONTRASENA
+} from "./Routers/router";
+import { RequireAdmin, RequireTecnico, RequireJuridico, RequireDirector } from "./Routers/guards";
 import LoginPage from "./Pages/LoginPage";
 import RegistroPage from "./Pages/RegistroPage";
 import PortadaPage from "./Pages/PortadaPage";
 import PortadaAdministrativoPage from "./Pages/PortadaAdministrativoPage";
 import ConsultaExpedientesPage from "./Pages/ConsultaExpedientesPage";
 import ConsultaAdminExpedientesPage from "./Pages/ConsultaAdminExpedientesPage";
+import ConsultaExpedientesEstadoPage from "./Pages/ConsultaExpedientesEstadoPage";
+import ExpedientesEnRevisionPage from "./Pages/ExpedientesEnRevisionPage";
+import ExpedientesFinalizadosPage from "./Pages/ExpedientesFinalizadosPage";
+import ExpedientesArchivadosPage from "./Pages/ExpedientesArchivadosPage";
 import NuevoTramite_datosPage from "./Pages/NuevoTramite_datosPage";
 import NuevoTramitePage from "./Pages/NuevoTramitePage";
 import NuevoTramite_pagoPage from "./Pages/NuevoTramite_pagoPage";
@@ -25,9 +58,6 @@ import EditarUsuarioPage from "./Pages/EditarUsuarioPage";
 import UsuarioTecnicoPage from "./Pages/UsuarioTecnicoPage";
 import UsuarioJuridicoPage from "./Pages/UsuarioJuridicoPage";
 import UsuarioDirectorPage from "./Pages/UsuarioDirectorPage";
-import { RequireAdmin, RequireTecnico, RequireJuridico, RequireDirector } from "./Routers/guards";
-import ExpedientesFinalizadosPage from "./Pages/ExpedientesFinalizadosPage";
-import ExpedientesArchivadosPage from "./Pages/ExpedientesArchivadosPage";
 import RecuperarContrasena from "./Components/RecuperarContrasena";
 
 function App() {
@@ -38,43 +68,38 @@ function App() {
         <Route path={LOGIN_USUARIO} element={<LoginPage />} />
         <Route path={REGISTRO_USUARIO} element={<RegistroPage />} />
         <Route path={PORTADA} element={<PortadaPage />} />
-        <Route
-          path={PORTADA_ADMINISTRATIVO}
-          element={
-            <RequireAdmin>
-              <PortadaAdministrativoPage />
-            </RequireAdmin>
-          }
-        />
+        <Route path={PORTADA_ADMINISTRATIVO} element={<RequireAdmin><PortadaAdministrativoPage /></RequireAdmin>} />
         <Route path={CONSULTA} element={<ConsultaExpedientesPage />} />
         <Route path={CONSULTA_ADMIN} element={<RequireAdmin><ConsultaAdminExpedientesPage /></RequireAdmin>} />
-          <Route path={EXPEDIENTES_FINALIZADOS} element={<RequireAdmin><ExpedientesFinalizadosPage /></RequireAdmin>} />
-          <Route path={EXPEDIENTES_ARCHIVADOS} element={<RequireAdmin><ExpedientesArchivadosPage /></RequireAdmin>} />
-  <Route path={CREAR_ROL} element={<RequireAdmin><CrearRolPage /></RequireAdmin>} />
-  <Route path={CREAR_PERMISO} element={<RequireAdmin><CrearPermisoPage /></RequireAdmin>} />
-  <Route path={CREAR_DEPARTAMENTO} element={<RequireAdmin><CrearDepartamentoPage /></RequireAdmin>} />
-  <Route path={CREAR_FIRMA} element={<RequireAdmin><CrearFirmaPage /></RequireAdmin>} />
-  <Route path={LISTAR_ROLES} element={<RequireAdmin><ListarRolesPage /></RequireAdmin>} />
-  <Route path={LISTAR_PERMISOS} element={<RequireAdmin><ListarPermisosPage /></RequireAdmin>} />
-  <Route path={LISTAR_DEPARTAMENTOS} element={<RequireAdmin><ListarDepartamentosPage /></RequireAdmin>} />
-  <Route path={LISTAR_FIRMAS} element={<RequireAdmin><ListarFirmasPage /></RequireAdmin>} />
-  <Route path={LISTAR_USUARIOS} element={<RequireAdmin><ListarUsuariosPage /></RequireAdmin>} />
-  <Route path={EDITAR_USUARIO} element={<RequireAdmin><EditarUsuarioPage /></RequireAdmin>} />
-  <Route path={USUARIO_TECNICO} element={<RequireTecnico><UsuarioTecnicoPage /></RequireTecnico>} />
-  <Route path={USUARIO_JURIDICO} element={<RequireJuridico><UsuarioJuridicoPage /></RequireJuridico>} />
-  <Route path={USUARIO_DIRECTOR} element={<RequireDirector><UsuarioDirectorPage /></RequireDirector>} />
+        <Route path={CONSULTA_EXPEDIENTES_ESTADO} element={<RequireAdmin><ConsultaExpedientesEstadoPage /></RequireAdmin>} />
+        <Route path={EXPEDIENTES_EN_REVISION} element={<RequireAdmin><ExpedientesEnRevisionPage /></RequireAdmin>} />
+        <Route path={EXPEDIENTES_FINALIZADOS} element={<RequireAdmin><ExpedientesFinalizadosPage /></RequireAdmin>} />
+        <Route path={EXPEDIENTES_ARCHIVADOS} element={<RequireAdmin><ExpedientesArchivadosPage /></RequireAdmin>} />
+        <Route path={CREAR_ROL} element={<RequireAdmin><CrearRolPage /></RequireAdmin>} />
+        <Route path={CREAR_PERMISO} element={<RequireAdmin><CrearPermisoPage /></RequireAdmin>} />
+        <Route path={CREAR_DEPARTAMENTO} element={<RequireAdmin><CrearDepartamentoPage /></RequireAdmin>} />
+        <Route path={CREAR_FIRMA} element={<RequireAdmin><CrearFirmaPage /></RequireAdmin>} />
+        <Route path={LISTAR_ROLES} element={<RequireAdmin><ListarRolesPage /></RequireAdmin>} />
+        <Route path={LISTAR_PERMISOS} element={<RequireAdmin><ListarPermisosPage /></RequireAdmin>} />
+        <Route path={LISTAR_DEPARTAMENTOS} element={<RequireAdmin><ListarDepartamentosPage /></RequireAdmin>} />
+        <Route path={LISTAR_FIRMAS} element={<RequireAdmin><ListarFirmasPage /></RequireAdmin>} />
+        <Route path={LISTAR_USUARIOS} element={<RequireAdmin><ListarUsuariosPage /></RequireAdmin>} />
+        <Route path={EDITAR_USUARIO} element={<RequireAdmin><EditarUsuarioPage /></RequireAdmin>} />
+        <Route path={USUARIO_TECNICO} element={<RequireTecnico><UsuarioTecnicoPage /></RequireTecnico>} />
+        <Route path={USUARIO_JURIDICO} element={<RequireJuridico><UsuarioJuridicoPage /></RequireJuridico>} />
+        <Route path={USUARIO_DIRECTOR} element={<RequireDirector><UsuarioDirectorPage /></RequireDirector>} />
         <Route path={NUEVO_TRAMITE_DATOS} element={<NuevoTramite_datosPage />} />
         <Route path={NUEVO_TRAMITE} element={<NuevoTramitePage />} />
         <Route path={NUEVO_TRAMITE_PAGO} element={<NuevoTramite_pagoPage />} />
-        <Route path={NUEVO_TRAMITE_EXPEDIENTES} element={<NuevoTramite_ExpedientePage/>} />
-  <Route path="/pago-exitoso" element={<PagoExitosoPage />} />
+        <Route path={NUEVO_TRAMITE_EXPEDIENTES} element={<NuevoTramite_ExpedientePage />} />
+        <Route path="/pago-exitoso" element={<PagoExitosoPage />} />
         <Route path="/pago-fallido" element={<div className="container mt-5"><h1>Pago Fallido</h1><p>El pago no pudo ser procesado. Por favor, intente nuevamente.</p></div>} />
         <Route path="/pago-pendiente" element={<div className="container mt-5"><h1>Pago Pendiente</h1><p>Su pago está pendiente de confirmación.</p></div>} />
         <Route path={RECUPERAR_CONTRASENA} element={<RecuperarContrasena />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
 export default App

@@ -35,7 +35,9 @@ function ConsultaExpedientes() {
   const [paginaActual, setPaginaActual] = useState(1);
   const porPagina = 10;
   const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("");
+  // Permite recibir filtroEstado y setFiltroEstado como props para reutilización
+  const props = arguments[0] || {};
+  const [filtroEstado, setFiltroEstado] = typeof props.filtroEstado !== "undefined" ? [props.filtroEstado, props.setFiltroEstado] : useState("");
   const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
 
@@ -374,10 +376,10 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   //---------------------------RETURN------------------------------------------
 
   return (
-    <Container fluid className="consulta-expedientes-container">
-      <div className="consulta-header">
-        <h2>Consulta de Expedientes</h2>
-        <Button variant="secondary" onClick={() => navigate("/Portada")}>
+    <Container fluid className="consulta-expedientes-container" style={{ maxWidth: "900px" }}>
+      <div className="consulta-header" style={{ marginTop: "0px", marginBottom: "10px" }}>
+        <h2 style={{ marginTop: "0px", marginBottom: "10px" }}>Consulta de Expedientes</h2>
+        <Button variant="secondary" onClick={() => navigate("//consulta-expedientes-estado")}>
           Volver a Portada
         </Button>
       </div>
@@ -401,7 +403,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
         <div className="tabla-container">
           {/* Barra de filtros */}
           <div className="row g-2 mb-3">
-            <div className="col-md-4">
+            <div className="col-md-6">
               <input
                 type="text"
                 className="form-control"
@@ -410,7 +412,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 onChange={(e) => setBusqueda(e.target.value)}
               />
             </div>
-            <div className="col-md-3">
+            <div className="col-md-4">
               <select
                 className="form-select"
                 value={filtroTipo}
@@ -428,47 +430,11 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 ))}
               </select>
             </div>
-            <div className="col-md-2">
-              <select
-                className="form-select"
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-              >
-                <option value="">Estado (todos)</option>
-                {[
-                  "en revisión",
-                  "aprobado",
-                  "rechazado",
-                  "pendiente",
-                  "archivado",
-                ].map((est) => (
-                  <option key={est} value={est}>
-                    {est}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-2">
-              <select
-                className="form-select"
-                value={filtroPrioridad}
-                onChange={(e) => setFiltroPrioridad(e.target.value)}
-              >
-                <option value="">Prioridad (todas)</option>
-                {["alta", "media", "baja"].map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-1 d-grid">
+            <div className="col-md-2 d-grid">
               <Button
                 variant="outline-secondary"
                 onClick={() => {
                   setBusqueda("");
-                  setFiltroEstado("");
-                  setFiltroPrioridad("");
                   setFiltroTipo("");
                 }}
               >
@@ -509,75 +475,35 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
           <Table striped bordered hover responsive>
             <thead>
               <tr>
-                <th>N° Expediente</th>
-                <th>Tipo</th>
-                <th>Descripción</th>
-                <th>Estado</th>
-                <th>Confirmar Pago</th>
-                <th>Prioridad</th>
-                <th>Fecha Creación</th>
-                <th>Acciones</th>
+                <th style={{ width: "180px" }}>N° Expediente</th>
+                <th style={{ width: "120px" }}>Tipo</th>
+                <th style={{ width: "350px" }}>Descripción</th>
+                <th style={{ width: "120px" }}>Estado</th>
+                <th style={{ width: "160px" }}>Fecha Creación</th>
+                <th style={{ width: "140px" }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {pagina.map((expediente) => (
                 <tr key={expediente.id_expediente}>
-                  <td>{expediente.numero_expediente}</td>
+                  <td><strong>{expediente.numero_expediente}</strong></td>
                   <td>{expediente.tipo_expediente || "N/A"}</td>
                   <td>{expediente.descripcion || "N/A"}</td>
-
                   <td>
                     <Badge bg={getEstadoBadge(expediente.estado_actual)}>
                       {expediente.estado_actual || "N/A"}
                     </Badge>
                   </td>
-                  <td>
-                    <Badge bg={getEstadoBadge(expediente.confirmar_pago)}>
-                      {expediente.confirmar_pago || "N/A"}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge bg={getPrioridadBadge(expediente.prioridad)}>
-                      {expediente.prioridad || "N/A"}
-                    </Badge>
-                  </td>
                   <td>{formatearFecha(expediente.fecha_creacion)}</td>
                   <td className="acciones-cell">
-                    {/*boton ver*/}
                     <Button
-                      variant="info"
+                      variant="primary"
                       size="sm"
-                      className="me-1 mb-1"
-                      onClick={() => abrirModal("ver", expediente)}
+                      style={{ width: "100%" }}
+                      onClick={() => {/* lógica de realizar pase aquí */}}
                     >
-                      Ver
+                      Realizar pase
                     </Button>
-
-                    {usuarioLog?.tipo_usuario?.toLowerCase() !==
-                      "presentante" && (
-                      <>
-                        <Button
-                          variant="warning"
-                          size="sm"
-                          className="me-1 mb-1"
-                          onClick={() => abrirModal("editar", expediente)}
-                          disabled={expediente.estado_actual === "archivado"}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          className="mb-1"
-                          onClick={() =>
-                            archivarExpediente(expediente.id_expediente)
-                          }
-                          disabled={expediente.estado_actual === "archivado"}
-                        >
-                          Archivar
-                        </Button>
-                      </>
-                    )}
                   </td>
                 </tr>
               ))}
@@ -632,34 +558,27 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
         <Modal.Body>
           {expedienteSeleccionado && (
             <Form onSubmit={actualizarExpediente}>
-
-
               {/*------Datos generales del expediente---------- */}
-
-              <div className="datos-grid">
-                <Form.Group>
+              <div className="datos-grid" style={{ maxWidth: "900px", margin: "0 auto" }}>
+                <Form.Group style={{ width: "100%" }}>
                   <Form.Label>Expediente</Form.Label>
                   <Form.Label className="expediente-label">
                     {expedienteSeleccionado.numero_expediente}
                   </Form.Label>
                 </Form.Group>
-
-
-                <Form.Group>
+                <Form.Group style={{ width: "100%" }}>
                   <Form.Label>Fecha</Form.Label>
                   <Form.Label className="expediente-label">
                     {expedienteSeleccionado.fecha_creacion}
                   </Form.Label>
                 </Form.Group>
-
-                <Form.Group>
+                <Form.Group style={{ width: "100%" }}>
                   <Form.Label>Usuario Presentante</Form.Label>
                   <Form.Label className="expediente-label">
                     {expedienteSeleccionado.id_usuario_presentante}
                   </Form.Label>
                 </Form.Group>
-
-                <Form.Group>
+                <Form.Group style={{ width: "100%" }}>
                   <Form.Label>Estado</Form.Label>
                   <Form.Label className="expediente-label">
                     {expedienteSeleccionado.estado_actual}
