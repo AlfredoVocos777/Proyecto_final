@@ -1,7 +1,7 @@
 /* Estilos para ConsultaAdminExpedientes */
 .admin-hero {
-  margin-top: 90px; /* para pegarlo al header fijo */
-  min-height: calc(100vh - 160px); /* ajusta para pegarlo al footer */
+  margin-top: 10px; /* para pegarlo al header fijo */
+  min-height: 10px; /* ajusta para pegarlo al footer */
   display: flex;
   flex-direction: column;
   align-items: center;

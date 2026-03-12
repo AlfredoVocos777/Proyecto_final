@@ -2,7 +2,7 @@
 
 .consulta-expedientes-container {
   padding: 1.25rem;
-  padding-top: 130px; /* Antes 120px: ahora la vista queda pegada al header */
+  padding-top: 10px; /* Antes 120px: ahora la vista queda pegada al header */
   padding-bottom: 1.25rem;
   min-height: calc(100vh - 80px);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

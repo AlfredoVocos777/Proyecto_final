@@ -379,8 +379,8 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     <Container fluid className="consulta-expedientes-container" style={{ maxWidth: "900px" }}>
       <div className="consulta-header" style={{ marginTop: "0px", marginBottom: "10px" }}>
         <h2 style={{ marginTop: "0px", marginBottom: "10px" }}>Consulta de Expedientes</h2>
-        <Button variant="secondary" onClick={() => navigate("//consulta-expedientes-estado")}>
-          Volver a Portada
+        <Button variant="secondary" onClick={() => navigate(-1)} style={{ marginBottom: "10px" }}>
+          Volver
         </Button>
       </div>
 

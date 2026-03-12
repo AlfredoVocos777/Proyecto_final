@@ -12,6 +12,7 @@ import {
   LOGIN_USUARIO,
   EXPEDIENTES_FINALIZADOS,
   EXPEDIENTES_ARCHIVADOS,
+  CONSULTA_EXPEDIENTES_ESTADO,
 } from "../Routers/router";
 import "../CSS/PortadaAdministrativo.css";
 
@@ -50,7 +51,7 @@ const PortadaAdministrativo = () => {
             <button className="admin-btn primary" onClick={() => navigate(NUEVO_TRAMITE_DATOS)}>
               Crear Nuevo Trámite
             </button>
-            <button className="admin-btn info" onClick={() => navigate(CONSULTA_ADMIN)}>
+            <button className="admin-btn info" onClick={() => navigate(CONSULTA_EXPEDIENTES_ESTADO)}>
               Consultar y Asignar Expedientes
             </button>
             <button className="admin-btn success" onClick={() => navigate(LISTAR_USUARIOS)}>

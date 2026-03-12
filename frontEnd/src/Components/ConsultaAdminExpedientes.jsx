@@ -12,8 +12,7 @@ export default function ConsultaAdminExpedientes() {
 				<p className="admin-subtitle">SIGEDEX · Panel administrativo</p>
 				<div className="admin-card">
 					<div className="admin-actions">
-						<button className="admin-btn primary" onClick={() => navigate('/consulta-expedientes-estado')}>Consultar Expedientes</button>
-						<button className="admin-btn success" onClick={() => setVista("asignar")}>Asignar Expedientes</button>
+						<button className="admin-btn primary" onClick={() => navigate('/consulta-expedientes-estado')}>Consultar y asignar</button>
 					</div>
 					{vista === "asignar" && (
 						<div style={{marginTop: '18px'}}>
