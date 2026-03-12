@@ -480,7 +480,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 <th style={{ width: "350px" }}>Descripción</th>
                 <th style={{ width: "120px" }}>Estado</th>
                 <th style={{ width: "160px" }}>Fecha Creación</th>
-                <th style={{ width: "140px" }}>Acciones</th>
+                <th style={{ width: "220px" }}>Observaciones</th>
               </tr>
             </thead>
             <tbody>
@@ -495,16 +495,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                     </Badge>
                   </td>
                   <td>{formatearFecha(expediente.fecha_creacion)}</td>
-                  <td className="acciones-cell">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      style={{ width: "100%" }}
-                      onClick={() => {/* lógica de realizar pase aquí */}}
-                    >
-                      Realizar pase
-                    </Button>
-                  </td>
+                  <td>{expediente.observaciones || "Sin observaciones"}</td>
                 </tr>
               ))}
             </tbody>

@@ -17,6 +17,11 @@ export default function ConsultaExpedientesEstadoPage() {
               <button className="admin-btn success" onClick={() => navigate('/ExpedientesFinalizados')}>Finalizados</button>
               <button className="admin-btn warning" onClick={() => navigate('/ExpedientesArchivados')}>Archivados</button>
             </div>
+            <div style={{marginTop: '18px', textAlign: 'center'}}>
+              <button className="admin-btn secondary" style={{display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.95em', fontWeight: 'bold'}} onClick={() => navigate('/PortadaAdministrativo')}>
+                <span style={{fontSize: '1.2em'}}>←</span> Volver
+              </button>
+            </div>
           </div>
         </div>
       </div>
