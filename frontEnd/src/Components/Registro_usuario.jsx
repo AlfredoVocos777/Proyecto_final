@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_USUARIOS, URL_ROLES, URL_DEPARTAMENTOS } from "../Constants/endpoints";
+import { URL_USUARIOS } from "../Constants/endpoints";
 import { Container, Form, Button } from "react-bootstrap";
 
 import "../CSS/registroUsuario.css";
@@ -18,33 +18,15 @@ const RegistroUsuario = () => {
     telefono: "",
     usuario: "",
     contraseña: "",
-    id_rol: 1, // Rol por defecto: Presentante (asumiendo id_rol=1)
-    id_departamento: null,
+   
   };
   const [usuario, setUsuario] = useState(initialState);
-  const [roles, setRoles] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
+ 
 
-  // Cargar roles y departamentos al montar el componente
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const [rolesRes, deptoRes] = await Promise.all([
-          axios.get(URL_ROLES),
-          axios.get(URL_DEPARTAMENTOS)
-        ]);
-        setRoles(rolesRes.data || []);
-        setDepartamentos(deptoRes.data || []);
-      } catch (error) {
-        console.error("Error al cargar roles o departamentos:", error);
-      }
-    };
-    cargarDatos();
-  }, []);
-
-  {
+  
+  
     //---------------------------------------------------------
-  }
+ 
   const handleChange = (e) => {
     setUsuario({ ...usuario, [e.target.name]: e.target.value });
   };
@@ -56,9 +38,23 @@ const RegistroUsuario = () => {
     e.preventDefault();
     try {
       const response = await axios.post(URL_USUARIOS, usuario);
-      setUsuario(response.data);
 
-      setUsuario(initialState); // aqui limpiamos los datos del formulario, para ello deb
+      // 1. Usamos response.data para obtener el nombre que confirmó el servidor
+      // para mostrar un cartel de bienvenido 
+
+      /* 
+      const nombreRecibido = response.data.nombre;
+      const apellidoRecibido = response.data.apellido;
+      */
+
+      // se puede estructurar directamente así:
+      const { nombre, apellido } = response.data;
+
+      // 2. Mostramos el mensaje personalizado
+      alert(`¡Registro exitoso! Bienvenido/a ${nombre} ${apellido}.`);
+
+      setUsuario(initialState); // aqui limpiamos los datos del formulario
+      // si la respuesta es exitosa, redirigimos al usuario a la página de inicio o a donde quieras
       if (response) {
         navigate("/"); // Redirige al usuario a la página de inicio después de crear el mismo
         console.log("Usuario creado exitosamente:", response.data);
@@ -195,39 +191,9 @@ const RegistroUsuario = () => {
                   />
                 </Form.Group>
 
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea2"
-                >
-                  <Form.Label>Rol</Form.Label>
-                  <Form.Select
-                    name="id_rol"
-                    value={usuario.id_rol || ''}
-                    onChange={handleChange}
-                  >
-                    <option value="">Seleccionar rol</option>
-                    {roles.map(r => (
-                      <option key={r.id_rol} value={r.id_rol}>{r.nombre}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
+                
 
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea3"
-                >
-                  <Form.Label>Departamento (opcional)</Form.Label>
-                  <Form.Select
-                    name="id_departamento"
-                    value={usuario.id_departamento || ''}
-                    onChange={handleChange}
-                  >
-                    <option value="">Sin departamento</option>
-                    {departamentos.map(d => (
-                      <option key={d.id_departamento} value={d.id_departamento}>{d.nombre}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
+                
               </div>
               <div className="contenedorBotonRegistro">
                 <Button

@@ -253,7 +253,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
       setObservacionesJuridico(data.Jurídico || []);
 
       // Director
-      ssetObservacionesDirector(data.Director || []);
+      setObservacionesDirector(data.Director || []);
     } catch (error) {
       console.error("Error al cargar observaciones", error);
     }
@@ -648,7 +648,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 <Form.Group>
                   <Form.Label>Fecha</Form.Label>
                   <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.fecha_creacion}
+                    {new Date(expedienteSeleccionado.fecha_creacion).toLocaleString("es-AR")}
                   </Form.Label>
                 </Form.Group>
 
@@ -683,7 +683,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                           rows={3}
                           className="mb-2"
                           disabled
-                          value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
+                          value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
                         />
                       ))
                     ) : (
@@ -707,16 +707,16 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       <Form.Control
                         key={i}
                         as="textarea"
-                        rows={2}
+                        rows={3}
                         className="mb-2"
                         disabled
-                        value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
+                        value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
                       />
                     ))
                   ) : (
                     <Form.Control
                       as="textarea"
-                      rows={2}
+                      rows={3}
                       disabled
                       value="Sin observaciones"
                     />
@@ -734,10 +734,10 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       <Form.Control
                         key={i}
                         as="textarea"
-                        rows={2}
+                        rows={3}
                         className="mb-2"
                         disabled
-                        value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
+                        value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
                       />
                     ))
                   ) : (
@@ -764,7 +764,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       rows={2}
                       className="mb-2"
                       disabled
-                      value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
+                      value={`${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
                     />
                   ))
                 ) : (
@@ -838,7 +838,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                           variant="outline-primary"
                           size="sm"
                           onClick={() =>
-                            window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank")
+                            window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank", "noopener,noreferrer")
                           }
                         >
                           Ver

@@ -433,7 +433,7 @@ export default function UsuarioTecnico() {
                               {exp.estado}
                             </span>
                           </td>
-                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
+                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleString("es-AR") : '-'}</td>
                           <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
                           <td>{exp.observaciones_pase || '-'}</td>
                           <td>
@@ -791,7 +791,7 @@ export default function UsuarioTecnico() {
                   <tr><th>Tipo:</th><td>{expedienteConsultado.tipo_tramite}</td></tr>
                   <tr><th>Estado:</th><td>{expedienteConsultado.estado}</td></tr>
                   <tr><th>Descripción:</th><td>{expedienteConsultado.descripcion}</td></tr>
-                  <tr><th>Fecha Creación:</th><td>{new Date(expedienteConsultado.fecha_creacion).toLocaleDateString()}</td></tr>
+                  <tr><th>Fecha Creación:</th><td>{new Date(expedienteConsultado.fecha_creacion).toLocaleString("es-AR")}</td></tr>
                 </tbody>
               </table>
 
@@ -811,7 +811,7 @@ export default function UsuarioTecnico() {
                       <tbody>
                         {historialExpediente.map((h, idx) => (
                           <tr key={idx}>
-                            <td>{new Date(h.fecha_accion).toLocaleString()}</td>
+                            <td>{new Date(h.fecha_accion).toLocaleString("es-AR")}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>
                             <td>{h.comentario}</td>
@@ -960,7 +960,7 @@ export default function UsuarioTecnico() {
                       <td title={doc.nombre_archivo}>{doc.nombre_archivo}</td>
                       <td>{doc.tipo}</td>
                       <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString() : '-'}</td>
+                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString("es-AR") : '-'}</td>
                       <td>
                         <button
                           className="btn btn-outline-danger btn-sm"
@@ -1044,7 +1044,7 @@ export default function UsuarioTecnico() {
             <>
               <p><strong>Tipo:</strong> {expedienteVer.tipo_expediente || expedienteVer.tipo_tramite || 'N/A'}</p>
               <p><strong>Estado:</strong> {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}</p>
-              <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleDateString()}</p>
+              <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleString("es-AR")}</p>
               <hr />
               <Form.Group controlId="formArchivosVer">
                 <Form.Label>Adjuntar Documentos</Form.Label>

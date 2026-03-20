@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_FIRMAS, URL_SUBIR_DOCUMENTO, URL_UPLOADS } from "../Constants/endpoints";
+import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_FIRMAS, URL_SUBIR_DOCUMENTO, URL_UPLOADS, URL_OBSERVACIONES } from "../Constants/endpoints";
 import { Modal, Button, Form, Alert } from "react-bootstrap";
 import "../CSS/UsuarioDirector.css";
 
@@ -51,11 +51,6 @@ export default function UsuarioDirector() {
   const [archivosRevision, setArchivosRevision] = useState([]);
   const [comentarioDocRevision, setComentarioDocRevision] = useState("");
   const [historialRevision, setHistorialRevision] = useState([]);
-
-  // Estados para decisión (aprobar/rechazar) - modal antiguo, ahora no se usa
-  const [showModalDecision, setShowModalDecision] = useState(false);
-  const [expedienteDecision, setExpedienteDecision] = useState(null);
-  const [mensajeDecision, setMensajeDecision] = useState({ tipo: "", texto: "" });
 
   // Estados para firmar documento
   const [showModalFirma, setShowModalFirma] = useState(false);
@@ -382,23 +377,37 @@ export default function UsuarioDirector() {
         descripcion: expedienteRevision.descripcion,
         prioridad: expedienteRevision.prioridad || "normal",
         estado_actual: nuevoEstado,
+        comentario_director: comentarioDecision
       };
       
+      // Enviamos al backend
       await axios.put(`${URL_EXPEDIENTES}/${expedienteRevision.id_expediente}`, payloadUpdate);
+      // Construccion mensaje automático + comentario del director
+        const mensajeObservacion =
+          decisionTipo === "aprobar"
+            ? `• Expediente aprobado por Dirección.\n\n• Se autoriza la obra solicitada.\n\n• Observación del Director:\n${comentarioDecision}`
+            : `• Expediente rechazado por Dirección.\n\n• Falta documentación o requisitos.\n\n• Observación del Director:\n${comentarioDecision}`;
+
+        // Guardar observación para el presentante
+        await axios.post(URL_OBSERVACIONES, {
+          id_expediente: expedienteRevision.id_expediente,
+          id_usuario: usuarioLogueado.id_usuario,
+          observacion: mensajeObservacion
+        });
 
       // Registrar en historial
-      const historialData = {
+          const historialData = {
         id_expediente: expedienteRevision.id_expediente,
         id_usuario_responsable: usuarioLogueado.id_usuario,
-        accion: decisionTipo === "aprobar" ? "Aprobación Dirección" : "Rechazo Dirección",
-        comentario: comentarioDecision,
-        tipo_accion: decisionTipo === "aprobar" ? "aprobación" : "rechazo"
+        accion: decisionTipo === "aprobar" ? "Aprobado por Dirección" : "Rechazado por Dirección",
+        comentario: comentarioDecision
       };
+      
 
       await axios.post(URL_HISTORIAL, historialData);
 
       // TODO: Aquí se debe disparar notificación al usuario presentante
-      // Por ahora mostramos mensaje de éxito
+      
       setMensajeRevision({
         tipo: "success",
         texto: `Expediente ${decisionTipo === "aprobar" ? "aprobado" : "rechazado"} exitosamente. Se notificará al usuario presentante.`
@@ -516,76 +525,11 @@ export default function UsuarioDirector() {
     }
   };
 
-  const abrirModalDecision = (expediente, tipo) => {
-    setExpedienteDecision(expediente);
-    setDecisionTipo(tipo);
-    setComentarioDecision("");
-    setMensajeDecision({ tipo: "", texto: "" });
-    setShowModalDecision(true);
-  };
+  
 
-  const cerrarModalDecision = () => {
-    setShowModalDecision(false);
-    setExpedienteDecision(null);
-    setDecisionTipo("");
-    setComentarioDecision("");
-    setMensajeDecision({ tipo: "", texto: "" });
-  };
+  
 
-  const confirmarDecision = async () => {
-    try {
-      setProcesandoDecision(true);
-      setMensajeDecision({ tipo: "", texto: "" });
-
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-      const nuevoEstado = decisionTipo === "aprobar" ? "aprobado" : "rechazado";
-      
-      // Actualizar estado del expediente
-      const payloadUpdate = {
-        tipo_expediente: expedienteDecision.tipo_tramite || expedienteDecision.tipo_expediente,
-        descripcion: expedienteDecision.descripcion,
-        prioridad: expedienteDecision.prioridad || "normal",
-        estado_actual: nuevoEstado,
-      };
-      
-      await axios.put(`${URL_EXPEDIENTES}/${expedienteDecision.id_expediente}`, payloadUpdate);
-
-      // Registrar en historial
-      const historialData = {
-        id_expediente: expedienteDecision.id_expediente,
-        id_usuario_responsable: usuarioLogueado.id_usuario,
-        accion: decisionTipo === "aprobar" ? "Aprobación Dirección" : "Rechazo Dirección",
-        comentario: comentarioDecision || `Expediente ${decisionTipo === "aprobar" ? "aprobado" : "rechazado"} por el Director`,
-        tipo_accion: decisionTipo === "aprobar" ? "aprobación" : "rechazo"
-      };
-
-      await axios.post(URL_HISTORIAL, historialData);
-
-      setMensajeDecision({
-        tipo: "success",
-        texto: `Expediente ${decisionTipo === "aprobar" ? "aprobado" : "rechazado"} exitosamente`
-      });
-
-      setTimeout(() => {
-        cerrarModalDecision();
-        // Recargar expedientes
-        if (usuarioLogueado?.id_usuario) {
-          axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`)
-            .then(res => setExpedientesPendientes(res.data || []))
-            .catch(err => console.error("Error al recargar expedientes:", err));
-        }
-      }, 2000);
-
-    } catch (error) {
-      console.error("Error al procesar decisión:", error);
-      setMensajeDecision({
-        tipo: "danger",
-        texto: error.response?.data?.error || "Error al procesar la decisión"
-      });
-    } finally {
-      setProcesandoDecision(false);
-    }
-  };
+  
 
   const abrirModalFirma = async (documento) => {
     setDocumentoAFirmar(documento);
@@ -1096,77 +1040,7 @@ export default function UsuarioDirector() {
             {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
           </Button>
         </Modal.Footer>
-      </Modal>
-
-      {/* Modal de Decisión (Aprobar/Rechazar) */}
-      <Modal show={showModalDecision} onHide={cerrarModalDecision} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {decisionTipo === 'aprobar' ? '✓ Aprobar Expediente' : '✗ Rechazar Expediente'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {mensajeDecision.tipo && mensajeDecision.texto && (
-            <Alert variant={mensajeDecision.tipo}>{mensajeDecision.texto}</Alert>
-          )}
-          
-          {expedienteDecision && (
-            <>
-              <div className="mb-3">
-                <strong>Expediente:</strong> {expedienteDecision.numero_expediente}
-                <br />
-                <strong>Tipo:</strong> {expedienteDecision.tipo_tramite || expedienteDecision.tipo_expediente}
-                <br />
-                <strong>Descripción:</strong> {expedienteDecision.descripcion || 'Sin descripción'}
-              </div>
-
-              <Alert variant={decisionTipo === 'aprobar' ? 'success' : 'danger'}>
-                <strong>
-                  {decisionTipo === 'aprobar' 
-                    ? '¿Confirma que desea APROBAR este expediente?' 
-                    : '¿Confirma que desea RECHAZAR este expediente?'}
-                </strong>
-              </Alert>
-
-              <Form.Group className="mb-3">
-                <Form.Label>
-                  <strong>
-                    {decisionTipo === 'aprobar' 
-                      ? 'Comentarios de aprobación' 
-                      : 'Motivo del rechazo'} *
-                  </strong>
-                </Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={4}
-                  placeholder={
-                    decisionTipo === 'aprobar'
-                      ? 'Agregue observaciones sobre la aprobación...'
-                      : 'Indique el motivo del rechazo...'
-                  }
-                  value={comentarioDecision}
-                  onChange={(e) => setComentarioDecision(e.target.value)}
-                  disabled={procesandoDecision}
-                />
-              </Form.Group>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={cerrarModalDecision} disabled={procesandoDecision}>
-            Cancelar
-          </Button>
-          <Button 
-            variant={decisionTipo === 'aprobar' ? 'success' : 'danger'}
-            onClick={confirmarDecision}
-            disabled={procesandoDecision || !comentarioDecision.trim()}
-          >
-            {procesandoDecision 
-              ? 'Procesando...' 
-              : decisionTipo === 'aprobar' ? '✓ Confirmar Aprobación' : '✗ Confirmar Rechazo'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      </Modal>    
 
       {/* Modal de Revisión Completo (Nuevo) */}
       <Modal show={showModalRevision} onHide={cerrarModalRevision} size="xl" centered>
