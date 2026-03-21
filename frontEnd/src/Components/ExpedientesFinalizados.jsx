@@ -108,6 +108,7 @@ const ExpedientesFinalizados = () => {
                     <th>Presentante</th>
                     <th>Fecha</th>
                     <th>Estado</th>
+                    <th>Observaciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -145,6 +146,7 @@ const ExpedientesFinalizados = () => {
                       <td style={{ color: "green" }}>
                         {exp.estado_actual.charAt(0).toUpperCase() + exp.estado_actual.slice(1)}
                       </td>
+                      <td>{exp.observaciones || "Sin observaciones"}</td>
                     </tr>
                   ))}
                 </tbody>

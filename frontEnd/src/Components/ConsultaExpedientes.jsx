@@ -196,6 +196,7 @@ function ConsultaExpedientes(props) {
         />
         <Button variant="success" onClick={exportarPDF}>Generar Reporte</Button>
       </div>
+<<<<<<< HEAD
       <Table striped bordered hover responsive>
         <thead>
           <tr>
@@ -217,16 +218,129 @@ function ConsultaExpedientes(props) {
             expedientesFiltrados.map((expediente) => {
               const presentante = usuarios.find(u => u.id_usuario === expediente.id_usuario_presentante);
               return (
+=======
+
+      {/* Subtítulo contextual para presentante */}
+      {usuarioLog?.tipo_usuario?.toLowerCase() === "presentante" && (
+        <p className="text-muted mb-3">Mostrando tus expedientes presentados</p>
+      )}
+
+      {error && (
+        <Alert variant="danger" dismissible onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {expedientes.length === 0 ? (
+        <Alert variant="info">
+          No hay expedientes registrados en el sistema.
+        </Alert>
+      ) : (
+        <div className="tabla-container">
+          {/* Barra de filtros */}
+          <div className="row g-2 mb-3">
+            <div className="col-md-6">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar por número, tipo o descripción..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
+            <div className="col-md-4">
+              <select
+                className="form-select"
+                value={filtroTipo}
+                onChange={(e) => setFiltroTipo(e.target.value)}
+              >
+                <option value="">Tipo (todos)</option>
+                {Array.from(
+                  new Set(
+                    expedientes.map((e) => e.tipo_expediente).filter(Boolean)
+                  )
+                ).map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-2 d-grid">
+              <Button
+                variant="outline-secondary"
+                onClick={() => {
+                  setBusqueda("");
+                  setFiltroTipo("");
+                }}
+              >
+                Limpiar
+              </Button>
+            </div>
+          </div>
+
+          {/* Info de paginación superior */}
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <small className="text-muted">
+              Mostrando {Math.min(inicio + 1, total)} a {Math.min(fin, total)}{" "}
+              de {total}
+            </small>
+            <div>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                className="me-2"
+                onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() =>
+                  setPaginaActual((p) => (p * porPagina < total ? p + 1 : p))
+                }
+                disabled={paginaActual * porPagina >= total}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+
+          <Table striped bordered hover responsive>
+            <thead>
+              <tr>
+                <th style={{ width: "180px" }}>N° Expediente</th>
+                <th style={{ width: "120px" }}>Tipo</th>
+                <th style={{ width: "350px" }}>Descripción</th>
+                <th style={{ width: "120px" }}>Estado</th>
+                <th style={{ width: "160px" }}>Fecha Creación</th>
+                <th style={{ width: "220px" }}>Observaciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagina.map((expediente) => (
+>>>>>>> 482707a45fbc07eefe5f6ab58c8a29e222971331
                 <tr key={expediente.id_expediente}>
                   <td>{expediente.numero_expediente}</td>
                   <td>{expediente.tipo_expediente}</td>
                   <td>{presentante ? `${presentante.nombre} ${presentante.apellido}` : expediente.id_usuario_presentante}</td>
                   <td>{expediente.fecha_creacion}</td>
                   <td>
+<<<<<<< HEAD
                     <Button variant="primary" size="sm" onClick={() => handleVerDocumentos(expediente)}>
                       Realizar Pase
                     </Button>
                   </td>
+=======
+                    <Badge bg={getEstadoBadge(expediente.estado_actual)}>
+                      {expediente.estado_actual || "N/A"}
+                    </Badge>
+                  </td>
+                  <td>{formatearFecha(expediente.fecha_creacion)}</td>
+                  <td>{expediente.observaciones || "Sin observaciones"}</td>
+>>>>>>> 482707a45fbc07eefe5f6ab58c8a29e222971331
                 </tr>
               );
             })
