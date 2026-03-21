@@ -378,6 +378,7 @@ export default function UsuarioTecnico() {
     : menuItems;
 
   const renderContenido = () => {
+<<<<<<< HEAD
   switch (seccionActiva) {
         case "consultar-expediente": {
           // Filtro simple por número, estado o texto
@@ -403,6 +404,128 @@ export default function UsuarioTecnico() {
               ) : (
                 <div className="tabla-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                   <table className="table table-sm table-bordered">
+=======
+    switch (seccionActiva) {
+      case "inicio":
+        return (
+          <div className="seccion-contenido seccion-inicio">
+            <h1>Portal de Usuario Técnico</h1>
+            <p>Bienvenido al sistema de gestión de expedientes - Área Técnica</p>
+            
+            {loadingExpedientes ? (
+              <p>Cargando expedientes...</p>
+            ) : expedientesPendientes.length > 0 ? (
+              <div className="expedientes-pendientes">
+                <h2>Expedientes con Pase Pendiente de Recepción</h2>
+                
+                <div className="acciones-seleccion">
+                  <Button
+                    variant="primary"
+                    onClick={abrirModalRecepcion}
+                    disabled={expedientesSeleccionados.length === 0}
+                  >
+                    Recepcionar Seleccionados ({expedientesSeleccionados.length})
+                  </Button>
+                  <Button
+                    variant="outline-secondary"
+                    onClick={toggleSeleccionTodos}
+                    disabled={expedientesPendientes.filter(exp => !exp.recepcionado).length === 0}
+                  >
+                    {expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length && expedientesPendientes.filter(exp => !exp.recepcionado).length > 0
+                      ? "Deseleccionar Todos"
+                      : "Seleccionar Todos"}
+                  </Button>
+                </div>
+
+                <div className="tabla-container">
+                  <table className="tabla-expedientes">
+                    <thead>
+                      <tr>
+                        <th>
+                          <input
+                            type="checkbox"
+                            checked={
+                              expedientesPendientes.filter(exp => !exp.recepcionado).length > 0 &&
+                              expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length
+                            }
+                            onChange={toggleSeleccionTodos}
+                            disabled={expedientesPendientes.filter(exp => !exp.recepcionado).length === 0}
+                          />
+                        </th>
+                        <th>Nº Expediente</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th>Fecha Pase</th>
+                        <th>Desde</th>
+                        <th>Observaciones</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expedientesPendientes.map(exp => (
+                        <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={expedientesSeleccionados.includes(exp.id_expediente)}
+                              onChange={() => toggleSeleccion(exp.id_expediente)}
+                              disabled={exp.recepcionado}
+                            />
+                          </td>
+                          <td>
+                            <strong>{exp.numero_expediente}</strong>
+                            {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
+                            {exp.recepcionado && !exp.puedeHacerPase && (
+                              <span className="badge bg-warning text-dark ms-2" title="Solo quien recepcionó puede hacer pases">
+                                🔒 Sin permiso de pase
+                              </span>
+                            )}
+                          </td>
+                          <td>{exp.tipo_tramite}</td>
+                          <td>
+                            <span className={`badge-estado estado-${exp.estado}`}>
+                              {exp.estado}
+                            </span>
+                          </td>
+                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleString("es-AR") : '-'}</td>
+                          <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
+                          <td>{exp.observaciones_pase || '-'}</td>
+                          <td>
+                            <button
+                              className="btn btn-sm btn-info"
+                              onClick={() => abrirModalDoc(exp)}
+                            >
+                              📄 Docs
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="sin-expedientes">
+                <p>No hay expedientes pendientes de recepción</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case "realizar-pase":
+        return (
+          <div className="seccion-contenido">
+            <h2>Realizar Pase Técnico</h2>
+            <Alert variant="info" className="mb-3">
+              <strong>Importante:</strong> Solo puede realizar pases de expedientes que usted haya recepcionado previamente.
+            </Alert>
+            
+            {expedientesPendientes.filter(exp => exp.puedeHacerPase).length > 0 ? (
+              <>
+                <p>Expedientes disponibles para realizar pase:</p>
+                <div className="tabla-container">
+                  <table className="tabla-expedientes">
+>>>>>>> origin/rama_alfredo
                     <thead>
                       <tr>
                         <th>Nº Expediente</th>
@@ -844,7 +967,7 @@ export default function UsuarioTecnico() {
                   <tr><th>Tipo:</th><td>{expedienteConsultado.tipo_tramite}</td></tr>
                   <tr><th>Estado:</th><td>{expedienteConsultado.estado}</td></tr>
                   <tr><th>Descripción:</th><td>{expedienteConsultado.descripcion}</td></tr>
-                  <tr><th>Fecha Creación:</th><td>{new Date(expedienteConsultado.fecha_creacion).toLocaleDateString()}</td></tr>
+                  <tr><th>Fecha Creación:</th><td>{new Date(expedienteConsultado.fecha_creacion).toLocaleString("es-AR")}</td></tr>
                 </tbody>
               </table>
 
@@ -864,7 +987,7 @@ export default function UsuarioTecnico() {
                       <tbody>
                         {historialExpediente.map((h, idx) => (
                           <tr key={idx}>
-                            <td>{new Date(h.fecha_accion).toLocaleString()}</td>
+                            <td>{new Date(h.fecha_accion).toLocaleString("es-AR")}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>
                             <td>{h.comentario}</td>
@@ -1013,7 +1136,7 @@ export default function UsuarioTecnico() {
                       <td title={doc.nombre_archivo}>{doc.nombre_archivo}</td>
                       <td>{doc.tipo}</td>
                       <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString() : '-'}</td>
+                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString("es-AR") : '-'}</td>
                       <td>
                         <button
                           className="btn btn-outline-danger btn-sm"
@@ -1097,7 +1220,7 @@ export default function UsuarioTecnico() {
             <>
               <p><strong>Tipo:</strong> {expedienteVer.tipo_expediente || expedienteVer.tipo_tramite || 'N/A'}</p>
               <p><strong>Estado:</strong> {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}</p>
-              <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleDateString()}</p>
+              <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleString("es-AR")}</p>
               <hr />
               <Form.Group controlId="formArchivosVer">
                 <Form.Label>Adjuntar Documentos</Form.Label>

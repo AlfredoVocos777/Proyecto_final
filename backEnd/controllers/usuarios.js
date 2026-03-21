@@ -38,11 +38,9 @@ export const crearUsuario = async (req, res) => {
     telefono,
     usuario,
     contraseña,
-    tipo_usuario, // 'presentante','administrativo','técnico','jurídico','director','admin_TI'
-    id_rol = null,
   } = req.body;
   
-  if (!nombre || !apellido || !dni || !email || !direccion || !telefono || !usuario || !contraseña || !tipo_usuario) {
+  if (!nombre || !apellido || !dni || !email || !direccion || !telefono || !usuario || !contraseña ) {
         return res.status(400).json({
     error: 'Faltan datos requeridos para crear el usuario',
         });
@@ -54,12 +52,12 @@ export const crearUsuario = async (req, res) => {
     const hash = await bcrypt.hash(contraseña, salt);
 
     const sql = `INSERT INTO usuario 
-    (nombre, apellido, dni, email, direccion, telefono, usuario, contraseña, tipo_usuario, id_rol)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    (nombre, apellido, dni, email, direccion, telefono, usuario, contraseña)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
     connection.query(
       sql,
-      [nombre, apellido, dni, email, direccion, telefono, usuario, hash, tipo_usuario, id_rol],
+      [nombre, apellido, dni, email, direccion, telefono, usuario, hash],
       (err, result) => {
         if (err) {
           console.error(err);

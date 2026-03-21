@@ -6,6 +6,7 @@ import Header_1 from "./Header_1";
 import Footer from "./Footer";
 import "../CSS/common.css";
 import "../CSS/UsuarioJuridico.css";
+import { useNavigate } from "react-router-dom";
 
 const ExpedientesArchivados = () => {
   const [expedientes, setExpedientes] = useState([]);
@@ -40,6 +41,8 @@ const ExpedientesArchivados = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+
+const navigate = useNavigate();
 
   useEffect(() => {
     if (view === "archivados") {
@@ -86,7 +89,7 @@ const ExpedientesArchivados = () => {
               </button>
               <button
                 className="juridico-menu-btn juridico-salir"
-                onClick={() => window.location.href = "/PortadaAdministrativo"}
+                onClick={() => navigate("/PortadaAdministrativo")}
               >
                 <span className="juridico-icon">🚪</span>
                 <span className="juridico-label">Salir</span>

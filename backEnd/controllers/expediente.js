@@ -1,4 +1,5 @@
 import connection from "../configDB/dataBase.js";
+import { enviarWhatsapp } from "../utils/whatsapp.js";
 
 // Obtener todos los expedientes (solo por si querés listar)
 export const obtenerExpediente = (req, res) => {
@@ -142,7 +143,11 @@ export const actualizarExpediente = (req, res) => {
     descripcion,
     prioridad,
     estado_actual,
+<<<<<<< HEAD
     id_profesional_asignado
+=======
+    comentario_director // Agregamos este campo que vendría del modal de React
+>>>>>>> origin/rama_alfredo
   } = req.body;
 
   const updated_at = new Date();
@@ -156,6 +161,7 @@ export const actualizarExpediente = (req, res) => {
     id_profesional_asignado
   };
 
+  // 1. Actualizamos los datos en la DB
   connection.query(
     "UPDATE Expedientes SET ? WHERE id_expediente = ?",
     [expedienteUpdate, id],
@@ -169,6 +175,37 @@ export const actualizarExpediente = (req, res) => {
         return res.status(404).json({ error: "Expediente no encontrado" });
       }
 
+      // 2. Lógica de Notificación por WhatsApp
+      // 2. Lógica de Notificación (Solo si es Aprobado o Rechazado)
+      if (estado_actual === 'aprobado' || estado_actual === 'rechazado') {
+        
+        // Buscamos el teléfono y nombre del usuario que presentó el expediente
+        const sqlDatos = `
+          SELECT u.nombre, u.telefono, e.numero_expediente 
+          FROM expedientes e
+          JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
+          WHERE e.id_expediente = ?
+        `;
+
+        connection.query(sqlDatos, [id], (errTel, results) => {
+          if (!errTel && results.length > 0 && results[0].telefono) {
+            const { nombre, telefono, numero_expediente } = results[0];
+
+            const emoji = estado_actual === 'aprobado' ? '✅' : '❌';
+            const mensaje = `🏛️ *D.P.A. Tucumán*\n\n` +
+                            `Hola *${nombre}*,\n` +
+                            `Tu expediente *${numero_expediente}* ha sido *${estado_actual.toUpperCase()}* ${emoji}.\n\n` +
+                            `💬 *Observación:* ${comentario_director || "Sin observaciones particulares."}\n\n` +
+                            `_Este es un aviso automático_.\n\n Para más información, consulte al sistema.`;
+
+            // LLAMADA SIMPLE: La utilidad se encarga de todo el formateo necesario para Tucumán (agregar 549, validar número, etc.)
+            enviarWhatsapp(telefono, mensaje);
+            console.log(`📩 Notificación enviada a ${nombre} (${telefono})`);
+          }
+        });
+      }
+
+      // 3. Respuesta al frontend
       res.json({
         mensaje: "Expediente actualizado exitosamente",
         id_expediente: id

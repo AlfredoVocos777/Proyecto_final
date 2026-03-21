@@ -18,12 +18,22 @@ const RegistroUsuario = () => {
     telefono: "",
     usuario: "",
     contraseña: "",
+<<<<<<< HEAD
   };
   const [usuario, setUsuario] = useState(initialState);
 
   {
+=======
+   
+  };
+  const [usuario, setUsuario] = useState(initialState);
+ 
+
+  
+  
+>>>>>>> origin/rama_alfredo
     //---------------------------------------------------------
-  }
+ 
   const handleChange = (e) => {
     setUsuario({ ...usuario, [e.target.name]: e.target.value });
   };
@@ -35,9 +45,23 @@ const RegistroUsuario = () => {
     e.preventDefault();
     try {
       const response = await axios.post(URL_USUARIOS, usuario);
-      setUsuario(response.data);
 
-      setUsuario(initialState); // aqui limpiamos los datos del formulario, para ello deb
+      // 1. Usamos response.data para obtener el nombre que confirmó el servidor
+      // para mostrar un cartel de bienvenido 
+
+      /* 
+      const nombreRecibido = response.data.nombre;
+      const apellidoRecibido = response.data.apellido;
+      */
+
+      // se puede estructurar directamente así:
+      const { nombre, apellido } = response.data;
+
+      // 2. Mostramos el mensaje personalizado
+      alert(`¡Registro exitoso! Bienvenido/a ${nombre} ${apellido}.`);
+
+      setUsuario(initialState); // aqui limpiamos los datos del formulario
+      // si la respuesta es exitosa, redirigimos al usuario a la página de inicio o a donde quieras
       if (response) {
         navigate("/"); // Redirige al usuario a la página de inicio después de crear el mismo
         console.log("Usuario creado exitosamente:", response.data);
@@ -176,6 +200,13 @@ const RegistroUsuario = () => {
                     onChange={handleChange}
                   />
                 </Form.Group>
+<<<<<<< HEAD
+=======
+
+                
+
+                
+>>>>>>> origin/rama_alfredo
               </div>
               <div className="contenedorBotonRegistro">
                 <Button

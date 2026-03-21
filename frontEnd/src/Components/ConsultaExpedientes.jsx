@@ -42,6 +42,7 @@ function ConsultaExpedientes(props) {
       // Simulación si no existe en localStorage
       usuarioLogueado = { id_usuario: 1, nombre: "Admin", apellido: "Demo" };
     }
+<<<<<<< HEAD
     // Estados para el modal de documentos
     const [busqueda, setBusqueda] = useState("");
     const [expedientes, setExpedientes] = useState([]);
@@ -51,6 +52,134 @@ function ConsultaExpedientes(props) {
     }, []);
     // Función para recargar expedientes
     const obtenerExpedientes = async () => {
+=======
+  };
+
+  // Estado para guardar los archivos seleccionados en el modal
+  const [selectedFiles, setSelectedFiles] = useState([]);
+
+  // Función para capturar los archivos cuando el usuario los selecciona
+
+  const handleModalFileSelect = (e) => {
+    if (!e.target.files) return;
+    const archivos = Array.from(e.target.files);
+    setSelectedFiles(archivos);
+    setModalFiles(archivos); // para mostrar en el recuadro de selección
+  };
+
+  // Función para subir archivos desde el modal
+  const subirArchivosModal = async () => {
+    if (!selectedFiles.length) return;
+
+    const idUsuario = usuarioLog?.id_usuario;
+    const archivos = selectedFiles;
+
+    const resultados = await uploadModalFiles(
+      expedienteSeleccionado.id_expediente,
+      archivos,
+      idUsuario
+    );
+
+    if (resultados && resultados.length) {
+      // Mapear los resultados para que tengan la propiedad 'nombre' usada en el JSX
+      const archivosMapeados = resultados.map((r) => ({
+        id_documento: r.id_documento,
+        nombre: r.nombre,
+      }));
+
+      // Agregar al listado de documentos subidos
+      setModalUploadedFiles((prev) => [...prev, ...archivosMapeados]);
+
+      // Limpiar input y selección
+      setSelectedFiles([]);
+      setModalFiles([]);
+      document.getElementById("modalFileUpload").value = ""; // limpia input
+
+      alert("Archivos subidos con éxito ✅");
+    }
+  };
+
+  // Función para enviar los archivos al backend
+  const uploadModalFiles = async (
+    expedienteId,
+    archivosSeleccionados,
+    idUsuario
+  ) => {
+    if (!archivosSeleccionados || !archivosSeleccionados.length) return;
+
+    const formData = new FormData();
+    formData.append("id_expediente", expedienteId);
+    formData.append("subido_por", idUsuario);
+
+    archivosSeleccionados.forEach((file) => {
+      formData.append("files", file); // 'files' coincide con Multer
+    });
+
+    try {
+      const response = await axios.post(
+        `${URL_DOCUMENTOS}/subirYRegistrar`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      console.log("Archivos subidos y registrados en BD:", response.data);
+      return response.data.resultados; // [{id_documento, nombre}, ...]
+    } catch (error) {
+      console.error("Error al subir archivos:", error);
+      alert("No se pudieron subir los archivos. Revisá la consola.");
+    }
+  };
+
+  // funcion para cargar las observaciones desde el admin
+
+  const cargarObservaciones = async (idExpediente) => {
+    try {
+      const res = await axios.get(
+        `http://localhost:8000/observaciones/${idExpediente}`
+      );
+      const data = res.data;
+
+      // Admin
+      setObservacionesAdmin(data.Administrativo || [])
+
+      // Técnico
+      setObservacionesTecnico(data.Técnico || []);
+
+      // Jurídico
+      setObservacionesJuridico(data.Jurídico || []);
+
+      // Director
+      setObservacionesDirector(data.Director || []);
+    } catch (error) {
+      console.error("Error al cargar observaciones", error);
+    }
+  };
+
+  //------------------------------------------------------------------------
+  // Función para actualizar expediente
+  const actualizarExpediente = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(
+        `${URL_EXPEDIENTES}/${expedienteSeleccionado.id_expediente}`,
+        formData
+      );
+      alert("Expediente actualizado exitosamente");
+      cerrarModal();
+      obtenerExpedientes(); // Recargar la lista
+    } catch (error) {
+      console.error("Error al actualizar expediente:", error);
+      alert("Error al actualizar el expediente");
+    }
+  };
+
+  //-------------------------------------------------------------------
+  // Función para archivar expediente
+  const archivarExpediente = async (id) => {
+    if (window.confirm("¿Está seguro que desea archivar este expediente?")) {
+>>>>>>> origin/rama_alfredo
       try {
         const res = await axios.get("http://localhost:8000/expedientes");
         setExpedientes(Array.isArray(res.data) ? res.data : []);
@@ -342,8 +471,305 @@ function ConsultaExpedientes(props) {
                   <td>{expediente.observaciones || "Sin observaciones"}</td>
 >>>>>>> 482707a45fbc07eefe5f6ab58c8a29e222971331
                 </tr>
+<<<<<<< HEAD
               );
             })
+=======
+              ))}
+            </tbody>
+          </Table>
+
+          {/* Controles inferiores de paginación */}
+          <div className="d-flex justify-content-between align-items-center mt-2">
+            <small className="text-muted">
+              Página {paginaActual} de{" "}
+              {Math.max(1, Math.ceil(total / porPagina))}
+            </small>
+            <div>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                className="me-2"
+                onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() =>
+                  setPaginaActual((p) => (p * porPagina < total ? p + 1 : p))
+                }
+                disabled={paginaActual * porPagina >= total}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Ver/Editar */}
+      <Modal
+        show={showModal}
+        onHide={cerrarModal}
+        size="lg"
+        className="modal-ver"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {modalType === "ver"
+              ? "Detalles del Expediente"
+              : "Editar Expediente"}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {expedienteSeleccionado && (
+            <Form onSubmit={actualizarExpediente}>
+
+
+              {/*------Datos generales del expediente---------- */}
+
+              <div className="datos-grid">
+                <Form.Group>
+                  <Form.Label>Expediente</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.numero_expediente}
+                  </Form.Label>
+                </Form.Group>
+
+
+                <Form.Group>
+                  <Form.Label>Fecha</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {new Date(expedienteSeleccionado.fecha_creacion).toLocaleString("es-AR")}
+                  </Form.Label>
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Usuario Presentante</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.id_usuario_presentante}
+                  </Form.Label>
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Estado</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.estado_actual}
+                  </Form.Label>
+                </Form.Group>
+              </div>
+
+              {/*------Observaciones de los distintos roles---------- */}
+
+              <div className="observaciones-box">
+                <h5>Observaciones</h5>
+                <div className="observacion-item">
+                  <h5>Administrativo</h5>
+                  
+                  <div className="observaciones-scroll">
+                    {observacionesAdmin.length > 0 ? (
+                      observacionesAdmin.map((obs, i) => (
+                        <Form.Control
+                          key={i}
+                          as="textarea"
+                          rows={3}
+                          className="mb-2"
+                          disabled
+                          value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
+                        />
+                      ))
+                    ) : (
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        disabled
+                        value="Sin observaciones"
+                      />
+                    )}
+                    </div>
+                </div>
+
+
+                <div className="observacion-item">
+                  <h5>Técnico</h5>
+
+                  <div className="observaciones-scroll">
+                  {observacionesTecnico.length > 0 ? (
+                    observacionesTecnico.map((obs, i) => (
+                      <Form.Control
+                        key={i}
+                        as="textarea"
+                        rows={3}
+                        className="mb-2"
+                        disabled
+                        value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
+                      />
+                    ))
+                  ) : (
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      disabled
+                      value="Sin observaciones"
+                    />
+                  )}
+                </div>
+                </div>
+
+
+                <div className="observacion-item">
+                  <h5>Jurídico</h5>
+
+                  <div className="observaciones-scroll">
+                  {observacionesJuridico.length > 0 ? (
+                    observacionesJuridico.map((obs, i) => (
+                      <Form.Control
+                        key={i}
+                        as="textarea"
+                        rows={3}
+                        className="mb-2"
+                        disabled
+                        value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
+                      />
+                    ))
+                  ) : (
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      disabled
+                      value="Sin observaciones"
+                    />
+                  )}
+                </div>
+                </div>
+
+
+                <div className="observacion-item">
+                <h5>Director</h5>
+                
+                <div className="observaciones-scroll">
+                {observacionesDirector.length > 0 ? (
+                  observacionesDirector.map((obs, i) => (
+                    <Form.Control
+                      key={i}
+                      as="textarea"
+                      rows={2}
+                      className="mb-2"
+                      disabled
+                      value={`${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
+                    />
+                  ))
+                ) : (
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    disabled
+                    value="Sin observaciones"
+                  />
+                )}
+              </div>
+              </div>
+
+              </div>
+
+              {/*Agregar documentos en el modal ver*/}
+
+              <div className="documentos-box">
+                {modalType === "ver" && (
+                  <>
+                    <Form.Group controlId="modalFileUpload" className="mb-3">
+                      <Form.Label>Subir más documentos:</Form.Label>
+                      <Form.Control
+                        type="file"
+                        multiple
+                        onChange={handleModalFileSelect}
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      />
+                    </Form.Group>
+
+                    {modalFiles.length > 0 && (
+                      <div className="mb-3">
+                        <h6>Archivos seleccionados:</h6>
+                        {modalFiles.map((file, idx) => (
+                          <div
+                            key={idx}
+                            className="d-flex align-items-center mb-1"
+                          >
+                            <span className="me-auto">{file.name}</span>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() =>
+                                setModalFiles(
+                                  modalFiles.filter((f) => f.name !== file.name)
+                                )
+                              }
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={subirArchivosModal}
+                        >
+                          Subir Archivos
+                        </Button>
+                      </div>
+                    )}
+
+                    {modalUploadedFiles.map((f, i) => (
+                      <li
+                        key={i}
+                        className="d-flex align-items-center justify-content-between mb-2"
+                      >
+                        <span>✓ {f.nombre}</span>
+
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() =>
+                            window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank", "noopener,noreferrer")
+                          }
+                        >
+                          Ver
+                        </Button>
+                      </li>
+                    ))}
+
+                  </>
+                )}
+              </div>
+
+              {/* -------------------------------------------------------------------*/}
+              {/*  {modalType === "editar" && (
+                <div className="d-flex justify-content-end">
+                  <Button
+                    variant="secondary"
+                    onClick={cerrarModal}
+                    className="me-2"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button variant="primary" type="submit">
+                    Guardar Cambios
+                  </Button>
+                </div>
+              )}  */}
+
+              {modalType === "ver" && (
+                <div className="d-flex justify-content-end">
+                  <Button variant="secondary" onClick={cerrarModal}>
+                    Cerrar
+                  </Button>
+                </div>
+              )}
+            </Form>
+>>>>>>> origin/rama_alfredo
           )}
               {/* Modal global para vista previa de documentos y pase */}
               <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered backdrop="static" className="modal-pase-expediente">

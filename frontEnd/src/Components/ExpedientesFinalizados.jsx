@@ -78,7 +78,7 @@ const ExpedientesFinalizados = () => {
               </button>
               <button
                 className="juridico-menu-btn juridico-salir"
-                onClick={() => window.location.href = "/PortadaAdministrativo"}
+                onClick={() => navigate("/PortadaAdministrativo")}
               >
                 <span className="juridico-icon">🚪</span>
                 <span className="juridico-label">Salir</span>

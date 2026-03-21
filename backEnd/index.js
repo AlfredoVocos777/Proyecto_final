@@ -17,7 +17,14 @@ dotenv.config();
 // import firmasRoutes from "./routes/firmas.js";
 import historialRoutes from "./routes/historial.js";
 import observacionesRoutes from "./routes/observacion.js";
+<<<<<<< HEAD
 import recuperacionRoutes from "./routes/recuperacion.js";
+=======
+
+import "./utils/whatsapp.js";
+
+
+>>>>>>> origin/rama_alfredo
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
