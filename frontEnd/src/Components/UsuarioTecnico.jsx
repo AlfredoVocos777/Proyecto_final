@@ -89,27 +89,24 @@ export default function UsuarioTecnico() {
         setLoadingExpedientes(true);
         axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`)
           .then(async res => {
+            console.log('[EXPEDIENTES_PASES] Respuesta backend:', res.data);
             const expedientes = res.data || [];
             // Verificar cuáles expedientes ya fueron recepcionados por este usuario
             const expedientesConEstado = await Promise.all(
               expedientes.map(async exp => {
                 try {
                   const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                  
                   // Buscar si este usuario recepcionó el expediente
                   const recepcionPorUsuario = historial.data.find(h => 
                     h.id_usuario_responsable === idUsuario && 
                     h.accion?.toLowerCase().includes('recepción')
                   );
-                  
                   // Buscar la última recepción (cualquier usuario)
                   const ultimaRecepcion = historial.data
                     .filter(h => h.accion?.toLowerCase().includes('recepción'))
                     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-                  
                   // El usuario puede hacer pase solo si él fue quien recepcionó
                   const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
-                  
                   return { 
                     ...exp, 
                     recepcionado: !!recepcionPorUsuario,
@@ -317,6 +314,7 @@ export default function UsuarioTecnico() {
     setSubiendoVer(true);
     setMensajeVer({ tipo: '', texto: '' });
     try {
+      // 1. Registrar el pase en el historial
       const resp = await axios.post('http://localhost:8000/historial', {
         id_expediente: expedienteVer.id_expediente ?? '',
         id_usuario_responsable: destinatarioPase ?? '',
@@ -331,6 +329,13 @@ export default function UsuarioTecnico() {
         setSubiendoVer(false);
         return;
       }
+
+      // 2. Actualizar el expediente con el nuevo usuario asignado
+      await axios.put(`http://localhost:8000/expedientes/${expedienteVer.id_expediente}`, {
+        id_profesional_asignado: destinatarioPase
+      });
+
+      // 3. Subir documentos si corresponde
       if (archivosVer.length > 0) {
         const formData = new FormData();
         archivosVer.forEach((file) => {
@@ -500,10 +505,19 @@ export default function UsuarioTecnico() {
         }
       }
       const expedientesUnicos = Array.from(expedientesMap.values());
+      // LOGS DE DEPURACIÓN
+      console.log("[BANDEJA] usuarioLogueado:", usuarioLogueado);
+      console.log("[BANDEJA] expedientesPendientes:", expedientesPendientes);
+      console.log("[BANDEJA] expedientesUnicos:", expedientesUnicos);
       return (
         <div className="seccion-contenido seccion-inicio">
           <h1>Portal de Usuario Técnico</h1>
           <p>Bienvenido al sistema de gestión de expedientes - Área Técnica</p>
+          <pre style={{background:'#eee',padding:8,maxHeight:200,overflow:'auto',fontSize:12}}>
+            usuario: {JSON.stringify(usuarioLogueado,null,2)}
+            {"\n"}expedientesPendientes: {JSON.stringify(expedientesPendientes,null,2)}
+            {"\n"}expedientesUnicos: {JSON.stringify(expedientesUnicos,null,2)}
+          </pre>
           {loadingExpedientes ? (
             <p>Cargando expedientes...</p>
           ) : expedientesUnicos.length > 0 ? (

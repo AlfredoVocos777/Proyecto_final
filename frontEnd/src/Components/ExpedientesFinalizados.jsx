@@ -1,12 +1,40 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import Header_1 from "./Header_1";
 import Footer from "./Footer";
 import "../CSS/common.css";
 import "../CSS/UsuarioJuridico.css";
 
-import { useEffect, useState } from "react";
 
 const ExpedientesFinalizados = () => {
+    // Función para exportar la tabla a PDF
+    const exportarPDF = () => {
+      const doc = new jsPDF();
+      const fecha = new Date().toLocaleString();
+      doc.text("Reporte de Expedientes Finalizados", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Fecha: ${fecha}`, 14, 22);
+
+      const columns = [
+        { header: "N° Expediente", dataKey: "numero_expediente" },
+        { header: "Tipo", dataKey: "tipo_expediente" },
+        { header: "Descripción", dataKey: "descripcion" },
+        { header: "Presentante", dataKey: "presentante" },
+        { header: "Fecha", dataKey: "fecha" },
+        { header: "Estado", dataKey: "estado_actual" },
+      ];
+      const rows = expedientes.map(e => ({
+        numero_expediente: e.numero_expediente,
+        tipo_expediente: e.tipo_expediente,
+        descripcion: e.descripcion,
+        presentante: e.presentante || e.usuario_nombre || e.id_usuario_presentante || "",
+        fecha: (e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString() : (e.fecha || "")),
+        estado_actual: e.estado_actual,
+      }));
+      doc.autoTable({ columns, body: rows, startY: 28 });
+      doc.save("reporte_expedientes_finalizados.pdf");
+    };
   const [expedientes, setExpedientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -66,6 +94,11 @@ const ExpedientesFinalizados = () => {
             <p style={{ color: "red" }}>Error: {error}</p>
           ) : (
             <>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                <button className="admin-btn primary" onClick={exportarPDF}>
+                  Generar reporte PDF
+                </button>
+              </div>
               <table className="expedientes-table">
                 <thead>
                   <tr>

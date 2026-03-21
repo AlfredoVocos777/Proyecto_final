@@ -141,7 +141,7 @@ const NuevoTramite = () => {
 
       // Subir múltiples archivos al endpoint '/expedientes/documentos/upload'
       const formData = new FormData();
-      formData.append("expedienteId", expedienteId);
+      formData.append("id_expediente", expedienteId);
       if (usuario) {
         formData.append(
           "subido_por",

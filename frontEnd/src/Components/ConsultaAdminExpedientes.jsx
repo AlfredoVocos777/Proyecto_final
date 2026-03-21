@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import BackButton from "./BackButton";
+// import BackButton from "./BackButton";
 import { useNavigate } from "react-router-dom";
 
 export default function ConsultaAdminExpedientes() {
@@ -19,8 +19,13 @@ export default function ConsultaAdminExpedientes() {
 							<p>Vista de asignación de expedientes</p>
 						</div>
 					)}
-					<div style={{width: '100%', marginTop: '18px'}}>
-						<BackButton label="Volver atrás" />
+					<div style={{ width: '100%', marginTop: '18px', textAlign: 'center' }}>
+					  <span
+					    style={{ color: '#007bff', cursor: 'pointer', textDecoration: 'underline', fontWeight: 500 }}
+					    onClick={() => navigate(-1)}
+					  >
+					    Volver
+					  </span>
 					</div>
 				</div>
 			</div>

@@ -1,5 +1,7 @@
 
 import React, { useEffect, useState } from "react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import Header_1 from "./Header_1";
 import Footer from "./Footer";
 import "../CSS/common.css";
@@ -7,6 +9,31 @@ import "../CSS/UsuarioJuridico.css";
 
 const ExpedientesArchivados = () => {
   const [expedientes, setExpedientes] = useState([]);
+    // Función para exportar la tabla a PDF
+    const exportarPDF = () => {
+      const doc = new jsPDF();
+      const fecha = new Date().toLocaleString();
+      doc.text("Reporte de Expedientes Archivados", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Fecha: ${fecha}`, 14, 22);
+
+      const columns = [
+        { header: "N° Expediente", dataKey: "numero_expediente" },
+        { header: "Tipo", dataKey: "tipo_expediente" },
+        { header: "Descripción", dataKey: "descripcion" },
+        { header: "Presentante", dataKey: "presentante" },
+        { header: "Fecha", dataKey: "fecha" },
+      ];
+      const rows = expedientes.map(e => ({
+        numero_expediente: e.numero_expediente,
+        tipo_expediente: e.tipo_expediente,
+        descripcion: e.descripcion,
+        presentante: e.usuario_nombre + ' ' + (e.usuario_apellido || ''),
+        fecha: e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString() : '',
+      }));
+      doc.autoTable({ columns, body: rows, startY: 28 });
+      doc.save("reporte_expedientes_archivados.pdf");
+    };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [view, setView] = useState("info"); // info | archivados | desarchivar
@@ -82,6 +109,11 @@ const ExpedientesArchivados = () => {
           {view === "archivados" && (
             <div className="seccion-contenido">
               <h2>📦 Lista de Expedientes Archivados</h2>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                <button className="admin-btn primary" onClick={exportarPDF}>
+                  Generar reporte PDF
+                </button>
+              </div>
               {loading ? (
                 <p>Cargando...</p>
               ) : error ? (

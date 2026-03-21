@@ -141,7 +141,8 @@ export const actualizarExpediente = (req, res) => {
     tipo_expediente,
     descripcion,
     prioridad,
-    estado_actual
+    estado_actual,
+    id_profesional_asignado
   } = req.body;
 
   const updated_at = new Date();
@@ -151,7 +152,8 @@ export const actualizarExpediente = (req, res) => {
     descripcion,
     prioridad,
     estado_actual,
-    updated_at
+    updated_at,
+    id_profesional_asignado
   };
 
   connection.query(
@@ -230,12 +232,9 @@ export const obtenerExpedientesFinalizados = (req, res) => {
 export const obtenerPasesPorUsuario = (req, res) => {
 
   const { id_usuario } = req.params;
-  // Selecciona solo el último pase de cada expediente y agrega el campo ultimo_destino
+  // Unificar: expedientes asignados al usuario técnico o donde fue último responsable
   const sql = `
-    SELECT h1.id_historial AS id_pase,
-           h1.fecha AS fecha_pase,
-           h1.comentario AS observaciones,
-           e.id_expediente,
+    SELECT DISTINCT e.id_expediente,
            e.numero_expediente,
            e.tipo_expediente,
            e.descripcion,
@@ -244,33 +243,34 @@ export const obtenerPasesPorUsuario = (req, res) => {
            e.fecha_creacion,
            e.id_profesional_asignado,
            u.nombre AS nombre_asignado,
-           u.apellido AS apellido_asignado,
-           d.nombre AS departamento_actual,
-           h1.id_usuario_responsable AS ultimo_destino
-    FROM historial_expediente h1
-    INNER JOIN expedientes e ON h1.id_expediente = e.id_expediente
+           u.apellido AS apellido_asignado
+    FROM expedientes e
     LEFT JOIN usuario u ON e.id_profesional_asignado = u.id_usuario
-    LEFT JOIN departamentos d ON h1.id_departamento = d.id_departamento
-    INNER JOIN (
-      SELECT id_expediente, MAX(fecha) AS max_fecha
-      FROM historial_expediente
-      GROUP BY id_expediente
-    ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
-    WHERE h1.id_usuario_responsable = ?
-      AND e.estado_actual IN ('en revisión', 'aprobado')
-    ORDER BY h1.fecha DESC
+    WHERE (
+      e.id_profesional_asignado = ?
+      OR e.id_expediente IN (
+        SELECT h1.id_expediente
+        FROM historial_expediente h1
+        INNER JOIN (
+          SELECT id_expediente, MAX(fecha) AS max_fecha
+          FROM historial_expediente
+          GROUP BY id_expediente
+        ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
+        WHERE h1.id_usuario_responsable = ?
+      )
+    )
+    AND e.estado_actual = 'en revisión'
+    ORDER BY e.fecha_creacion DESC
   `;
 
-  connection.query(sql, [id_usuario], (err, results) => {
+  console.log("[SQL obtenerPasesPorUsuario] id_usuario:", id_usuario);
+  console.log("[SQL obtenerPasesPorUsuario] QUERY:\n", sql);
+  connection.query(sql, [id_usuario, id_usuario], (err, results) => {
     if (err) {
-      console.error("❌ Error al obtener pases del usuario:", err);
-      return res.status(500).json({ error: "Error al obtener pases del usuario" });
+      console.error("❌ Error al obtener expedientes asignados o últimos responsables:", err);
+      return res.status(500).json({ error: "Error al obtener expedientes asignados o últimos responsables" });
     }
-    // Para compatibilidad con el frontend, devolver ultimo_destino como string (puede ser id o nombre)
-    const resultsConDestino = results.map(r => ({
-      ...r,
-      ultimo_destino: r.ultimo_destino // id_usuario_responsable del último pase
-    }));
-    res.json(resultsConDestino);
+    console.log("[SQL obtenerPasesPorUsuario] RESULTADOS:", results);
+    res.json(results);
   });
 };

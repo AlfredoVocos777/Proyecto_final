@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_USUARIOS, URL_ROLES, URL_DEPARTAMENTOS } from "../Constants/endpoints";
+import { URL_USUARIOS } from "../Constants/endpoints";
 import { Container, Form, Button } from "react-bootstrap";
 
 import "../CSS/registroUsuario.css";
@@ -18,29 +18,8 @@ const RegistroUsuario = () => {
     telefono: "",
     usuario: "",
     contraseña: "",
-    id_rol: 1, // Rol por defecto: Presentante (asumiendo id_rol=1)
-    id_departamento: null,
   };
   const [usuario, setUsuario] = useState(initialState);
-  const [roles, setRoles] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
-
-  // Cargar roles y departamentos al montar el componente
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const [rolesRes, deptoRes] = await Promise.all([
-          axios.get(URL_ROLES),
-          axios.get(URL_DEPARTAMENTOS)
-        ]);
-        setRoles(rolesRes.data || []);
-        setDepartamentos(deptoRes.data || []);
-      } catch (error) {
-        console.error("Error al cargar roles o departamentos:", error);
-      }
-    };
-    cargarDatos();
-  }, []);
 
   {
     //---------------------------------------------------------
@@ -84,6 +63,9 @@ const RegistroUsuario = () => {
         <div className="contenedorFormUsuario">
           <Container className="mt-5">
             <Form onSubmit={handleSubmit}>
+              <p className="text-muted mb-3">
+                Registrate como usuario comun o usuario profesional segun corresponda.
+              </p>
               <div className="contenedorLabel">
                 <Form.Group
                   className="mb-3"
@@ -193,40 +175,6 @@ const RegistroUsuario = () => {
                     value={usuario.contraseña}
                     onChange={handleChange}
                   />
-                </Form.Group>
-
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea2"
-                >
-                  <Form.Label>Rol</Form.Label>
-                  <Form.Select
-                    name="id_rol"
-                    value={usuario.id_rol || ''}
-                    onChange={handleChange}
-                  >
-                    <option value="">Seleccionar rol</option>
-                    {roles.map(r => (
-                      <option key={r.id_rol} value={r.id_rol}>{r.nombre}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea3"
-                >
-                  <Form.Label>Departamento (opcional)</Form.Label>
-                  <Form.Select
-                    name="id_departamento"
-                    value={usuario.id_departamento || ''}
-                    onChange={handleChange}
-                  >
-                    <option value="">Sin departamento</option>
-                    {departamentos.map(d => (
-                      <option key={d.id_departamento} value={d.id_departamento}>{d.nombre}</option>
-                    ))}
-                  </Form.Select>
                 </Form.Group>
               </div>
               <div className="contenedorBotonRegistro">

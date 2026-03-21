@@ -45,7 +45,7 @@ export const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 5 * 1024 * 1024 // Límite de 5MB
+        fileSize: 100 * 1024 * 1024 // Límite de 100MB
     }
 });
 
@@ -70,7 +70,7 @@ export const subirDocumento = async (req, res) => {
             hash_integridad: null // Aquí podrías implementar un hash del archivo si lo necesitas
         };
 
-        const sql = 'INSERT INTO Documentos SET ?';
+        const sql = 'INSERT INTO documentos SET ?';
         connection.query(sql, documento, (err, result) => {
             if (err) {
                 console.error('Error al guardar documento en la base de datos:', err);
@@ -93,7 +93,7 @@ export const subirDocumento = async (req, res) => {
 export const obtenerDocumentosExpediente = (req, res) => {
     const { id_expediente } = req.params;
 
-    const sql = 'SELECT * FROM Documentos WHERE id_expediente = ?';
+    const sql = 'SELECT * FROM documentos WHERE id_expediente = ?';
     connection.query(sql, [id_expediente], (err, results) => {
         if (err) {
             console.error('Error al obtener documentos:', err);
@@ -286,8 +286,18 @@ export const verDocumento = (req, res) => {
             return res.status(404).json({ error: "Documento no encontrado" });
         }
 
-        const rutaArchivo = results[0].ruta_archivo;
-        res.sendFile(rutaArchivo);
+        let rutaArchivo = results[0].ruta_archivo;
+        // Si la ruta es relativa, la unimos con la carpeta uploads
+        if (!path.isAbsolute(rutaArchivo)) {
+            rutaArchivo = path.join(__dirname, '../', rutaArchivo);
+        }
+        // Normalizar rutas para comparación multiplataforma
+        const uploadsDir = path.resolve(path.join(__dirname, '../uploads'));
+        const rutaNormalizada = path.resolve(rutaArchivo);
+        if (!rutaNormalizada.startsWith(uploadsDir)) {
+            return res.status(403).json({ error: 'Acceso denegado al archivo.' });
+        }
+        res.sendFile(rutaNormalizada);
     });
 };
 
