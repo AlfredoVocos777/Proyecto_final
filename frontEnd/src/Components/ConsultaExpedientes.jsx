@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import axios from "axios";
 import {
   URL_EXPEDIENTES,
   URL_DOCUMENTOS,
@@ -17,42 +16,145 @@ import {
   Container,
   Alert,
 } from "react-bootstrap";
-import axios from "axios";
 import "../CSS/Consulta.css";
 
-function useUsuarios() {
-  const [usuarios, setUsuarios] = useState([]);
-  useEffect(() => {
-    axios.get("http://localhost:8000/usuarios").then(res => setUsuarios(res.data || []));
-  }, []);
-  return usuarios;
-}
+function ConsultaExpedientes() {
+  const [expedientes, setExpedientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(""); // "ver", "editar"
+  const [expedienteSeleccionado, setExpedienteSeleccionado] = useState(null);
+  const [formData, setFormData] = useState({
+    tipo_expediente: "",
+    descripcion: "",
+    prioridad: "",
+    estado_actual: "",
+  });
+  const [usuarioLog, setUsuarioLog] = useState(null);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const porPagina = 10;
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroPrioridad, setFiltroPrioridad] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
 
-function ConsultaExpedientes(props) {
-    // Inicializar usuarios
-    const usuarios = useUsuarios();
-    // Filtrar usuarios técnicos
-    const tecnicos = usuarios.filter(u => u.id_rol === 28 || (u.rol && u.rol.toLowerCase() === "técnico"));
-    // Obtener usuario logueado desde localStorage (o simulado)
-    let usuarioLogueado = null;
+  // estados de los roles
+  const [observacionesAdmin, setObservacionesAdmin] = useState([]);
+const [observacionesTecnico, setObservacionesTecnico] = useState([]);
+const [observacionesJuridico, setObservacionesJuridico] = useState([]);
+const [observacionesDirector, setObservacionesDirector] = useState([]);
+
+
+  // nuevos estados para subir documentos en el modal ver
+
+  const [modalFiles, setModalFiles] = useState([]);
+  const [modalUploadedFiles, setModalUploadedFiles] = useState([]);
+
+  const navigate = useNavigate();
+
+  // Obtener expedientes (filtrando por presentante si corresponde)
+  const obtenerExpedientes = async () => {
     try {
-      usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-    } catch {}
-    if (!usuarioLogueado) {
-      // Simulación si no existe en localStorage
-      usuarioLogueado = { id_usuario: 1, nombre: "Admin", apellido: "Demo" };
+      setLoading(true);
+      const response = await axios.get(URL_EXPEDIENTES);
+      const data = response.data || [];
+      const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      if (usuario?.tipo_usuario?.toLowerCase() === "presentante") {
+        const uid = Number(usuario.id_usuario);
+        const propios = data.filter(
+          (e) => Number(e.id_usuario_presentante) === uid
+        );
+        setExpedientes(propios);
+      } else {
+        setExpedientes(data);
+      }
+      setError(null);
+      setPaginaActual(1);
+    } catch (error) {
+      console.error("Error al obtener expedientes:", error);
+      setError(
+        "Error al cargar los expedientes. Por favor, intente nuevamente."
+      );
+    } finally {
+      setLoading(false);
     }
-<<<<<<< HEAD
-    // Estados para el modal de documentos
-    const [busqueda, setBusqueda] = useState("");
-    const [expedientes, setExpedientes] = useState([]);
-    // Cargar expedientes desde el backend al montar el componente
-    useEffect(() => {
-      obtenerExpedientes();
-    }, []);
-    // Función para recargar expedientes
-    const obtenerExpedientes = async () => {
-=======
+  };
+
+  useEffect(() => {
+    const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
+    setUsuarioLog(u || null);
+    obtenerExpedientes();
+  }, []);
+
+  // Resetear a primera página cuando cambian filtros/búsqueda
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroEstado, filtroPrioridad, filtroTipo]);
+
+  //-------------------------------------------------------------
+  //-------------------------------------------------------------
+  // Función para abrir el modal
+  const abrirModal = async (tipo, expediente) => {
+    setModalType(tipo);
+    setExpedienteSeleccionado(expediente);
+
+    if (tipo === "editar") {
+      setFormData({
+        tipo_expediente: expediente.tipo_expediente || "",
+        descripcion: expediente.descripcion || "",
+        prioridad: expediente.prioridad || "",
+        estado_actual: expediente.estado_actual || "",
+      });
+    }
+
+    if (tipo === "ver") {
+      // Primero abrimos el modal vacío
+      setShowModal(true);
+
+      // Cargar documentos
+      const docs = await obtenerDocumentosExpediente(expediente.id_expediente);
+      setModalUploadedFiles(
+        docs.map((d) => ({
+          id_documento: d.id_documento,
+          nombre: d.nombre_archivo,
+        }))
+      );
+
+      // Cargar observación
+      await cargarObservaciones(expediente.id_expediente);
+    } else {
+      setShowModal(true);
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  // Función para cerrar el modal
+  const cerrarModal = () => {
+    setShowModal(false);
+    setExpedienteSeleccionado(null);
+    setFormData({
+      tipo_expediente: "",
+      descripcion: "",
+      prioridad: "",
+      estado_actual: "",
+    });
+  };
+
+  //----------------------------------------------------------------------
+
+  // funcion para agregar mas documentos en el modal ver
+
+  const obtenerDocumentosExpediente = async (id_expediente) => {
+    try {
+      const response = await axios.get(
+        `${URL_DOCUMENTOS}/expediente/${id_expediente}`
+      );
+      return response.data || [];
+    } catch (error) {
+      console.error("Error al obtener documentos del expediente:", error);
+      return [];
+    }
   };
 
   // Estado para guardar los archivos seleccionados en el modal
@@ -179,175 +281,106 @@ function ConsultaExpedientes(props) {
   // Función para archivar expediente
   const archivarExpediente = async (id) => {
     if (window.confirm("¿Está seguro que desea archivar este expediente?")) {
->>>>>>> origin/rama_alfredo
       try {
-        const res = await axios.get("http://localhost:8000/expedientes");
-        setExpedientes(Array.isArray(res.data) ? res.data : []);
-      } catch {
-        setExpedientes([]);
+        await axios.put(`${URL_EXPEDIENTES}/${id}/archivar`);
+        alert("Expediente archivado exitosamente");
+        obtenerExpedientes(); // Recargar la lista
+      } catch (error) {
+        console.error("Error al archivar expediente:", error);
+        alert("Error al archivar el expediente");
       }
-    };
-    // Filtrado de expedientes: solo los asignados al usuario logueado y según búsqueda
-    const expedientesFiltrados = expedientes.filter(exp => {
-      // Mostrar solo expedientes asignados al usuario logueado
-      if (exp.id_profesional_asignado !== usuarioLogueado.id_usuario) return false;
-      if (!busqueda.trim()) return true;
-      return (
-        (exp.numero_expediente && exp.numero_expediente.toString().toLowerCase().includes(busqueda.toLowerCase())) ||
-        (exp.tipo_expediente && exp.tipo_expediente.toLowerCase().includes(busqueda.toLowerCase())) ||
-        (exp.presentante && exp.presentante.toLowerCase().includes(busqueda.toLowerCase()))
-      );
+    }
+  };
+
+  // Función para manejar cambios en el formulario
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
     });
+  };
 
-    // Exportar tabla a PDF
-    const exportarPDF = () => {
-      const doc = new jsPDF();
-      doc.text("Reporte de Expedientes", 14, 14);
-      autoTable(doc, {
-        startY: 20,
-        head: [["N° Expediente", "Tipo", "Presentante", "Fecha Creación"]],
-        body: expedientesFiltrados.map(expediente => [
-          expediente.numero_expediente,
-          expediente.tipo_expediente,
-          (usuarios.find(u => u.id_usuario === expediente.id_usuario_presentante) ? `${usuarios.find(u => u.id_usuario === expediente.id_usuario_presentante).nombre} ${usuarios.find(u => u.id_usuario === expediente.id_usuario_presentante).apellido}` : expediente.id_usuario_presentante),
-          expediente.fecha_creacion
-        ]),
-      });
-      doc.save("expedientes.pdf");
-    };
-    // Inicializar usuarios primero
-    // ...existing code... (eliminado duplicado de usuarios)
-    // Estados para el modal de documentos
-    const [showModal, setShowModal] = useState(false);
-    const [expedienteModal, setExpedienteModal] = useState(null);
-    const [documentosModal, setDocumentosModal] = useState([]);
-    const [loadingDocs, setLoadingDocs] = useState(false);
-    const [tecnicoSeleccionado, setTecnicoSeleccionado] = useState("");
-    const [observacion, setObservacion] = useState("");
-    const [paseLoading, setPaseLoading] = useState(false);
-    const [paseMsg, setPaseMsg] = useState("");
-    // Filtrar usuarios técnicos
-    // ...existing code... (eliminado duplicado de tecnicos)
-    // Obtener usuario logueado (simulado desde localStorage)
-    // ...existing code... (eliminado duplicado de usuarioLogueado)
+  // Función para formatear fechas
+  const formatearFecha = (fecha) => {
+    if (!fecha) return "N/A";
+    const date = new Date(fecha);
+    return date.toLocaleDateString("es-AR");
+  };
 
-    // Función para abrir el modal y cargar documentos
-    const handleVerDocumentos = async (expediente) => {
-      setExpedienteModal(expediente);
-      setShowModal(true);
-      setLoadingDocs(true);
-      try {
-        const res = await axios.get(`http://localhost:8000/api/documentos/expediente/${expediente.id_expediente}`);
-        console.log('Documentos recibidos del backend:', res.data);
-        setDocumentosModal(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        setDocumentosModal([]);
-      } finally {
-        setLoadingDocs(false);
-      }
+  // Función para obtener el color del badge según el estado
+  const getEstadoBadge = (estado) => {
+    const estados = {
+      "en revisión": "warning",
+      aprobado: "success",
+      rechazado: "danger",
+      archivado: "secondary",
+      pendiente: "info",
     };
+    return estados[estado?.toLowerCase()] || "secondary";
+  };
 
-    // Función para realizar el pase
-    const handlePase = async () => {
-        console.log('handlePase ejecutado', { tecnicoSeleccionado, expedienteModal, observacion });
-      if (!tecnicoSeleccionado || !expedienteModal) {
-        setPaseMsg("Seleccione un técnico y complete la observación.");
-        return;
-      }
-      // Confirmación antes de realizar el pase
-      const confirmado = window.confirm("¿Está seguro que desea realizar el pase de este expediente al técnico seleccionado?");
-      if (!confirmado) return;
-      setPaseLoading(true);
-      setPaseMsg("");
-      try {
-        // 1. Guardar en historial_expediente
-        await axios.post("http://localhost:8000/historial", {
-          id_expediente: expedienteModal.id_expediente,
-          id_usuario_responsable: tecnicoSeleccionado,
-          comentario: observacion,
-          tipo_accion: "asignación"
-        });
-        // 2. Guardar en observaciones
-        await axios.post("http://localhost:8000/observaciones", {
-          id_expediente: expedienteModal.id_expediente,
-          id_usuario: usuarioLogueado?.id_usuario || 1,
-          observacion
-        });
-        // 3. Actualizar el expediente con el nuevo técnico asignado
-        await axios.put(`http://localhost:8000/expedientes/${expedienteModal.id_expediente}`, {
-          id_profesional_asignado: tecnicoSeleccionado
-        });
-        // 4. Notificar al presentante
-        let mailMsg = "";
-        if (expedienteModal.id_usuario_presentante) {
-          // Buscar datos del presentante y del técnico asignado
-          const presentante = usuarios.find(u => u.id_usuario === expedienteModal.id_usuario_presentante);
-          const tecnico = usuarios.find(u => u.id_usuario == tecnicoSeleccionado);
-          const resp = await axios.post("http://localhost:8000/api/notificar-pase", {
-            id_usuario: presentante?.id_usuario,
-            email: presentante?.email || "",
-            nombre: presentante?.nombre || "",
-            apellido: presentante?.apellido || "",
-            numero_expediente: expedienteModal.numero_expediente,
-            observacion,
-            tecnico_nombre: tecnico ? tecnico.nombre : "",
-            tecnico_apellido: tecnico ? tecnico.apellido : ""
-          });
-          if (resp.data && resp.data.message && resp.data.message.includes("enviada por email")) {
-            mailMsg = " Se envió un mail al presentante.";
-          }
-        }
-        setPaseMsg("Pase realizado y observación guardada correctamente." + mailMsg);
-        setShowModal(false);
-        setTecnicoSeleccionado("");
-        setObservacion("");
-        await obtenerExpedientes();
-      } catch (err) {
-        console.log('Error al realizar el pase o guardar la observación:', err);
-        setPaseMsg("Error al realizar el pase o guardar la observación.");
-      } finally {
-        setPaseLoading(false);
-      }
+  // Función para obtener el color del badge según la prioridad
+  const getPrioridadBadge = (prioridad) => {
+    const prioridades = {
+      alta: "danger",
+      media: "warning",
+      baja: "info",
     };
-    // ...existing code...
+    return prioridades[prioridad?.toLowerCase()] || "secondary";
+  };
+
+  if (loading) {
+    return (
+      <Container className="mt-5 text-center">
+        <h3>Cargando expedientes...</h3>
+      </Container>
+    );
+  }
+
+  // Calcular filtrados y paginación
+  const q = busqueda.trim().toLowerCase();
+  const filtrados = expedientes.filter((e) => {
+    const coincideBusqueda =
+      !q ||
+      String(e.numero_expediente || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(e.tipo_expediente || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(e.descripcion || "")
+        .toLowerCase()
+        .includes(q);
+
+    const coincideTipo = !filtroTipo || e.tipo_expediente === filtroTipo;
+    const coincideEstado =
+      !filtroEstado ||
+      (e.estado_actual || "").toLowerCase() === filtroEstado.toLowerCase();
+    const coincidePrioridad =
+      !filtroPrioridad ||
+      (e.prioridad || "").toLowerCase() === filtroPrioridad.toLowerCase();
+
+    return (
+      coincideBusqueda && coincideTipo && coincideEstado && coincidePrioridad
+    );
+  });
+
+  const total = filtrados.length;
+  const inicio = (paginaActual - 1) * porPagina;
+  const fin = paginaActual * porPagina;
+  const pagina = filtrados.slice(inicio, fin);
+
+  //---------------------------RETURN------------------------------------------
+
   return (
-    <Container>
-      <h2>Consulta de Expedientes</h2>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <Button variant="secondary" onClick={() => navigate(-1)}>Volver</Button>
-        <input
-          type="text"
-          className="form-control mx-2"
-          style={{ maxWidth: 300 }}
-          placeholder="Buscar expediente..."
-          value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
-        />
-        <Button variant="success" onClick={exportarPDF}>Generar Reporte</Button>
+    <Container fluid className="consulta-expedientes-container">
+      <div className="consulta-header">
+        <h2>Consulta de Expedientes</h2>
+        <Button variant="secondary" onClick={() => navigate("/Portada")}>
+          Volver a Portada
+        </Button>
       </div>
-<<<<<<< HEAD
-      <Table striped bordered hover responsive>
-        <thead>
-          <tr>
-            <th>N° Expediente</th>
-            <th>Tipo</th>
-            <th>Presentante</th>
-            {/* <th>Documentación</th> */}
-            {/* <th>Usuario/Rol actual</th> */}
-            <th>Fecha Creación</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {expedientesFiltrados.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="text-center">No hay expedientes para mostrar.</td>
-            </tr>
-          ) : (
-            expedientesFiltrados.map((expediente) => {
-              const presentante = usuarios.find(u => u.id_usuario === expediente.id_usuario_presentante);
-              return (
-=======
 
       {/* Subtítulo contextual para presentante */}
       {usuarioLog?.tipo_usuario?.toLowerCase() === "presentante" && (
@@ -368,7 +401,7 @@ function ConsultaExpedientes(props) {
         <div className="tabla-container">
           {/* Barra de filtros */}
           <div className="row g-2 mb-3">
-            <div className="col-md-6">
+            <div className="col-md-4">
               <input
                 type="text"
                 className="form-control"
@@ -377,7 +410,7 @@ function ConsultaExpedientes(props) {
                 onChange={(e) => setBusqueda(e.target.value)}
               />
             </div>
-            <div className="col-md-4">
+            <div className="col-md-3">
               <select
                 className="form-select"
                 value={filtroTipo}
@@ -395,11 +428,47 @@ function ConsultaExpedientes(props) {
                 ))}
               </select>
             </div>
-            <div className="col-md-2 d-grid">
+            <div className="col-md-2">
+              <select
+                className="form-select"
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+              >
+                <option value="">Estado (todos)</option>
+                {[
+                  "en revisión",
+                  "aprobado",
+                  "rechazado",
+                  "pendiente",
+                  "archivado",
+                ].map((est) => (
+                  <option key={est} value={est}>
+                    {est}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-2">
+              <select
+                className="form-select"
+                value={filtroPrioridad}
+                onChange={(e) => setFiltroPrioridad(e.target.value)}
+              >
+                <option value="">Prioridad (todas)</option>
+                {["alta", "media", "baja"].map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-1 d-grid">
               <Button
                 variant="outline-secondary"
                 onClick={() => {
                   setBusqueda("");
+                  setFiltroEstado("");
+                  setFiltroPrioridad("");
                   setFiltroTipo("");
                 }}
               >
@@ -440,41 +509,77 @@ function ConsultaExpedientes(props) {
           <Table striped bordered hover responsive>
             <thead>
               <tr>
-                <th style={{ width: "180px" }}>N° Expediente</th>
-                <th style={{ width: "120px" }}>Tipo</th>
-                <th style={{ width: "350px" }}>Descripción</th>
-                <th style={{ width: "120px" }}>Estado</th>
-                <th style={{ width: "160px" }}>Fecha Creación</th>
-                <th style={{ width: "220px" }}>Observaciones</th>
+                <th>N° Expediente</th>
+                <th>Tipo</th>
+                <th>Descripción</th>
+                <th>Estado</th>
+                <th>Confirmar Pago</th>
+                <th>Prioridad</th>
+                <th>Fecha Creación</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {pagina.map((expediente) => (
->>>>>>> 482707a45fbc07eefe5f6ab58c8a29e222971331
                 <tr key={expediente.id_expediente}>
                   <td>{expediente.numero_expediente}</td>
-                  <td>{expediente.tipo_expediente}</td>
-                  <td>{presentante ? `${presentante.nombre} ${presentante.apellido}` : expediente.id_usuario_presentante}</td>
-                  <td>{expediente.fecha_creacion}</td>
+                  <td>{expediente.tipo_expediente || "N/A"}</td>
+                  <td>{expediente.descripcion || "N/A"}</td>
+
                   <td>
-<<<<<<< HEAD
-                    <Button variant="primary" size="sm" onClick={() => handleVerDocumentos(expediente)}>
-                      Realizar Pase
-                    </Button>
-                  </td>
-=======
                     <Badge bg={getEstadoBadge(expediente.estado_actual)}>
                       {expediente.estado_actual || "N/A"}
                     </Badge>
                   </td>
+                  <td>
+                    <Badge bg={getEstadoBadge(expediente.confirmar_pago)}>
+                      {expediente.confirmar_pago || "N/A"}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge bg={getPrioridadBadge(expediente.prioridad)}>
+                      {expediente.prioridad || "N/A"}
+                    </Badge>
+                  </td>
                   <td>{formatearFecha(expediente.fecha_creacion)}</td>
-                  <td>{expediente.observaciones || "Sin observaciones"}</td>
->>>>>>> 482707a45fbc07eefe5f6ab58c8a29e222971331
+                  <td className="acciones-cell">
+                    {/*boton ver*/}
+                    <Button
+                      variant="info"
+                      size="sm"
+                      className="me-1 mb-1"
+                      onClick={() => abrirModal("ver", expediente)}
+                    >
+                      Ver
+                    </Button>
+
+                    {usuarioLog?.tipo_usuario?.toLowerCase() !==
+                      "presentante" && (
+                      <>
+                        <Button
+                          variant="warning"
+                          size="sm"
+                          className="me-1 mb-1"
+                          onClick={() => abrirModal("editar", expediente)}
+                          disabled={expediente.estado_actual === "archivado"}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="mb-1"
+                          onClick={() =>
+                            archivarExpediente(expediente.id_expediente)
+                          }
+                          disabled={expediente.estado_actual === "archivado"}
+                        >
+                          Archivar
+                        </Button>
+                      </>
+                    )}
+                  </td>
                 </tr>
-<<<<<<< HEAD
-              );
-            })
-=======
               ))}
             </tbody>
           </Table>
@@ -769,91 +874,9 @@ function ConsultaExpedientes(props) {
                 </div>
               )}
             </Form>
->>>>>>> origin/rama_alfredo
           )}
-              {/* Modal global para vista previa de documentos y pase */}
-              <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered backdrop="static" className="modal-pase-expediente">
-                <Modal.Header closeButton style={{ background: '#f5f7fa', borderBottom: '2px solid #007bff' }}>
-                  <Modal.Title style={{ fontWeight: 700, color: '#007bff' }}>
-                    <i className="bi bi-folder2-open" style={{marginRight:8}}/> Documentos del Expediente
-                    {expedienteModal && expedienteModal.numero_expediente ? ` #${expedienteModal.numero_expediente}` : ''}
-                  </Modal.Title>
-                </Modal.Header>
-                <Modal.Body style={{ background: '#fafdff' }}>
-                  {/* Resumen de datos del expediente */}
-                  {expedienteModal && (
-                    <div className="mb-4 p-3 rounded" style={{background:'#f0f4fa', border:'1px solid #e3e6f0'}}>
-                      <div><strong>N° Expediente:</strong> {expedienteModal.numero_expediente}</div>
-                      <div><strong>Tipo:</strong> {expedienteModal.tipo_expediente}</div>
-                      <div><strong>Presentante:</strong> {(() => {
-                        const presentante = usuarios.find(u => u.id_usuario === expedienteModal.id_usuario_presentante);
-                        return presentante ? `${presentante.nombre} ${presentante.apellido}` : expedienteModal.id_usuario_presentante;
-                      })()}</div>
-                      <div><strong>Fecha de Creación:</strong> {expedienteModal.fecha_creacion}</div>
-                    </div>
-                  )}
-                  {loadingDocs ? (
-                    <div className="text-center my-4"><span className="spinner-border text-primary"/> Cargando documentos...</div>
-                  ) : documentosModal && documentosModal.length > 0 ? (
-                    <div className="d-flex flex-wrap gap-3 mb-4">
-                      {documentosModal.map((doc, idx) => {
-                        const ext = (doc.nombre_archivo || '').split('.').pop().toLowerCase();
-                        const url = `http://localhost:8000/api/documentos/ver/${doc.id_documento}`;
-                        if (["jpg","jpeg","png","gif","bmp","webp"].includes(ext)) {
-                          return <img key={idx} src={url} alt={doc.nombre_archivo} style={{width:120, height:120, objectFit:'cover', borderRadius:8, border:'2px solid #e3e6f0', boxShadow:'0 2px 8px #e3e6f0'}} title={doc.nombre_archivo} />;
-                        }
-                        if (["pdf"].includes(ext)) {
-                          return (
-                            <div key={idx} style={{ width: "100%", marginBottom: 16 }}>
-                              <div style={{ marginBottom: 8, color:'#007bff', fontWeight:600 }}>
-                                <i className="bi bi-file-earmark-pdf" style={{marginRight:6}}/>{doc.nombre_archivo}
-                              </div>
-                              <embed
-                                src={url}
-                                type="application/pdf"
-                                width="100%"
-                                height="400px"
-                                style={{ border: "2px solid #e3e6f0", borderRadius: 8, boxShadow:'0 2px 8px #e3e6f0' }}
-                              />
-                            </div>
-                          );
-                        }
-                        return <a key={idx} href={url} target="_blank" rel="noopener noreferrer" style={{display:'block', margin:'10px 0', color:'#007bff', fontWeight:500}}><i className="bi bi-file-earmark" style={{fontSize:32, color:'#888', marginRight:6}}/> {doc.nombre_archivo}</a>;
-                      })}
-                    </div>
-                  ) : (
-                    <div className="alert alert-info">No hay documentos para este expediente.</div>
-                  )}
-                  <div className="p-3 rounded shadow-sm" style={{background:'#fff', border:'1px solid #e3e6f0'}}>
-                    <h5 className="mb-3" style={{color:'#007bff', fontWeight:600}}><i className="bi bi-arrow-right-circle" style={{marginRight:6}}/> Realizar Pase a Técnico</h5>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Técnico destino</Form.Label>
-                      <Form.Select value={tecnicoSeleccionado} onChange={e => setTecnicoSeleccionado(e.target.value)}>
-                        <option value="">Seleccione un técnico</option>
-                        {tecnicos.map(t => (
-                          <option key={t.id_usuario} value={t.id_usuario}>{t.nombre} {t.apellido}</option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Observaciones</Form.Label>
-                      <Form.Control as="textarea" rows={3} value={observacion} onChange={e => setObservacion(e.target.value)} placeholder="Ingrese observaciones del pase..."/>
-                    </Form.Group>
-                    {paseMsg && <div className={`mb-2 ${paseMsg.includes('Error') ? 'text-danger' : 'text-success'}`}>{paseMsg}</div>}
-                    <div className="d-flex justify-content-end gap-2">
-                      <Button variant="secondary" onClick={() => setShowModal(false)} disabled={paseLoading}>Cancelar</Button>
-                      <Button variant="primary" onClick={handlePase} disabled={paseLoading || !tecnicoSeleccionado || !observacion.trim()}>
-                        {paseLoading ? <span className="spinner-border spinner-border-sm"/> : <i className="bi bi-send" style={{marginRight:6}}/>}
-                        Realizar Pase
-                      </Button>
-                    </div>
-                  </div>
-                </Modal.Body>
-              </Modal>
-        </tbody>
-      </Table>
-
-      {/* Modal de documentos eliminado */}
+        </Modal.Body>
+      </Modal>
     </Container>
   );
 }
