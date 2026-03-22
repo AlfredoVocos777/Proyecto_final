@@ -18,21 +18,10 @@ const RegistroUsuario = () => {
     telefono: "",
     usuario: "",
     contraseña: "",
-<<<<<<< HEAD
   };
   const [usuario, setUsuario] = useState(initialState);
 
-  {
-=======
-   
-  };
-  const [usuario, setUsuario] = useState(initialState);
- 
-
-  
-  
->>>>>>> origin/rama_alfredo
-    //---------------------------------------------------------
+  //---------------------------------------------------------
  
   const handleChange = (e) => {
     setUsuario({ ...usuario, [e.target.name]: e.target.value });
@@ -200,13 +189,7 @@ const RegistroUsuario = () => {
                     onChange={handleChange}
                   />
                 </Form.Group>
-<<<<<<< HEAD
-=======
 
-                
-
-                
->>>>>>> origin/rama_alfredo
               </div>
               <div className="contenedorBotonRegistro">
                 <Button
