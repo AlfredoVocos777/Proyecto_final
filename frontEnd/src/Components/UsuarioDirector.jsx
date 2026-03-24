@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_FIRMAS, URL_SUBIR_DOCUMENTO, URL_UPLOADS, URL_OBSERVACIONES } from "../Constants/endpoints";
-import { Modal, Button, Form, Alert } from "react-bootstrap";
+import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
 import "../CSS/UsuarioDirector.css";
+import BotonesReporte from "./BotonesReporte";
 
 export default function UsuarioDirector() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [seccionActiva, setSeccionActiva] = useState("inicio");
+  const [seccionActiva, setSeccionActiva] = useState("bandeja");
+  const [generandoPDF, setGenerandoPDF] = useState(false);
   const [permisosUsuario, setPermisosUsuario] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expedientesPendientes, setExpedientesPendientes] = useState([]);
@@ -114,7 +117,40 @@ export default function UsuarioDirector() {
     }
   }, []);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const exportarPDF = () => {
+    setGenerandoPDF(true);
+    try {
+      const doc = new jsPDF();
+      const fecha = new Date().toLocaleString("es-AR");
+      doc.setFontSize(14);
+      doc.text("Reporte de Bandeja - Dirección Provincial del Agua", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Fecha: ${fecha}`, 14, 22);
+      const columns = [
+        { header: "N° Expediente", dataKey: "numero" },
+        { header: "Tipo", dataKey: "tipo" },
+        { header: "Descripción", dataKey: "descripcion" },
+        { header: "Estado", dataKey: "estado" },
+        { header: "Fecha Pase", dataKey: "fecha_pase" },
+        { header: "Origen", dataKey: "origen" },
+      ];
+      const rows = expedientesPendientes.map(e => ({
+        numero: e.numero_expediente ?? "",
+        tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+        descripcion: e.descripcion ?? "",
+        estado: e.estado ?? e.estado_actual ?? "",
+        fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
+        origen: e.desde_usuario ?? e.desde_departamento ?? "",
+      }));
+      autoTable(doc, { columns, body: rows, startY: 28 });
+      return doc.output('bloburl');
+    } catch (err) {
+      alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
+      return null;
+    } finally {
+      setGenerandoPDF(false);
+    }
+  };
 
   const handleSalir = () => {
     localStorage.removeItem("usuarioLogueado");
@@ -599,28 +635,15 @@ export default function UsuarioDirector() {
     }
   };
 
-  // Menú específico para Usuario Director
-  const menuItems = [
-    { id: "consultar-expediente", label: "Consultar Expediente", icon: "🔍", permiso: "consultar_expediente_detalle" },
-    { id: "recepcion-pase", label: "Recepción", icon: "📥", permiso: "recepcion_pase" },
-    { id: "aprobar-rechazar", label: "Aprobar/Rechazar", icon: "✓✗", permiso: "aprobar_rechazar" },
-    { id: "firmar-documentos", label: "Firmar Documentos", icon: "✍️", permiso: "firmar_documentos" },
-    { id: "reportes", label: "Reportes y Estadísticas", icon: "📊", permiso: "ver_reportes" },
-    { id: "supervision-areas", label: "Supervisión de Áreas", icon: "👥", permiso: "supervisar_areas" },
-    { id: "manual-usuario", label: "Manual de Usuario", icon: "📖", permiso: "ver_manual_usuario" },
-  ];
-
-  const menuFiltrado = permisosUsuario.length > 0
-    ? menuItems.filter(m => permisosUsuario.includes(m.permiso))
-    : menuItems;
-
   const renderContenido = () => {
     switch (seccionActiva) {
+      case "bandeja":
       case "inicio":
         return (
           <div className="seccion-contenido seccion-inicio">
             <h1>Portal del Director</h1>
             <p>Bienvenido al sistema de gestión de expedientes - Dirección Provincial del Agua</p>
+            <BotonesReporte onGenerarPDF={exportarPDF} generando={generandoPDF} mostrarVolver={false} />
             
             {loadingExpedientes ? (
               <p>Cargando expedientes...</p>
@@ -756,31 +779,23 @@ export default function UsuarioDirector() {
 
   return (
     <div className="director-layout">
-      {/* Sidebar */}
-      <aside className={`director-sidebar ${sidebarOpen ? "open" : "closed"}`}>
-        <button className="director-toggle" onClick={toggleSidebar}>
-          {sidebarOpen ? "◀" : "▶"}
-        </button>
-        {sidebarOpen && (
-          <nav className="director-menu">
-            {menuFiltrado.map((item) => (
-              <button
-                key={item.id}
-                className={`director-menu-btn ${seccionActiva === item.id ? "active" : ""}`}
-                onClick={() => setSeccionActiva(item.id)}
-              >
-                <span className="director-icon">{item.icon}</span>
-                <span className="director-label">{item.label}</span>
-              </button>
-            ))}
-            
-            <button className="director-menu-btn director-salir" onClick={handleSalir}>
-              <span className="director-icon">🚪</span>
-              <span className="director-label">Salir</span>
-            </button>
-          </nav>
-        )}
-      </aside>
+      {/* Navegación horizontal */}
+      <div className="user-nav-bar user-nav-director">
+        <Nav variant="pills" className="flex-wrap gap-1 align-items-center">
+          <Nav.Item>
+            <Nav.Link active={["inicio","bandeja"].includes(seccionActiva)} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "recepcion-pase"} onClick={() => setSeccionActiva("recepcion-pase")}>📤 Realizar Pase</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "manual-usuario"} onClick={() => setSeccionActiva("manual-usuario")}>📖 Manual</Nav.Link>
+          </Nav.Item>
+        </Nav>
+      </div>
 
       {/* Contenido principal */}
       <main className="director-main">

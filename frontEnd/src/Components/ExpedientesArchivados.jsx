@@ -1,17 +1,21 @@
 
 import React, { useEffect, useState } from "react";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import Header_1 from "./Header_1";
 import Footer from "./Footer";
 import "../CSS/common.css";
 import "../CSS/UsuarioJuridico.css";
 import { useNavigate } from "react-router-dom";
+import BotonesReporte from "./BotonesReporte";
 
 const ExpedientesArchivados = () => {
   const [expedientes, setExpedientes] = useState([]);
+  const [generandoPDF, setGenerandoPDF] = useState(false);
     // Función para exportar la tabla a PDF
     const exportarPDF = () => {
+      setGenerandoPDF(true);
+      try {
       const doc = new jsPDF();
       const fecha = new Date().toLocaleString();
       doc.text("Reporte de Expedientes Archivados", 14, 15);
@@ -32,8 +36,14 @@ const ExpedientesArchivados = () => {
         presentante: e.usuario_nombre + ' ' + (e.usuario_apellido || ''),
         fecha: e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString() : '',
       }));
-      doc.autoTable({ columns, body: rows, startY: 28 });
-      doc.save("reporte_expedientes_archivados.pdf");
+      autoTable(doc, { columns, body: rows, startY: 28 });
+      return doc.output('bloburl');
+      } catch (err) {
+        alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
+        return null;
+      } finally {
+        setGenerandoPDF(false);
+      }
     };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -98,6 +108,12 @@ const navigate = useNavigate();
           )}
         </aside>
         <main className="juridico-main">
+          <BotonesReporte
+            onVolver={() => navigate("/consulta-expedientes-estado")}
+            onGenerarPDF={exportarPDF}
+            generando={generandoPDF}
+            nombreArchivo="reporte_expedientes_archivados.pdf"
+          />
           {view === "info" && (
             <div className="seccion-contenido seccion-inicio">
               <h1>Expedientes Archivados</h1>
@@ -112,11 +128,7 @@ const navigate = useNavigate();
           {view === "archivados" && (
             <div className="seccion-contenido">
               <h2>📦 Lista de Expedientes Archivados</h2>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-                <button className="admin-btn primary" onClick={exportarPDF}>
-                  Generar reporte PDF
-                </button>
-              </div>
+
               {loading ? (
                 <p>Cargando...</p>
               ) : error ? (

@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from "react";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
+import { useNavigate } from "react-router-dom";
 import Header_1 from "./Header_1";
 import Footer from "./Footer";
 import "../CSS/common.css";
 import "../CSS/UsuarioJuridico.css";
+import BotonesReporte from "./BotonesReporte";
 
 
 const ExpedientesFinalizados = () => {
+  const navigate = useNavigate();
+  const [generandoPDF, setGenerandoPDF] = useState(false);
     // Función para exportar la tabla a PDF
     const exportarPDF = () => {
+      setGenerandoPDF(true);
+      try {
       const doc = new jsPDF();
       const fecha = new Date().toLocaleString();
       doc.text("Reporte de Expedientes Finalizados", 14, 15);
@@ -32,8 +38,14 @@ const ExpedientesFinalizados = () => {
         fecha: (e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString() : (e.fecha || "")),
         estado_actual: e.estado_actual,
       }));
-      doc.autoTable({ columns, body: rows, startY: 28 });
-      doc.save("reporte_expedientes_finalizados.pdf");
+      autoTable(doc, { columns, body: rows, startY: 28 });
+      return doc.output('bloburl');
+      } catch (err) {
+        alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
+        return null;
+      } finally {
+        setGenerandoPDF(false);
+      }
     };
   const [expedientes, setExpedientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +99,12 @@ const ExpedientesFinalizados = () => {
           )}
         </aside>
         <main className="juridico-main">
+          <BotonesReporte
+            onVolver={() => navigate("/consulta-expedientes-estado")}
+            onGenerarPDF={exportarPDF}
+            generando={generandoPDF}
+            nombreArchivo="reporte_expedientes_finalizados.pdf"
+          />
           <h2>Expedientes Finalizados</h2>
           {loading ? (
             <p>Cargando...</p>
@@ -94,11 +112,7 @@ const ExpedientesFinalizados = () => {
             <p style={{ color: "red" }}>Error: {error}</p>
           ) : (
             <>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-                <button className="admin-btn primary" onClick={exportarPDF}>
-                  Generar reporte PDF
-                </button>
-              </div>
+
               <table className="expedientes-table">
                 <thead>
                   <tr>
@@ -151,11 +165,7 @@ const ExpedientesFinalizados = () => {
                   ))}
                 </tbody>
               </table>
-              <div style={{ marginTop: 32, textAlign: "center" }}>
-                <button className="btn btn-secondary" onClick={() => window.history.back()}>
-                  Volver
-                </button>
-              </div>
+
             </>
           )}
         </main>

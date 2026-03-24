@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS,URL_OBSERVACIONES } from "../Constants/endpoints";
-import { Modal, Button, Form, Alert } from "react-bootstrap";
+import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
 import "../CSS/UsuarioTecnico.css";
+import BotonesReporte from "./BotonesReporte";
 
 export default function UsuarioTecnico() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [seccionActiva, setSeccionActiva] = useState("inicio");
+  const [seccionActiva, setSeccionActiva] = useState("bandeja");
+  const [generandoPDF, setGenerandoPDF] = useState(false);
   const [permisosUsuario, setPermisosUsuario] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expedientesPendientes, setExpedientesPendientes] = useState([]);
@@ -89,7 +92,6 @@ export default function UsuarioTecnico() {
         setLoadingExpedientes(true);
         axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`)
           .then(async res => {
-            console.log('[EXPEDIENTES_PASES] Respuesta backend:', res.data);
             const expedientes = res.data || [];
             // Verificar cuáles expedientes ya fueron recepcionados por este usuario
             const expedientesConEstado = await Promise.all(
@@ -130,7 +132,40 @@ export default function UsuarioTecnico() {
     }
   }, []);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const exportarPDF = () => {
+    setGenerandoPDF(true);
+    try {
+      const doc = new jsPDF();
+      const fecha = new Date().toLocaleString("es-AR");
+      doc.setFontSize(14);
+      doc.text("Reporte de Bandeja - Área Técnica", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Fecha: ${fecha}`, 14, 22);
+      const columns = [
+        { header: "N° Expediente", dataKey: "numero" },
+        { header: "Tipo", dataKey: "tipo" },
+        { header: "Estado", dataKey: "estado" },
+        { header: "Fecha Pase", dataKey: "fecha_pase" },
+        { header: "Origen", dataKey: "origen" },
+        { header: "Observaciones", dataKey: "obs" },
+      ];
+      const rows = expedientesPendientes.map(e => ({
+        numero: e.numero_expediente ?? "",
+        tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+        estado: e.estado ?? e.estado_actual ?? "",
+        fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
+        origen: e.desde_usuario ?? e.desde_departamento ?? "",
+        obs: e.observaciones_pase ?? "",
+      }));
+      autoTable(doc, { columns, body: rows, startY: 28 });
+      return doc.output('bloburl');
+    } catch (err) {
+      alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
+      return null;
+    } finally {
+      setGenerandoPDF(false);
+    }
+  };
 
   const handleSalir = () => {
     localStorage.removeItem("usuarioLogueado");
@@ -343,7 +378,7 @@ export default function UsuarioTecnico() {
         });
         formData.append('id_expediente', expedienteVer.id_expediente);
         formData.append('subido_por', usuarioActual.id_usuario);
-        const respDoc = await axios.post('http://localhost:8000/expedientes/documentos/subirYRegistrar', formData, {
+        const respDoc = await axios.post('http://localhost:8000/api/documentos/subirYRegistrar', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         if (respDoc.status !== 201) {
@@ -378,189 +413,65 @@ export default function UsuarioTecnico() {
     : menuItems;
 
   const renderContenido = () => {
-<<<<<<< HEAD
-  switch (seccionActiva) {
-        case "consultar-expediente": {
-          // Filtro simple por número, estado o texto
-          const expedientesFiltrados = expedientesTodos.filter(exp => {
-            const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
-            return texto.includes(filtroConsulta.toLowerCase());
-          });
-          return (
-            <div className="seccion-contenido seccion-consulta">
-              <h2>Consulta de Expedientes</h2>
-              <Form.Group className="mb-3" style={{maxWidth: 400}}>
-                <Form.Label>Filtrar por número, estado o usuario</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Buscar..."
-                  value={filtroConsulta}
-                  onChange={e => setFiltroConsulta(e.target.value)}
-                  disabled={loadingTodos}
-                />
-              </Form.Group>
-              {loadingTodos ? (
-                <p>Cargando expedientes...</p>
-              ) : (
-                <div className="tabla-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                  <table className="table table-sm table-bordered">
-=======
     switch (seccionActiva) {
-      case "inicio":
+      case "consultar-expediente": {
+        // Filtro simple por número, estado o texto
+        const expedientesFiltrados = expedientesTodos.filter(exp => {
+          const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+          return texto.includes(filtroConsulta.toLowerCase());
+        });
         return (
-          <div className="seccion-contenido seccion-inicio">
-            <h1>Portal de Usuario Técnico</h1>
-            <p>Bienvenido al sistema de gestión de expedientes - Área Técnica</p>
-            
-            {loadingExpedientes ? (
+          <div className="seccion-contenido seccion-consulta">
+            <h2>Consulta de Expedientes</h2>
+            <Form.Group className="mb-3" style={{maxWidth: 400}}>
+              <Form.Label>Filtrar por número, estado o usuario</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Buscar..."
+                value={filtroConsulta}
+                onChange={e => setFiltroConsulta(e.target.value)}
+                disabled={loadingTodos}
+              />
+            </Form.Group>
+            {loadingTodos ? (
               <p>Cargando expedientes...</p>
-            ) : expedientesPendientes.length > 0 ? (
-              <div className="expedientes-pendientes">
-                <h2>Expedientes con Pase Pendiente de Recepción</h2>
-                
-                <div className="acciones-seleccion">
-                  <Button
-                    variant="primary"
-                    onClick={abrirModalRecepcion}
-                    disabled={expedientesSeleccionados.length === 0}
-                  >
-                    Recepcionar Seleccionados ({expedientesSeleccionados.length})
-                  </Button>
-                  <Button
-                    variant="outline-secondary"
-                    onClick={toggleSeleccionTodos}
-                    disabled={expedientesPendientes.filter(exp => !exp.recepcionado).length === 0}
-                  >
-                    {expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length && expedientesPendientes.filter(exp => !exp.recepcionado).length > 0
-                      ? "Deseleccionar Todos"
-                      : "Seleccionar Todos"}
-                  </Button>
-                </div>
-
-                <div className="tabla-container">
-                  <table className="tabla-expedientes">
-                    <thead>
-                      <tr>
-                        <th>
-                          <input
-                            type="checkbox"
-                            checked={
-                              expedientesPendientes.filter(exp => !exp.recepcionado).length > 0 &&
-                              expedientesSeleccionados.length === expedientesPendientes.filter(exp => !exp.recepcionado).length
-                            }
-                            onChange={toggleSeleccionTodos}
-                            disabled={expedientesPendientes.filter(exp => !exp.recepcionado).length === 0}
-                          />
-                        </th>
-                        <th>Nº Expediente</th>
-                        <th>Tipo</th>
-                        <th>Estado</th>
-                        <th>Fecha Pase</th>
-                        <th>Desde</th>
-                        <th>Observaciones</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expedientesPendientes.map(exp => (
-                        <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={expedientesSeleccionados.includes(exp.id_expediente)}
-                              onChange={() => toggleSeleccion(exp.id_expediente)}
-                              disabled={exp.recepcionado}
-                            />
-                          </td>
-                          <td>
-                            <strong>{exp.numero_expediente}</strong>
-                            {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
-                            {exp.recepcionado && !exp.puedeHacerPase && (
-                              <span className="badge bg-warning text-dark ms-2" title="Solo quien recepcionó puede hacer pases">
-                                🔒 Sin permiso de pase
-                              </span>
-                            )}
-                          </td>
-                          <td>{exp.tipo_tramite}</td>
-                          <td>
-                            <span className={`badge-estado estado-${exp.estado}`}>
-                              {exp.estado}
-                            </span>
-                          </td>
-                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleString("es-AR") : '-'}</td>
-                          <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                          <td>{exp.observaciones_pase || '-'}</td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-info"
-                              onClick={() => abrirModalDoc(exp)}
-                            >
-                              📄 Docs
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             ) : (
-              <div className="sin-expedientes">
-                <p>No hay expedientes pendientes de recepción</p>
+              <div className="tabla-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <table className="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Nº Expediente</th>
+                      <th>Estado</th>
+                      <th>Descripción</th>
+                      <th>Usuario Asignado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expedientesFiltrados.map(exp => {
+                      let usuarioAsignado = 'Sin asignar';
+                      if (exp.usuario_asignado_nombre) {
+                        usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
+                      }
+                      if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
+                        usuarioAsignado = 'Pendiente de recepción';
+                      }
+                      return (
+                        <tr key={exp.id_expediente}>
+                          <td>{exp.numero_expediente}</td>
+                          <td>{exp.estado_actual}</td>
+                          <td>{exp.descripcion}</td>
+                          <td>{usuarioAsignado}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {expedientesFiltrados.length === 0 && <p>No se encontraron expedientes.</p>}
               </div>
             )}
           </div>
         );
-
-      case "realizar-pase":
-        return (
-          <div className="seccion-contenido">
-            <h2>Realizar Pase Técnico</h2>
-            <Alert variant="info" className="mb-3">
-              <strong>Importante:</strong> Solo puede realizar pases de expedientes que usted haya recepcionado previamente.
-            </Alert>
-            
-            {expedientesPendientes.filter(exp => exp.puedeHacerPase).length > 0 ? (
-              <>
-                <p>Expedientes disponibles para realizar pase:</p>
-                <div className="tabla-container">
-                  <table className="tabla-expedientes">
->>>>>>> origin/rama_alfredo
-                    <thead>
-                      <tr>
-                        <th>Nº Expediente</th>
-                        <th>Estado</th>
-                        <th>Descripción</th>
-                        <th>Usuario Asignado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expedientesFiltrados.map(exp => {
-                        // Lógica para mostrar 'Pendiente de recepción' si no fue recepcionado
-                        let usuarioAsignado = 'Sin asignar';
-                        if (exp.usuario_asignado_nombre) {
-                          usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
-                        }
-                        if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
-                          usuarioAsignado = 'Pendiente de recepción';
-                        }
-                        return (
-                          <tr key={exp.id_expediente}>
-                            <td>{exp.numero_expediente}</td>
-                            <td>{exp.estado_actual}</td>
-                            <td>{exp.descripcion}</td>
-                            <td>{usuarioAsignado}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  {expedientesFiltrados.length === 0 && <p>No se encontraron expedientes.</p>}
-                </div>
-              )}
-            </div>
-          );
-        }
+      }
     case "realizar-pase": {
       // Mostrar expedientes recepcionados por el usuario técnico y que puede hacer pase
       const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
@@ -636,11 +547,7 @@ export default function UsuarioTecnico() {
         <div className="seccion-contenido seccion-inicio">
           <h1>Portal de Usuario Técnico</h1>
           <p>Bienvenido al sistema de gestión de expedientes - Área Técnica</p>
-          <pre style={{background:'#eee',padding:8,maxHeight:200,overflow:'auto',fontSize:12}}>
-            usuario: {JSON.stringify(usuarioLogueado,null,2)}
-            {"\n"}expedientesPendientes: {JSON.stringify(expedientesPendientes,null,2)}
-            {"\n"}expedientesUnicos: {JSON.stringify(expedientesUnicos,null,2)}
-          </pre>
+          <BotonesReporte onGenerarPDF={exportarPDF} generando={generandoPDF} mostrarVolver={false} />
           {loadingExpedientes ? (
             <p>Cargando expedientes...</p>
           ) : expedientesUnicos.length > 0 ? (
@@ -839,60 +746,23 @@ export default function UsuarioTecnico() {
 
   return (
     <div className="tecnico-layout">
-      {/* Sidebar */}
-      <aside className={`tecnico-sidebar ${sidebarOpen ? "open" : "closed"}`}>
-        <button className="tecnico-toggle" onClick={toggleSidebar}>
-          {sidebarOpen ? "◀" : "▶"}
-        </button>
-        {sidebarOpen && (
-          <nav className="tecnico-menu">
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "bandeja" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("bandeja")}
-            >
-              <span className="tecnico-icon">📥</span>
-              <span className="tecnico-label">Bandeja de Entrada</span>
-            </button>
-
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "realizar-pase" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("realizar-pase")}
-            >
-              <span className="tecnico-icon">📤</span>
-              <span className="tecnico-label">Realizar Pase</span>
-            </button>
-
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "deshacer-pase" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("deshacer-pase")}
-            >
-              <span className="tecnico-icon">⏪</span>
-              <span className="tecnico-label">Deshacer Pase</span>
-            </button>
-
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "consultar-expediente" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("consultar-expediente")}
-            >
-              <span className="tecnico-icon">🔍</span>
-              <span className="tecnico-label">Consultar Expediente</span>
-            </button>
-
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "manual-usuario" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("manual-usuario")}
-            >
-              <span className="tecnico-icon">📖</span>
-              <span className="tecnico-label">Manual de Usuario</span>
-            </button>
-
-            <button className="tecnico-menu-btn tecnico-salir" onClick={handleSalir}>
-              <span className="tecnico-icon">🚪</span>
-              <span className="tecnico-label">Salir</span>
-            </button>
-          </nav>
-        )}
-      </aside>
+      {/* Navegación horizontal */}
+      <div className="user-nav-bar user-nav-tecnico">
+        <Nav variant="pills" className="flex-wrap gap-1 align-items-center">
+          <Nav.Item>
+            <Nav.Link active={["inicio","bandeja"].includes(seccionActiva)} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "realizar-pase"} onClick={() => setSeccionActiva("realizar-pase")}>📤 Realizar Pase</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "manual-usuario"} onClick={() => setSeccionActiva("manual-usuario")}>📖 Manual</Nav.Link>
+          </Nav.Item>
+        </Nav>
+      </div>
 
       {/* Contenido principal */}
       <main className="tecnico-main">
