@@ -22,7 +22,7 @@ export const solicitarRecuperacion = async (req, res) => {
         pass: 'aedn bkio pgnl tkql'
       }
     });
-    const resetUrl = `http://localhost:8000/reset-password/${token}`;
+    const resetUrl = `http://localhost:5174/reset-password/${token}`;
     await transporter.sendMail({
       from: 'juanmanuelgonz@gmail.com',
       to: email,
