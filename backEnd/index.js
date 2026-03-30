@@ -18,7 +18,8 @@ dotenv.config();
 import historialRoutes from "./routes/historial.js";
 import observacionesRoutes from "./routes/observacion.js";
 import recuperacionRoutes from "./routes/recuperacion.js";
-import "./utils/whatsapp.js";
+// import "./utils/whatsapp.js"; // Desactivado por solicitud del usuario
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +36,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use("/usuarios", usuariosRoutes);
 app.use("/tramite", tramiteRoutes);
 app.use("/expedientes", expedienteRoutes);
+
 app.use("/api/documentos", documentosRoutes);
+
 app.use("/api", pagosRoutes);
 app.use("/api", recuperacionRoutes);
 app.use("/api", notificacionRoutes);

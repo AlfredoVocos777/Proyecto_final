@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import jsPDF from "jsPDF";
-import autoTable from "jspdf-autotable";
+import axios from "axios";
 import {
   URL_EXPEDIENTES,
   URL_DOCUMENTOS,
@@ -16,472 +15,867 @@ import {
   Badge,
   Container,
   Alert,
-  Spinner,
 } from "react-bootstrap";
-import axios from "axios";
 import "../CSS/Consulta.css";
 
-function useUsuarios() {
-  const [usuarios, setUsuarios] = useState([]);
-  useEffect(() => {
-    axios
-      .get("http://localhost:8000/usuarios")
-      .then((res) => setUsuarios(res.data || []))
-      .catch((err) => console.error("Error cargando usuarios:", err));
-  }, []);
-  return usuarios;
-}
-
 function ConsultaExpedientes() {
-  const navigate = useNavigate();
-  const usuarios = useUsuarios();
-
-  // --- Estados Generales ---
   const [expedientes, setExpedientes] = useState([]);
-  const [busqueda, setBusqueda] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState("");
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // --- Estados Paginación ---
+  const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(""); // "ver", "editar"
+  const [expedienteSeleccionado, setExpedienteSeleccionado] = useState(null);
+  const [formData, setFormData] = useState({
+    tipo_expediente: "",
+    descripcion: "",
+    prioridad: "",
+    estado_actual: "",
+  });
+  const [usuarioLog, setUsuarioLog] = useState(null);
   const [paginaActual, setPaginaActual] = useState(1);
   const porPagina = 10;
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroPrioridad, setFiltroPrioridad] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
 
-  // --- Estados Modal Detalles/Documentos (rama_alfredo) ---
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [expedienteSeleccionado, setExpedienteSeleccionado] = useState(null);
-  const [modalFiles, setModalFiles] = useState([]);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [modalUploadedFiles, setModalUploadedFiles] = useState([]);
-  const [modalType, setModalType] = useState("ver"); // "ver" o "editar"
-
-  // --- Estados Observaciones (rama_alfredo) ---
+  // estados de los roles
   const [observacionesAdmin, setObservacionesAdmin] = useState([]);
-  const [observacionesTecnico, setObservacionesTecnico] = useState([]);
-  const [observacionesJuridico, setObservacionesJuridico] = useState([]);
-  const [observacionesDirector, setObservacionesDirector] = useState([]);
+const [observacionesTecnico, setObservacionesTecnico] = useState([]);
+const [observacionesJuridico, setObservacionesJuridico] = useState([]);
+const [observacionesDirector, setObservacionesDirector] = useState([]);
 
-  // --- Estados Modal Pase (HEAD) ---
-  const [showPaseModal, setShowPaseModal] = useState(false);
-  const [documentosModal, setDocumentosModal] = useState([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
-  const [tecnicoSeleccionado, setTecnicoSeleccionado] = useState("");
-  const [observacionPase, setObservacionPase] = useState("");
-  const [paseLoading, setPaseLoading] = useState(false);
-  const [paseMsg, setPaseMsg] = useState("");
 
-  const usuarioLog = JSON.parse(localStorage.getItem("usuarioLogueado")) || {
-    id_usuario: 1,
-    nombre: "Admin",
-    apellido: "Demo",
-  };
+  // nuevos estados para subir documentos en el modal ver
 
-  const tecnicos = usuarios.filter(
-    (u) => u.id_rol === 28 || (u.rol && u.rol.toLowerCase() === "técnico")
-  );
+  const [modalFiles, setModalFiles] = useState([]);
+  const [modalUploadedFiles, setModalUploadedFiles] = useState([]);
 
-  useEffect(() => {
-    obtenerExpedientes();
-  }, []);
+  const navigate = useNavigate();
 
+  // Obtener expedientes (filtrando por presentante si corresponde)
   const obtenerExpedientes = async () => {
-    setLoading(true);
     try {
-      const res = await axios.get("http://localhost:8000/expedientes");
-      setExpedientes(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Error al obtener expedientes:", err);
-      setError("No se pudieron cargar los expedientes.");
-      setExpedientes([]);
+      setLoading(true);
+      const response = await axios.get(URL_EXPEDIENTES);
+      const data = response.data || [];
+      const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      if (usuario?.tipo_usuario?.toLowerCase() === "presentante") {
+        const uid = Number(usuario.id_usuario);
+        const propios = data.filter(
+          (e) => Number(e.id_usuario_presentante) === uid
+        );
+        setExpedientes(propios);
+      } else {
+        setExpedientes(data);
+      }
+      setError(null);
+      setPaginaActual(1);
+    } catch (error) {
+      console.error("Error al obtener expedientes:", error);
+      setError(
+        "Error al cargar los expedientes. Por favor, intente nuevamente."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Lógica de Archivos y Documentos ---
+  useEffect(() => {
+    const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
+    setUsuarioLog(u || null);
+    obtenerExpedientes();
+  }, []);
+
+  // Resetear a primera página cuando cambian filtros/búsqueda
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroEstado, filtroPrioridad, filtroTipo]);
+
+  //-------------------------------------------------------------
+  //-------------------------------------------------------------
+  // Función para abrir el modal
+  const abrirModal = async (tipo, expediente) => {
+    setModalType(tipo);
+    setExpedienteSeleccionado(expediente);
+
+    if (tipo === "editar") {
+      setFormData({
+        tipo_expediente: expediente.tipo_expediente || "",
+        descripcion: expediente.descripcion || "",
+        prioridad: expediente.prioridad || "",
+        estado_actual: expediente.estado_actual || "",
+      });
+    }
+
+    if (tipo === "ver") {
+      // Primero abrimos el modal vacío
+      setShowModal(true);
+
+      // Cargar documentos
+      const docs = await obtenerDocumentosExpediente(expediente.id_expediente);
+      setModalUploadedFiles(
+        docs.map((d) => ({
+          id_documento: d.id_documento,
+          nombre: d.nombre_archivo,
+        }))
+      );
+
+      // Cargar observación
+      await cargarObservaciones(expediente.id_expediente);
+    } else {
+      setShowModal(true);
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  // Función para cerrar el modal
+  const cerrarModal = () => {
+    setShowModal(false);
+    setExpedienteSeleccionado(null);
+    setFormData({
+      tipo_expediente: "",
+      descripcion: "",
+      prioridad: "",
+      estado_actual: "",
+    });
+  };
+
+  //----------------------------------------------------------------------
+
+  // funcion para agregar mas documentos en el modal ver
+
+  const obtenerDocumentosExpediente = async (id_expediente) => {
+    try {
+      const response = await axios.get(
+        `${URL_DOCUMENTOS}/expediente/${id_expediente}`
+      );
+      return response.data || [];
+    } catch (error) {
+      console.error("Error al obtener documentos del expediente:", error);
+      return [];
+    }
+  };
+
+  // Estado para guardar los archivos seleccionados en el modal
+  const [selectedFiles, setSelectedFiles] = useState([]);
+
+  // Función para capturar los archivos cuando el usuario los selecciona
+
   const handleModalFileSelect = (e) => {
     if (!e.target.files) return;
     const archivos = Array.from(e.target.files);
     setSelectedFiles(archivos);
-    setModalFiles(archivos);
+    setModalFiles(archivos); // para mostrar en el recuadro de selección
   };
 
+  // Función para subir archivos desde el modal
   const subirArchivosModal = async () => {
     if (!selectedFiles.length) return;
+
     const idUsuario = usuarioLog?.id_usuario;
+    const archivos = selectedFiles;
+
     const resultados = await uploadModalFiles(
       expedienteSeleccionado.id_expediente,
-      selectedFiles,
+      archivos,
       idUsuario
     );
 
     if (resultados && resultados.length) {
+      // Mapear los resultados para que tengan la propiedad 'nombre' usada en el JSX
       const archivosMapeados = resultados.map((r) => ({
         id_documento: r.id_documento,
         nombre: r.nombre,
       }));
+
+      // Agregar al listado de documentos subidos
       setModalUploadedFiles((prev) => [...prev, ...archivosMapeados]);
+
+      // Limpiar input y selección
       setSelectedFiles([]);
       setModalFiles([]);
-      if (document.getElementById("modalFileUpload")) {
-        document.getElementById("modalFileUpload").value = "";
-      }
+      document.getElementById("modalFileUpload").value = ""; // limpia input
+
       alert("Archivos subidos con éxito ✅");
     }
   };
 
-  const uploadModalFiles = async (expedienteId, archivos, idUsuario) => {
+  // Función para enviar los archivos al backend
+  const uploadModalFiles = async (
+    expedienteId,
+    archivosSeleccionados,
+    idUsuario
+  ) => {
+    if (!archivosSeleccionados || !archivosSeleccionados.length) return;
+
     const formData = new FormData();
     formData.append("id_expediente", expedienteId);
     formData.append("subido_por", idUsuario);
-    archivos.forEach((file) => formData.append("files", file));
+
+    archivosSeleccionados.forEach((file) => {
+      formData.append("files", file); // 'files' coincide con Multer
+    });
 
     try {
       const response = await axios.post(
         `${URL_DOCUMENTOS}/subirYRegistrar`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
       );
-      return response.data.resultados;
+
+      console.log("Archivos subidos y registrados en BD:", response.data);
+      return response.data.resultados; // [{id_documento, nombre}, ...]
     } catch (error) {
       console.error("Error al subir archivos:", error);
-      alert("No se pudieron subir los archivos.");
+      alert("No se pudieron subir los archivos. Revisá la consola.");
     }
   };
 
-  // --- Lógica de Observaciones ---
+  // funcion para cargar las observaciones desde el admin
+
   const cargarObservaciones = async (idExpediente) => {
     try {
-      const res = await axios.get(`http://localhost:8000/observaciones/${idExpediente}`);
+      const res = await axios.get(
+        `http://localhost:8000/observaciones/${idExpediente}`
+      );
       const data = res.data;
-      setObservacionesAdmin(data.Administrativo || []);
+
+      // Admin
+      setObservacionesAdmin(data.Administrativo || [])
+
+      // Técnico
       setObservacionesTecnico(data.Técnico || []);
+
+      // Jurídico
       setObservacionesJuridico(data.Jurídico || []);
+
+      // Director
       setObservacionesDirector(data.Director || []);
     } catch (error) {
       console.error("Error al cargar observaciones", error);
     }
   };
 
-  // --- Lógica de Pase ---
-  const handleAbrirPase = async (expediente) => {
-    setExpedienteSeleccionado(expediente);
-    setShowPaseModal(true);
-    setLoadingDocs(true);
-    setPaseMsg("");
+  //------------------------------------------------------------------------
+  // Función para actualizar expediente
+  const actualizarExpediente = async (e) => {
+    e.preventDefault();
     try {
-      const res = await axios.get(
-        `http://localhost:8000/api/documentos/expediente/${expediente.id_expediente}`
+      await axios.put(
+        `${URL_EXPEDIENTES}/${expedienteSeleccionado.id_expediente}`,
+        formData
       );
-      setDocumentosModal(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      setDocumentosModal([]);
-    } finally {
-      setLoadingDocs(false);
+      alert("Expediente actualizado exitosamente");
+      cerrarModal();
+      obtenerExpedientes(); // Recargar la lista
+    } catch (error) {
+      console.error("Error al actualizar expediente:", error);
+      alert("Error al actualizar el expediente");
     }
   };
 
-  const handlePase = async () => {
-    if (!tecnicoSeleccionado || !expedienteSeleccionado || !observacionPase) {
-      setPaseMsg("Seleccione un técnico y complete la observación.");
-      return;
-    }
-    const confirmado = window.confirm("¿Confirmar el pase al técnico?");
-    if (!confirmado) return;
-
-    setPaseLoading(true);
-    try {
-      await axios.post("http://localhost:8000/historial", {
-        id_expediente: expedienteSeleccionado.id_expediente,
-        id_usuario_responsable: tecnicoSeleccionado,
-        comentario: observacionPase,
-        tipo_accion: "asignación",
-      });
-      await axios.post("http://localhost:8000/observaciones", {
-        id_expediente: expedienteSeleccionado.id_expediente,
-        id_usuario: usuarioLog?.id_usuario || 1,
-        observacion: observacionPase,
-      });
-      await axios.put(`http://localhost:8000/expedientes/${expedienteSeleccionado.id_expediente}`, {
-        id_profesional_asignado: tecnicoSeleccionado,
-      });
-
-      // Notificación
-      const presentante = usuarios.find(u => u.id_usuario === expedienteSeleccionado.id_usuario_presentante);
-      const tecnicoObj = usuarios.find(u => u.id_usuario == tecnicoSeleccionado);
-      await axios.post("http://localhost:8000/api/notificar-pase", {
-        id_usuario: presentante?.id_usuario,
-        email: presentante?.email || "",
-        nombre: presentante?.nombre || "",
-        apellido: presentante?.apellido || "",
-        numero_expediente: expedienteSeleccionado.numero_expediente,
-        observacion: observacionPase,
-        tecnico_nombre: tecnicoObj?.nombre || "",
-        tecnico_apellido: tecnicoObj?.apellido || "",
-      });
-
-      alert("Pase realizado correctamente.");
-      setShowPaseModal(false);
-      setTecnicoSeleccionado("");
-      setObservacionPase("");
-      obtenerExpedientes();
-    } catch (err) {
-      console.error("Error en el pase:", err);
-      setPaseMsg("Error al realizar el pase.");
-    } finally {
-      setPaseLoading(false);
-    }
-  };
-
-  // --- Lógica de Detalles ---
-  const handleAbrirDetalles = (expediente) => {
-    setExpedienteSeleccionado(expediente);
-    setModalType("ver");
-    setShowDetailsModal(true);
-    cargarObservaciones(expediente.id_expediente);
-    // Cargar documentos relacionados
-    axios.get(`http://localhost:8000/api/documentos/expediente/${expediente.id_expediente}`)
-      .then(res => setModalUploadedFiles(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setModalUploadedFiles([]));
-  };
-
+  //-------------------------------------------------------------------
+  // Función para archivar expediente
   const archivarExpediente = async (id) => {
-    if (window.confirm("¿Seguro desea archivar este expediente?")) {
+    if (window.confirm("¿Está seguro que desea archivar este expediente?")) {
       try {
-        await axios.put(`http://localhost:8000/expedientes/archivar/${id}`);
-        alert("Archivado correctamente.");
-        obtenerExpedientes();
-      } catch (err) {
-        alert("Error al archivar.");
+        await axios.put(`${URL_EXPEDIENTES}/${id}/archivar`);
+        alert("Expediente archivado exitosamente");
+        obtenerExpedientes(); // Recargar la lista
+      } catch (error) {
+        console.error("Error al archivar expediente:", error);
+        alert("Error al archivar el expediente");
       }
     }
   };
 
-  // --- Filtrado y Paginación ---
-  const expedientesFiltrados = expedientes.filter((exp) => {
-    const matchesBusqueda =
-      (exp.numero_expediente?.toString().toLowerCase() || "").includes(busqueda.toLowerCase()) ||
-      (exp.tipo_expediente?.toLowerCase() || "").includes(busqueda.toLowerCase()) ||
-      (exp.descripcion?.toLowerCase() || "").includes(busqueda.toLowerCase());
-    
-    const matchesTipo = filtroTipo === "" || exp.tipo_expediente === filtroTipo;
+  // Función para manejar cambios en el formulario
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
 
-    // Si es presentante, solo ver los suyos
-    if (usuarioLog?.tipo_usuario?.toLowerCase() === "presentante") {
-      return exp.id_usuario_presentante === usuarioLog.id_usuario && matchesBusqueda && matchesTipo;
-    }
-    
-    return matchesBusqueda && matchesTipo;
+  // Función para formatear fechas
+  const formatearFecha = (fecha) => {
+    if (!fecha) return "N/A";
+    const date = new Date(fecha);
+    return date.toLocaleDateString("es-AR");
+  };
+
+  // Función para obtener el color del badge según el estado
+  const getEstadoBadge = (estado) => {
+    const estados = {
+      "en revisión": "warning",
+      aprobado: "success",
+      rechazado: "danger",
+      archivado: "secondary",
+      pendiente: "info",
+    };
+    return estados[estado?.toLowerCase()] || "secondary";
+  };
+
+  // Función para obtener el color del badge según la prioridad
+  const getPrioridadBadge = (prioridad) => {
+    const prioridades = {
+      alta: "danger",
+      media: "warning",
+      baja: "info",
+    };
+    return prioridades[prioridad?.toLowerCase()] || "secondary";
+  };
+
+  if (loading) {
+    return (
+      <Container className="mt-5 text-center">
+        <h3>Cargando expedientes...</h3>
+      </Container>
+    );
+  }
+
+  // Calcular filtrados y paginación
+  const q = busqueda.trim().toLowerCase();
+  const filtrados = expedientes.filter((e) => {
+    const coincideBusqueda =
+      !q ||
+      String(e.numero_expediente || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(e.tipo_expediente || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(e.descripcion || "")
+        .toLowerCase()
+        .includes(q);
+
+    const coincideTipo = !filtroTipo || e.tipo_expediente === filtroTipo;
+    const coincideEstado =
+      !filtroEstado ||
+      (e.estado_actual || "").toLowerCase() === filtroEstado.toLowerCase();
+    const coincidePrioridad =
+      !filtroPrioridad ||
+      (e.prioridad || "").toLowerCase() === filtroPrioridad.toLowerCase();
+
+    return (
+      coincideBusqueda && coincideTipo && coincideEstado && coincidePrioridad
+    );
   });
 
-  const total = expedientesFiltrados.length;
+  const total = filtrados.length;
   const inicio = (paginaActual - 1) * porPagina;
-  const fin = inicio + porPagina;
-  const pagina = expedientesFiltrados.slice(inicio, fin);
+  const fin = paginaActual * porPagina;
+  const pagina = filtrados.slice(inicio, fin);
 
-  const getEstadoBadge = (estado) => {
-    const e = estado?.toLowerCase();
-    if (e === "aprobado") return "success";
-    if (e === "rechazado") return "danger";
-    if (e === "archivado") return "secondary";
-    return "warning";
-  };
-
-  const formatearFecha = (fecha) => {
-    return fecha ? new Date(fecha).toLocaleDateString("es-AR") : "N/A";
-  };
-
-  const exportarPDF = () => {
-    const doc = new jsPDF();
-    doc.text("Reporte de Expedientes", 14, 14);
-    autoTable(doc, {
-      startY: 20,
-      head: [["N° Expediente", "Tipo", "Estado", "Fecha"]],
-      body: expedientesFiltrados.map((e) => [
-        e.numero_expediente,
-        e.tipo_expediente,
-        e.estado_actual,
-        formatearFecha(e.fecha_creacion),
-      ]),
-    });
-    doc.save("expedientes.pdf");
-  };
+  //---------------------------RETURN------------------------------------------
 
   return (
-    <Container className="mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+    <Container fluid className="consulta-expedientes-container">
+      <div className="consulta-header">
         <h2>Consulta de Expedientes</h2>
-        <Button variant="outline-primary" onClick={() => navigate(-1)}>Volver</Button>
+        <Button variant="secondary" onClick={() => navigate("/Portada")}>
+          Volver a Portada
+        </Button>
       </div>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      {/* Subtítulo contextual para presentante */}
+      {usuarioLog?.tipo_usuario?.toLowerCase() === "presentante" && (
+        <p className="text-muted mb-3">Mostrando tus expedientes presentados</p>
+      )}
 
-      <div className="row g-2 mb-4">
-        <div className="col-md-6">
-          <Form.Control
-           placeholder="Buscar por número, tipo o descripción..."
-           value={busqueda}
-           onChange={(e) => { setBusqueda(e.target.value); setPaginaActual(1); }}
-          />
-        </div>
-        <div className="col-md-4">
-          <Form.Select value={filtroTipo} onChange={(e) => { setFiltroTipo(e.target.value); setPaginaActual(1); }}>
-            <option value="">Todos los tipos</option>
-            {[...new Set(expedientes.map(e => e.tipo_expediente))].filter(Boolean).map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </Form.Select>
-        </div>
-        <div className="col-md-2 d-grid">
-          <Button variant="success" onClick={exportarPDF}>Reporte PDF</Button>
-        </div>
-      </div>
+      {error && (
+        <Alert variant="danger" dismissible onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
-      {loading ? (
-        <div className="text-center my-5"><Spinner animation="border" variant="primary" /></div>
+      {expedientes.length === 0 ? (
+        <Alert variant="info">
+          No hay expedientes registrados en el sistema.
+        </Alert>
       ) : (
-        <>
+        <div className="tabla-container">
+          {/* Barra de filtros */}
+          <div className="row g-2 mb-3">
+            <div className="col-md-4">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar por número, tipo o descripción..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <select
+                className="form-select"
+                value={filtroTipo}
+                onChange={(e) => setFiltroTipo(e.target.value)}
+              >
+                <option value="">Tipo (todos)</option>
+                {Array.from(
+                  new Set(
+                    expedientes.map((e) => e.tipo_expediente).filter(Boolean)
+                  )
+                ).map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-2">
+              <select
+                className="form-select"
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+              >
+                <option value="">Estado (todos)</option>
+                {[
+                  "en revisión",
+                  "aprobado",
+                  "rechazado",
+                  "pendiente",
+                  "archivado",
+                ].map((est) => (
+                  <option key={est} value={est}>
+                    {est}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-2">
+              <select
+                className="form-select"
+                value={filtroPrioridad}
+                onChange={(e) => setFiltroPrioridad(e.target.value)}
+              >
+                <option value="">Prioridad (todas)</option>
+                {["alta", "media", "baja"].map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-1 d-grid">
+              <Button
+                variant="outline-secondary"
+                onClick={() => {
+                  setBusqueda("");
+                  setFiltroEstado("");
+                  setFiltroPrioridad("");
+                  setFiltroTipo("");
+                }}
+              >
+                Limpiar
+              </Button>
+            </div>
+          </div>
+
+          {/* Info de paginación superior */}
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <small className="text-muted">
+              Mostrando {Math.min(inicio + 1, total)} a {Math.min(fin, total)}{" "}
+              de {total}
+            </small>
+            <div>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                className="me-2"
+                onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() =>
+                  setPaginaActual((p) => (p * porPagina < total ? p + 1 : p))
+                }
+                disabled={paginaActual * porPagina >= total}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+
           <Table striped bordered hover responsive>
-            <thead className="table-dark">
+            <thead>
               <tr>
                 <th>N° Expediente</th>
                 <th>Tipo</th>
+                <th>Descripción</th>
                 <th>Estado</th>
-                <th>Fecha</th>
+                <th>Confirmar Pago</th>
+                <th>Prioridad</th>
+                <th>Fecha Creación</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {pagina.length > 0 ? (
-                pagina.map((exp) => {
-                   const presentante = usuarios.find(u => u.id_usuario === exp.id_usuario_presentante);
-                   return (
-                  <tr key={exp.id_expediente}>
-                    <td><strong>{exp.numero_expediente}</strong></td>
-                    <td>{exp.tipo_expediente}</td>
-                    <td><Badge bg={getEstadoBadge(exp.estado_actual)}>{exp.estado_actual}</Badge></td>
-                    <td>{formatearFecha(exp.fecha_creacion)}</td>
-                    <td>
-                      <div className="d-flex gap-1">
-                        <Button variant="primary" size="sm" onClick={() => handleAbrirDetalles(exp)}>Ver Detalles</Button>
-                        {usuarioLog?.id_rol !== 28 && ( // Si no es técnico, puede realizar pase
-                           <Button variant="info" size="sm" onClick={() => handleAbrirPase(exp)}>Pase</Button>
-                        )}
-                        <Button variant="outline-secondary" size="sm" onClick={() => archivarExpediente(exp.id_expediente)}>Archivar</Button>
-                      </div>
-                    </td>
-                  </tr>
-                )})
-              ) : (
-                <tr><td colSpan="5" className="text-center">No se encontraron expedientes.</td></tr>
-              )}
+              {pagina.map((expediente) => (
+                <tr key={expediente.id_expediente}>
+                  <td>{expediente.numero_expediente}</td>
+                  <td>{expediente.tipo_expediente || "N/A"}</td>
+                  <td>{expediente.descripcion || "N/A"}</td>
+
+                  <td>
+                    <Badge bg={getEstadoBadge(expediente.estado_actual)}>
+                      {expediente.estado_actual || "N/A"}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge bg={getEstadoBadge(expediente.confirmar_pago)}>
+                      {expediente.confirmar_pago || "N/A"}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge bg={getPrioridadBadge(expediente.prioridad)}>
+                      {expediente.prioridad || "N/A"}
+                    </Badge>
+                  </td>
+                  <td>{formatearFecha(expediente.fecha_creacion)}</td>
+                  <td className="acciones-cell">
+                    {/*boton ver*/}
+                    <Button
+                      variant="info"
+                      size="sm"
+                      className="me-1 mb-1"
+                      onClick={() => abrirModal("ver", expediente)}
+                    >
+                      Ver
+                    </Button>
+
+                    {usuarioLog?.tipo_usuario?.toLowerCase() !==
+                      "presentante" && (
+                      <>
+                        <Button
+                          variant="warning"
+                          size="sm"
+                          className="me-1 mb-1"
+                          onClick={() => abrirModal("editar", expediente)}
+                          disabled={expediente.estado_actual === "archivado"}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="mb-1"
+                          onClick={() =>
+                            archivarExpediente(expediente.id_expediente)
+                          }
+                          disabled={expediente.estado_actual === "archivado"}
+                        >
+                          Archivar
+                        </Button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </Table>
 
-          {total > porPagina && (
-            <div className="d-flex justify-content-between align-items-center mt-3">
-              <small className="text-muted">Mostrando {inicio + 1} a {Math.min(fin, total)} de {total}</small>
-              <div>
-                <Button variant="outline-secondary" size="sm" className="me-2" disabled={paginaActual === 1} onClick={() => setPaginaActual(p => p - 1)}>Anterior</Button>
-                <Button variant="outline-secondary" size="sm" disabled={fin >= total} onClick={() => setPaginaActual(p => p + 1)}>Siguiente</Button>
-              </div>
+          {/* Controles inferiores de paginación */}
+          <div className="d-flex justify-content-between align-items-center mt-2">
+            <small className="text-muted">
+              Página {paginaActual} de{" "}
+              {Math.max(1, Math.ceil(total / porPagina))}
+            </small>
+            <div>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                className="me-2"
+                onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() =>
+                  setPaginaActual((p) => (p * porPagina < total ? p + 1 : p))
+                }
+                disabled={paginaActual * porPagina >= total}
+              >
+                Siguiente
+              </Button>
             </div>
-          )}
-        </>
+          </div>
+        </div>
       )}
 
-      {/* Modal Pase */}
-      <Modal show={showPaseModal} onHide={() => setShowPaseModal(false)} size="lg" centered>
+      {/* Modal para Ver/Editar */}
+      <Modal
+        show={showModal}
+        onHide={cerrarModal}
+        size="lg"
+        className="modal-ver"
+      >
         <Modal.Header closeButton>
-          <Modal.Title>Realizar Pase de Expediente #{expedienteSeleccionado?.numero_expediente}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {loadingDocs ? <div className="text-center"><Spinner animation="border" /></div> : (
-             <>
-               <h6>Documentos Adjuntos:</h6>
-               <ul className="mb-4">
-                 {documentosModal.length > 0 ? documentosModal.map(doc => (
-                   <li key={doc.id_documento}>
-                     {doc.nombre_archivo} 
-                     <Button variant="link" size="sm" onClick={() => window.open(`http://localhost:8000/uploads/${doc.nombre_archivo}`, "_blank")}>Ver</Button>
-                   </li>
-                 )) : <li>Sin documentos</li>}
-               </ul>
-               <Form.Group className="mb-3">
-                 <Form.Label>Técnico a Asignar</Form.Label>
-                 <Form.Select value={tecnicoSeleccionado} onChange={(e) => setTecnicoSeleccionado(e.target.value)}>
-                   <option value="">Seleccione un técnico...</option>
-                   {tecnicos.map(t => <option key={t.id_usuario} value={t.id_usuario}>{t.nombre} {t.apellido}</option>)}
-                 </Form.Select>
-               </Form.Group>
-               <Form.Group className="mb-3">
-                 <Form.Label>Observación para el Pase</Form.Label>
-                 <Form.Control as="textarea" rows={3} value={observacionPase} onChange={(e) => setObservacionPase(e.target.value)} />
-               </Form.Group>
-               {paseMsg && <Alert variant={paseMsg.includes("Error") ? "danger" : "info"}>{paseMsg}</Alert>}
-             </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowPaseModal(false)}>Cancelar</Button>
-          <Button variant="primary" onClick={handlePase} disabled={paseLoading}>{paseLoading ? "Procesando..." : "Confirmar Pase"}</Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Modal Detalles */}
-      <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Detalles: Expediente #{expedienteSeleccionado?.numero_expediente}</Modal.Title>
+          <Modal.Title>
+            {modalType === "ver"
+              ? "Detalles del Expediente"
+              : "Editar Expediente"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {expedienteSeleccionado && (
-            <div className="details-container">
-               <div className="mb-3">
-                 <p><strong>Tipo:</strong> {expedienteSeleccionado.tipo_expediente}</p>
-                 <p><strong>Descripción:</strong> {expedienteSeleccionado.descripcion}</p>
-                 <p><strong>Estado Actual:</strong> <Badge bg={getEstadoBadge(expedienteSeleccionado.estado_actual)}>{expedienteSeleccionado.estado_actual}</Badge></p>
-               </div>
-               
-               <hr />
-               <h5>Historial de Observaciones</h5>
-               <div className="row">
-                 <div className="col-md-6 mb-3">
-                   <h6>Administrativo</h6>
-                   <div className="obs-box border p-2 bg-light rounded" style={{maxHeight:150, overflowY:'auto'}}>
-                     {observacionesAdmin.length ? observacionesAdmin.map((o,i) => <p key={i} className="small mb-1">• {o.observacion}</p>) : <p className="text-muted small">Sin obs.</p>}
-                   </div>
-                 </div>
-                 <div className="col-md-6 mb-3">
-                   <h6>Técnico</h6>
-                   <div className="obs-box border p-2 bg-light rounded" style={{maxHeight:150, overflowY:'auto'}}>
-                     {observacionesTecnico.length ? observacionesTecnico.map((o,i) => <p key={i} className="small mb-1">• {o.observacion}</p>) : <p className="text-muted small">Sin obs.</p>}
-                   </div>
-                 </div>
-               </div>
+            <Form onSubmit={actualizarExpediente}>
 
-               <hr />
-               <h5>Documentos</h5>
-               <div className="mb-3">
-                 <Form.Group controlId="modalFileUpload" className="mb-2">
-                   <Form.Label className="small">Subir más archivos:</Form.Label>
-                   <Form.Control type="file" multiple onChange={handleModalFileSelect} />
-                 </Form.Group>
-                 {modalFiles.length > 0 && <Button variant="primary" size="sm" onClick={subirArchivosModal}>Subir Seleccionados</Button>}
-               </div>
-               <ul className="list-unstyled">
-                 {modalUploadedFiles.map(f => (
-                   <li key={f.id_documento} className="border-bottom py-2 d-flex justify-content-between align-items-center">
-                     <span>✓ {f.nombre || f.nombre_archivo}</span>
-                     <Button variant="outline-primary" size="sm" onClick={() => window.open(`http://localhost:8000/uploads/${f.nombre_archivo || f.nombre}`, "_blank")}>Ver</Button>
-                   </li>
-                 ))}
-               </ul>
-            </div>
+
+              {/*------Datos generales del expediente---------- */}
+
+              <div className="datos-grid">
+                <Form.Group>
+                  <Form.Label>Expediente</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.numero_expediente}
+                  </Form.Label>
+                </Form.Group>
+
+
+                <Form.Group>
+                  <Form.Label>Fecha</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {new Date(expedienteSeleccionado.fecha_creacion).toLocaleString("es-AR")}
+                  </Form.Label>
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Usuario Presentante</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.id_usuario_presentante}
+                  </Form.Label>
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Estado</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.estado_actual}
+                  </Form.Label>
+                </Form.Group>
+              </div>
+
+              {/*------Observaciones de los distintos roles---------- */}
+
+              <div className="observaciones-box">
+                <h5>Observaciones</h5>
+                <div className="observacion-item">
+                  <h5>Administrativo</h5>
+                  
+                  <div className="observaciones-scroll">
+                    {observacionesAdmin.length > 0 ? (
+                      observacionesAdmin.map((obs, i) => (
+                        <Form.Control
+                          key={i}
+                          as="textarea"
+                          rows={3}
+                          className="mb-2"
+                          disabled
+                          value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
+                        />
+                      ))
+                    ) : (
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        disabled
+                        value="Sin observaciones"
+                      />
+                    )}
+                    </div>
+                </div>
+
+
+                <div className="observacion-item">
+                  <h5>Técnico</h5>
+
+                  <div className="observaciones-scroll">
+                  {observacionesTecnico.length > 0 ? (
+                    observacionesTecnico.map((obs, i) => (
+                      <Form.Control
+                        key={i}
+                        as="textarea"
+                        rows={3}
+                        className="mb-2"
+                        disabled
+                        value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
+                      />
+                    ))
+                  ) : (
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      disabled
+                      value="Sin observaciones"
+                    />
+                  )}
+                </div>
+                </div>
+
+
+                <div className="observacion-item">
+                  <h5>Jurídico</h5>
+
+                  <div className="observaciones-scroll">
+                  {observacionesJuridico.length > 0 ? (
+                    observacionesJuridico.map((obs, i) => (
+                      <Form.Control
+                        key={i}
+                        as="textarea"
+                        rows={3}
+                        className="mb-2"
+                        disabled
+                        value={`• ${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
+                      />
+                    ))
+                  ) : (
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      disabled
+                      value="Sin observaciones"
+                    />
+                  )}
+                </div>
+                </div>
+
+
+                <div className="observacion-item">
+                <h5>Director</h5>
+                
+                <div className="observaciones-scroll">
+                {observacionesDirector.length > 0 ? (
+                  observacionesDirector.map((obs, i) => (
+                    <Form.Control
+                      key={i}
+                      as="textarea"
+                      rows={2}
+                      className="mb-2"
+                      disabled
+                      value={`${obs.observacion}\n(${new Date(obs.fecha_hora).toLocaleString("es-AR")})`}
+                    />
+                  ))
+                ) : (
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    disabled
+                    value="Sin observaciones"
+                  />
+                )}
+              </div>
+              </div>
+
+              </div>
+
+              {/*Agregar documentos en el modal ver*/}
+
+              <div className="documentos-box">
+                {modalType === "ver" && (
+                  <>
+                    <Form.Group controlId="modalFileUpload" className="mb-3">
+                      <Form.Label>Subir más documentos:</Form.Label>
+                      <Form.Control
+                        type="file"
+                        multiple
+                        onChange={handleModalFileSelect}
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      />
+                    </Form.Group>
+
+                    {modalFiles.length > 0 && (
+                      <div className="mb-3">
+                        <h6>Archivos seleccionados:</h6>
+                        {modalFiles.map((file, idx) => (
+                          <div
+                            key={idx}
+                            className="d-flex align-items-center mb-1"
+                          >
+                            <span className="me-auto">{file.name}</span>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() =>
+                                setModalFiles(
+                                  modalFiles.filter((f) => f.name !== file.name)
+                                )
+                              }
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={subirArchivosModal}
+                        >
+                          Subir Archivos
+                        </Button>
+                      </div>
+                    )}
+
+                    {modalUploadedFiles.map((f, i) => (
+                      <li
+                        key={i}
+                        className="d-flex align-items-center justify-content-between mb-2"
+                      >
+                        <span>✓ {f.nombre}</span>
+
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() =>
+                            window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank", "noopener,noreferrer")
+                          }
+                        >
+                          Ver
+                        </Button>
+                      </li>
+                    ))}
+
+                  </>
+                )}
+              </div>
+
+              {/* -------------------------------------------------------------------*/}
+              {/*  {modalType === "editar" && (
+                <div className="d-flex justify-content-end">
+                  <Button
+                    variant="secondary"
+                    onClick={cerrarModal}
+                    className="me-2"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button variant="primary" type="submit">
+                    Guardar Cambios
+                  </Button>
+                </div>
+              )}  */}
+
+              {modalType === "ver" && (
+                <div className="d-flex justify-content-end">
+                  <Button variant="secondary" onClick={cerrarModal}>
+                    Cerrar
+                  </Button>
+                </div>
+              )}
+            </Form>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDetailsModal(false)}>Cerrar</Button>
-        </Modal.Footer>
       </Modal>
     </Container>
   );
