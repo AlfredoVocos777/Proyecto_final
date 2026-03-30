@@ -143,11 +143,8 @@ export const actualizarExpediente = (req, res) => {
     descripcion,
     prioridad,
     estado_actual,
-<<<<<<< HEAD
-    id_profesional_asignado
-=======
+    id_profesional_asignado,
     comentario_director // Agregamos este campo que vendría del modal de React
->>>>>>> origin/rama_alfredo
   } = req.body;
 
   const updated_at = new Date();
