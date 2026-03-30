@@ -26,3 +26,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# WhatsApp
+backEnd/.wwebjs_auth/
+backEnd/.wwebjs_cache/
