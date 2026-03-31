@@ -294,12 +294,14 @@ export const obtenerPasesPorUsuario = (req, res) => {
         INNER JOIN (
           SELECT id_expediente, MAX(fecha) AS max_fecha
           FROM historial_expediente
+          WHERE LOWER(accion) LIKE '%recepcion%'
           GROUP BY id_expediente
         ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
         WHERE h1.id_usuario_responsable = ?
+        AND LOWER(h1.accion) LIKE '%recepcion%'
       )
     )
-    AND e.estado_actual IN ('en revisión', 'asignado')
+    AND (e.estado_actual IS NULL OR e.estado_actual NOT IN ('aprobado', 'rechazado', 'archivado'))
     ORDER BY e.fecha_creacion DESC
   `;
 

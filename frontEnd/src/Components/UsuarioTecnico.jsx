@@ -477,7 +477,7 @@ export default function UsuarioTecnico() {
       const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
       const expedientesMap = new Map();
       for (const exp of expedientesPendientes) {
-        if (exp.recepcionado && exp.puedeHacerPase && exp.id_profesional_asignado === usuarioLogueado.id_usuario) {
+        if (exp.recepcionado && exp.puedeHacerPase) {
           expedientesMap.set(exp.id_expediente, exp);
         }
       }

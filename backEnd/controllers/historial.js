@@ -36,15 +36,14 @@ export const crearAsignacion = (req, res) => {
       return res.status(500).json({ error: "Error al crear la asignación" });
     }
 
-    // Actualizar el campo id_profesional_asignado en la tabla expedientes
+    // Actualizar el campo id_profesional_asignado y estado_actual en la tabla expedientes
     if (tipo_accion === "asignación") {
       connection.query(
-        "UPDATE expedientes SET id_profesional_asignado = ? WHERE id_expediente = ?",
+        "UPDATE expedientes SET id_profesional_asignado = ?, estado_actual = 'en revisión' WHERE id_expediente = ?",
         [id_usuario_responsable, id_expediente],
         (err2) => {
           if (err2) {
             console.error("❌ Error al actualizar id_profesional_asignado:", err2);
-            // No se retorna error para no interrumpir la asignación
           }
         }
       );
@@ -125,6 +124,17 @@ export const recepcionarExpediente = (req, res) => {
       console.error("❌ Error al recepcionar expediente:", err);
       return res.status(500).json({ error: "Error al recepcionar el expediente" });
     }
+
+    // Actualizar estado_actual a 'en revisión' al recepcionar
+    connection.query(
+      "UPDATE expedientes SET estado_actual = 'en revisión' WHERE id_expediente = ?",
+      [id_expediente],
+      (err2) => {
+        if (err2) {
+          console.error("❌ Error al actualizar estado_actual:", err2);
+        }
+      }
+    );
 
     res.status(201).json({
       mensaje: "Expediente recepcionado exitosamente",
