@@ -1,12 +1,52 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { useNavigate } from "react-router-dom";
 import Header_1 from "./Header_1";
 import Footer from "./Footer";
 import "../CSS/common.css";
 import "../CSS/UsuarioJuridico.css";
+import BotonesReporte from "./BotonesReporte";
 
-import { useEffect, useState } from "react";
 
 const ExpedientesFinalizados = () => {
+  const navigate = useNavigate();
+  const [generandoPDF, setGenerandoPDF] = useState(false);
+    // Función para exportar la tabla a PDF
+    const exportarPDF = () => {
+      setGenerandoPDF(true);
+      try {
+      const doc = new jsPDF();
+      const fecha = new Date().toLocaleString();
+      doc.text("Reporte de Expedientes Finalizados", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Fecha: ${fecha}`, 14, 22);
+
+      const columns = [
+        { header: "N° Expediente", dataKey: "numero_expediente" },
+        { header: "Tipo", dataKey: "tipo_expediente" },
+        { header: "Descripción", dataKey: "descripcion" },
+        { header: "Presentante", dataKey: "presentante" },
+        { header: "Fecha", dataKey: "fecha" },
+        { header: "Estado", dataKey: "estado_actual" },
+      ];
+      const rows = expedientes.map(e => ({
+        numero_expediente: e.numero_expediente,
+        tipo_expediente: e.tipo_expediente,
+        descripcion: e.descripcion,
+        presentante: e.presentante || e.usuario_nombre || e.id_usuario_presentante || "",
+        fecha: (e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString() : (e.fecha || "")),
+        estado_actual: e.estado_actual,
+      }));
+      autoTable(doc, { columns, body: rows, startY: 28 });
+      return doc.output('bloburl');
+      } catch (err) {
+        alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
+        return null;
+      } finally {
+        setGenerandoPDF(false);
+      }
+    };
   const [expedientes, setExpedientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,7 +90,7 @@ const ExpedientesFinalizados = () => {
               </button>
               <button
                 className="juridico-menu-btn juridico-salir"
-                onClick={() => window.location.href = "/PortadaAdministrativo"}
+                onClick={() => navigate("/PortadaAdministrativo")}
               >
                 <span className="juridico-icon">🚪</span>
                 <span className="juridico-label">Salir</span>
@@ -59,72 +99,74 @@ const ExpedientesFinalizados = () => {
           )}
         </aside>
         <main className="juridico-main">
+          <BotonesReporte
+            onVolver={() => navigate("/consulta-expedientes-estado")}
+            onGenerarPDF={exportarPDF}
+            generando={generandoPDF}
+            nombreArchivo="reporte_expedientes_finalizados.pdf"
+          />
           <h2>Expedientes Finalizados</h2>
           {loading ? (
             <p>Cargando...</p>
           ) : error ? (
             <p style={{ color: "red" }}>Error: {error}</p>
           ) : (
-            <table className="expedientes-table">
-              <thead>
-                <tr>
-                  <th>N° Expediente</th>
-                  <th>Tipo</th>
-                  <th>Descripción</th>
-                  <th>Presentante</th>
-                  <th>Fecha</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(expedientes.length === 0
-                  ? [
-                      {
-                        id_expediente: 1,
-                        numero_expediente: "2025/0001",
-                        tipo_expediente: "Permiso de obra",
-                        descripcion: "Solicitud de permiso para obra hidráulica.",
-                        usuario_nombre: "Juan",
-                        usuario_apellido: "Pérez",
-                        fecha_creacion: new Date("2025-11-01"),
-                        estado_actual: "aprobado"
-                      },
-                      {
-                        id_expediente: 2,
-                        numero_expediente: "2025/0002",
-                        tipo_expediente: "Reclamo",
-                        descripcion: "Reclamo por inundación en barrio norte.",
-                        usuario_nombre: "Ana",
-                        usuario_apellido: "García",
-                        fecha_creacion: new Date("2025-11-05"),
-                        estado_actual: "rechazado"
-                      },
-                      {
-                        id_expediente: 3,
-                        numero_expediente: "2025/0003",
-                        tipo_expediente: "Solicitud de informe",
-                        descripcion: "Pedido de informe sobre caudal de río.",
-                        usuario_nombre: "Luis",
-                        usuario_apellido: "Martínez",
-                        fecha_creacion: new Date("2025-11-10"),
-                        estado_actual: "aprobado"
-                      }
-                    ]
-                  : expedientes
-                ).map((exp) => (
-                  <tr key={exp.id_expediente}>
-                    <td>{exp.numero_expediente}</td>
-                    <td>{exp.tipo_expediente}</td>
-                    <td>{exp.descripcion}</td>
-                    <td>{exp.usuario_nombre} {exp.usuario_apellido}</td>
-                    <td>{new Date(exp.fecha_creacion).toLocaleDateString()}</td>
-                    <td style={{ color: exp.estado_actual === "aprobado" ? "green" : "red" }}>
-                      {exp.estado_actual.charAt(0).toUpperCase() + exp.estado_actual.slice(1)}
-                    </td>
+            <>
+
+              <table className="expedientes-table">
+                <thead>
+                  <tr>
+                    <th>N° Expediente</th>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
+                    <th>Presentante</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Observaciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(expedientes.length === 0
+                    ? [
+                        {
+                          id_expediente: 1,
+                          numero_expediente: "2025/0001",
+                          tipo_expediente: "Permiso de obra",
+                          descripcion: "Solicitud de permiso para obra hidráulica.",
+                          usuario_nombre: "Juan",
+                          usuario_apellido: "Pérez",
+                          fecha_creacion: new Date("2025-11-01"),
+                          estado_actual: "aprobado"
+                        },
+                        {
+                          id_expediente: 3,
+                          numero_expediente: "2025/0003",
+                          tipo_expediente: "Solicitud de informe",
+                          descripcion: "Pedido de informe sobre caudal de río.",
+                          usuario_nombre: "Luis",
+                          usuario_apellido: "Martínez",
+                          fecha_creacion: new Date("2025-11-10"),
+                          estado_actual: "aprobado"
+                        }
+                      ]
+                    : expedientes.filter(e => e.estado_actual === "aprobado")
+                  ).map((exp) => (
+                    <tr key={exp.id_expediente}>
+                      <td>{exp.numero_expediente}</td>
+                      <td>{exp.tipo_expediente}</td>
+                      <td>{exp.descripcion}</td>
+                      <td>{exp.usuario_nombre} {exp.usuario_apellido}</td>
+                      <td>{new Date(exp.fecha_creacion).toLocaleDateString()}</td>
+                      <td style={{ color: "green" }}>
+                        {exp.estado_actual.charAt(0).toUpperCase() + exp.estado_actual.slice(1)}
+                      </td>
+                      <td>{exp.observaciones || "Sin observaciones"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+            </>
           )}
         </main>
       </div>

@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "type": "module",
     "bcrypt": "^6.0.0",
     "bootstrap": "^5.3.8",
     "react-bootstrap": "^2.10.10",

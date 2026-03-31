@@ -3,9 +3,9 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+
 # Build artifacts
 frontEnd/dist/
-backEnd/uploads/
 
 # Environment variables
 .env
@@ -26,3 +26,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# WhatsApp
+backEnd/.wwebjs_auth/
+backEnd/.wwebjs_cache/

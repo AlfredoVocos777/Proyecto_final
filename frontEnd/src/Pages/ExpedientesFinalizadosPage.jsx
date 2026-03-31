@@ -1,7 +1,7 @@
-import ExpedientesFinalizados from "../Components/ExpedientesFinalizados";
+import ExpedientesFinalizadosAdmin from "../Pages/ExpedientesFinalizadosAdmin";
 
 const ExpedientesFinalizadosPage = () => {
-  return <ExpedientesFinalizados />;
+  return <ExpedientesFinalizadosAdmin />;
 };
 
 export default ExpedientesFinalizadosPage;

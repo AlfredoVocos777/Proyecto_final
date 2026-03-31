@@ -1,6 +1,18 @@
 import connection from "../configDB/dataBase.js";
 import bcrypt from "bcryptjs";
 
+// Obtener usuarios jurídicos para pase
+export const obtenerUsuariosJuridicos = (req, res) => {
+  // Puedes filtrar por departamento, expediente, etc. si lo necesitas
+  const sql = `SELECT id_usuario, nombre, apellido, tipo_usuario FROM usuario WHERE tipo_usuario = 'jurídico'`;
+  connection.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: "Error al obtener usuarios jurídicos" });
+    }
+    res.json(results);
+  });
+};
+
 // Obtener todos los usuarios de la base de datos
 export const obtenerUsuarios = (req, res) => {
   const sql = `
@@ -27,11 +39,9 @@ export const crearUsuario = async (req, res) => {
     telefono,
     usuario,
     contraseña,
-    tipo_usuario, // 'presentante','administrativo','técnico','jurídico','director','admin_TI'
-    id_rol = null,
   } = req.body;
   
-  if (!nombre || !apellido || !dni || !email || !direccion || !telefono || !usuario || !contraseña || !tipo_usuario) {
+  if (!nombre || !apellido || !dni || !email || !direccion || !telefono || !usuario || !contraseña ) {
         return res.status(400).json({
     error: 'Faltan datos requeridos para crear el usuario',
         });
@@ -43,12 +53,12 @@ export const crearUsuario = async (req, res) => {
     const hash = await bcrypt.hash(contraseña, salt);
 
     const sql = `INSERT INTO usuario 
-    (nombre, apellido, dni, email, direccion, telefono, usuario, contraseña, tipo_usuario, id_rol)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    (nombre, apellido, dni, email, direccion, telefono, usuario, contraseña)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
     connection.query(
       sql,
-      [nombre, apellido, dni, email, direccion, telefono, usuario, hash, tipo_usuario, id_rol],
+      [nombre, apellido, dni, email, direccion, telefono, usuario, hash],
       (err, result) => {
         if (err) {
           console.error(err);

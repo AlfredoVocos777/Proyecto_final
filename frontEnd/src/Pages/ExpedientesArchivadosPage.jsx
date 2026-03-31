@@ -1,7 +1,7 @@
-import ExpedientesArchivados from "../Components/ExpedientesArchivados";
+import ExpedientesArchivadosAdmin from "../Pages/ExpedientesArchivadosAdmin";
 
 const ExpedientesArchivadosPage = () => {
-  return <ExpedientesArchivados />;
+  return <ExpedientesArchivadosAdmin />;
 };
 
 export default ExpedientesArchivadosPage;

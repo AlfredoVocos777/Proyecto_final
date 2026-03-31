@@ -52,7 +52,7 @@ mysql - ;ibreria para conectarme con mi bases de datos
 --------------------Vamos a hablar de dataBase
 
                     En Node.js existen dos librerías populares para conectarse a bases de datos MySQL:
-
+ 
 mysql → la librería más vieja.
 
 mysql2 → una versión mejorada, más rápida y más actualizada.

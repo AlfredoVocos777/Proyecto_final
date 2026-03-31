@@ -10,9 +10,15 @@ import pagosRoutes from "./routes/pagos.js";
 import rolesRoutes from "./routes/roles.js";
 import permisosRoutes from "./routes/permisos.js";
 import departamentosRoutes from "./routes/departamentos.js";
-import firmasRoutes from "./routes/firmas.js";
+import notificacionRoutes from "./routes/notificacion.js";
+import dotenv from 'dotenv';
+dotenv.config();
+
+// import firmasRoutes from "./routes/firmas.js";
 import historialRoutes from "./routes/historial.js";
 import observacionesRoutes from "./routes/observacion.js";
+import recuperacionRoutes from "./routes/recuperacion.js";
+// import "./utils/whatsapp.js"; // Desactivado por solicitud del usuario
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,12 +36,16 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use("/usuarios", usuariosRoutes);
 app.use("/tramite", tramiteRoutes);
 app.use("/expedientes", expedienteRoutes);
-app.use("/expedientes/documentos", documentosRoutes);
+
+app.use("/api/documentos", documentosRoutes);
+
 app.use("/api", pagosRoutes);
+app.use("/api", recuperacionRoutes);
+app.use("/api", notificacionRoutes);
 app.use("/roles", rolesRoutes);
 app.use("/permisos", permisosRoutes);
 app.use("/departamentos", departamentosRoutes);
-app.use("/firmas", firmasRoutes);
+
 app.use("/historial", historialRoutes);
 app.use("/pagos", pagosRoutes);
 app.use("/observaciones", observacionesRoutes);

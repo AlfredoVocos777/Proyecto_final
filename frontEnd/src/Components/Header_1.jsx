@@ -19,11 +19,14 @@ const Header_1 = () => {
         const nombre = [u?.nombre, u?.apellido].filter(Boolean).join(" ");
         const fallback = u?.usuario || "";
         setDisplayName(nombre || fallback);
-        // Mostrar rol (prioridad a rol, no tipo_usuario)
         setRole(u?.rol || "Usuario");
+      } else {
+        setDisplayName("");
+        setRole("");
       }
     } catch (e) {
-      // Ignorar errores de parseo
+      setDisplayName("");
+      setRole("");
     }
   }, []);
 
@@ -48,18 +51,18 @@ const Header_1 = () => {
     <header className="navbar">
       {/* Logo DPA a la izquierda con link */}
       <div className="logoDpa">
-        <Link to="/">
+        <a href="https://www.dpatuc.gob.ar/" target="_blank" rel="noopener noreferrer">
           <img src={logoDpa} alt="logo_dpa" />
-        </Link>
+        </a>
       </div>
 
       {/* Información de usuario logueado */}
-      {(displayName || role) && (
+      {displayName && (
         <div className="userInfo">
-          {displayName && <span className="userName">{displayName}</span>}
-          {(role || true) && (
+          <span className="userName">{displayName}</span>
+          {role && (
             <div className="userMeta">
-              {role && <span className="userRole">{role}</span>}
+              <span className="userRole">{role}</span>
               <span className="divider">|</span>
               <span
                 className="logoutLink"

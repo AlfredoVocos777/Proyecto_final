@@ -34,9 +34,13 @@ const NuevoTramiteDatos = () => {
   const [usuario, setUsuario] = useState(initialUsuario);
   const [expediente, setExpediente] = useState(initialExpediente);
 
-  const handleChangeUsuario = (e) => {
-    setUsuario({ ...usuario, [e.target.name]: e.target.value });
-  };
+  useEffect(() => {
+    const usuarioGuardado = localStorage.getItem("usuarioLogueado");
+    if (usuarioGuardado) {
+      const datosUsuario = JSON.parse(usuarioGuardado);
+      setUsuario(datosUsuario);
+    }
+  }, []);
 
   const handleChangeExpediente = (e) => {
     setExpediente({ ...expediente, [e.target.name]: e.target.value });
@@ -60,7 +64,35 @@ const NuevoTramiteDatos = () => {
       alert("Por favor, ingrese la ubicación del proyecto");
       return;
     }
+/*
+Crear una función de validación.
 
+const validarFormulario = () => {
+  if (!expediente.tipo_expediente) {
+    alert("Seleccione un tipo de expediente");
+    return false;
+  }
+
+  if (!expediente.ubicacion) {
+    alert("Ingrese la ubicación");
+    return false;
+  }
+
+  if (!expediente.descripcion) {
+    alert("Ingrese la descripción");
+    return false;
+  }
+
+  return true;
+};
+Y usarla así:
+if (!validarFormulario()) return;
+*/
+
+ // Cargar datos del usuario logueado desde el localStorage para mostrar en el formulario
+  
+
+  
     // Verificar que el usuario esté logueado
     const idUsuario = usuario?.id_usuario || usuario?.id;
     console.log("ID del usuario:", idUsuario);
@@ -74,10 +106,7 @@ const NuevoTramiteDatos = () => {
     }
 
     try {
-      const expedienteData = {
-        ...expediente,
-        id_usuario_presentante: idUsuario,
-        fecha_creacion: new Date().toISOString(),
+      const expedienteData = { ...expediente, id_usuario_presentante: idUsuario, fecha_creacion: new Date().toISOString(),
       };
 
       console.log("Guardando datos del expediente:", expedienteData);
@@ -109,14 +138,7 @@ const NuevoTramiteDatos = () => {
   {
     //
   }
-  // Cargar datos del usuario logueado desde el localStorage para mostrar en el formulario
-  useEffect(() => {
-    const usuarioGuardado = localStorage.getItem("usuarioLogueado");
-    if (usuarioGuardado) {
-      const datosUsuario = JSON.parse(usuarioGuardado);
-      setUsuario(datosUsuario);
-    }
-  }, []);
+ 
 
   // menú desplegable tipo de tramite se guardan en la tabla tramite
   const handleTipoExpedienteChange = (e) => {
