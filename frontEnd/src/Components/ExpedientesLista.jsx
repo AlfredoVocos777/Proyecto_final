@@ -7,6 +7,10 @@ export default function ExpedientesLista({ estado }) {
 
   // Renderiza ConsultaExpedientes con el filtro de estado
   return (
-    <ConsultaExpedientes filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} />
+    <ConsultaExpedientes
+      filtroEstado={filtroEstado}
+      setFiltroEstado={setFiltroEstado}
+      ocultarAsignado={(estado || "").toLowerCase() === "en revisión"}
+    />
   );
 }

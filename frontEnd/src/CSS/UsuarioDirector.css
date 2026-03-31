@@ -427,24 +427,56 @@
   .director-layout {
     padding-top: 70px;
   }
-  .director-sidebar {
-    top: 70px;
-    width: 100%;
-    position: static;
-  }
-  .director-sidebar.closed {
-    display: none;
-  }
   .director-main {
-    margin-left: 0;
     padding: 16px;
-  }
-  .director-sidebar.closed ~ .director-main {
-    margin-left: 0;
   }
   .tabla-container {
     overflow-x: scroll;
   }
+}
+
+/* ===== Nav bar horizontal (reemplaza sidebar) ===== */
+.director-layout {
+  flex-direction: column;
+}
+.director-main {
+  margin-left: 0 !important;
+  width: 100% !important;
+  padding: 28px 24px;
+}
+.user-nav-bar {
+  position: sticky;
+  top: 80px;
+  z-index: 99;
+  padding: 10px 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.user-nav-bar .nav-link {
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 0.88rem;
+  border-radius: 8px;
+  padding: 7px 14px;
+  transition: all 0.18s ease;
+}
+.user-nav-bar .salir-link {
+  color: #c62828 !important;
+  font-weight: 700;
+}
+.user-nav-bar .salir-link:hover {
+  background-color: #ffebee !important;
+}
+.user-nav-director {
+  background: linear-gradient(90deg, #fff 0%, #f3e5f5 100%);
+  border-bottom: 2px solid #ab47bc;
+}
+.user-nav-director .nav-link.active {
+  background-color: #8e24aa !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(142,36,170,0.3);
+}
+.user-nav-director .nav-link:hover:not(.active) {
+  background-color: #f3e5f5;
 }
 
 /* Estilos adicionales para descripción en tablas */

@@ -20,15 +20,11 @@ const RegistroUsuario = () => {
     contraseña: "",
   };
   const [usuario, setUsuario] = useState(initialState);
-
-  //---------------------------------------------------------
- 
+  // ---------------------------------------------------------
   const handleChange = (e) => {
     setUsuario({ ...usuario, [e.target.name]: e.target.value });
   };
-  {
-    //---------------------------------------------------------
-  }
+  // ---------------------------------------------------------
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,7 +66,6 @@ const RegistroUsuario = () => {
   return (
     <div className="containerUsuario">
       <h2 className="titulo">Carga de datos del Usuario</h2>
-
       <div className="contenedorFlex">
         <img src={cargaUsuario} alt="Usuario" className="ImgcargaUsuario" />
         <div className="contenedorFormUsuario">
@@ -93,7 +88,6 @@ const RegistroUsuario = () => {
                     onChange={handleChange}
                   />
                 </Form.Group>
-
                 <Form.Group
                   className="mb-3"
                   controlId="exampleForm.ControlInput1"
@@ -185,7 +179,7 @@ const RegistroUsuario = () => {
                     type="password"
                     placeholder="ingresa la contraseña"
                     name="contraseña"
-                    value={usuario.contraseña}
+                     value={usuario.contraseña}
                     onChange={handleChange}
                   />
                 </Form.Group>

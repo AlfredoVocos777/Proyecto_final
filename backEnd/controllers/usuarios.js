@@ -1,3 +1,6 @@
+import connection from "../configDB/dataBase.js";
+import bcrypt from "bcryptjs";
+
 // Obtener usuarios jurídicos para pase
 export const obtenerUsuariosJuridicos = (req, res) => {
   // Puedes filtrar por departamento, expediente, etc. si lo necesitas
@@ -9,8 +12,6 @@ export const obtenerUsuariosJuridicos = (req, res) => {
     res.json(results);
   });
 };
-import connection from "../configDB/dataBase.js";
-import bcrypt from "bcryptjs";
 
 // Obtener todos los usuarios de la base de datos
 export const obtenerUsuarios = (req, res) => {

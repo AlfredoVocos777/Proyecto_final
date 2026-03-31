@@ -427,22 +427,54 @@
   .tecnico-layout {
     padding-top: 70px;
   }
-  .tecnico-sidebar {
-    top: 70px;
-    width: 100%;
-    position: static;
-  }
-  .tecnico-sidebar.closed {
-    display: none;
-  }
   .tecnico-main {
-    margin-left: 0;
     padding: 16px;
-  }
-  .tecnico-sidebar.closed ~ .tecnico-main {
-    margin-left: 0;
   }
   .tabla-container {
     overflow-x: scroll;
   }
+}
+
+/* ===== Nav bar horizontal (reemplaza sidebar) ===== */
+.tecnico-layout {
+  flex-direction: column;
+}
+.tecnico-main {
+  margin-left: 0 !important;
+  width: 100% !important;
+  padding: 28px 24px;
+}
+.user-nav-bar {
+  position: sticky;
+  top: 80px;
+  z-index: 99;
+  padding: 10px 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.user-nav-tecnico {
+  background: linear-gradient(90deg, #fff 0%, #f1f8ff 100%);
+  border-bottom: 2px solid #90caf9;
+}
+.user-nav-bar .nav-link {
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 0.88rem;
+  border-radius: 8px;
+  padding: 7px 14px;
+  transition: all 0.18s ease;
+}
+.user-nav-bar .nav-link.active {
+  background-color: #4a90e2 !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(74,144,226,0.3);
+}
+.user-nav-bar .nav-link:hover:not(.active) {
+  background-color: #eef6ff;
+}
+.user-nav-bar .salir-link {
+  color: #c62828 !important;
+  font-weight: 700;
+}
+.user-nav-bar .salir-link:hover {
+  background-color: #ffebee !important;
 }

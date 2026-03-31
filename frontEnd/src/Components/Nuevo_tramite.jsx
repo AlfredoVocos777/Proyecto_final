@@ -9,7 +9,7 @@ import planoEjemplo from "../assets/plano-ejemplo.svg";
 import memoriaEjemplo from "../assets/memoria-ejemplo.svg";
 import tituloEjemplo from "../assets/titulo-ejemplo.svg";
 import notaElevacionEjemplo from "../assets/nota-elevacion-ejemplo.svg";
-import { URL_EXPEDIENTES, URL_SUBIR_DOCUMENTO } from "../Constants/endpoints";
+import { URL_EXPEDIENTES, URL_SUBIR_DOCUMENTO, URL_DOCUMENTOS } from "../Constants/endpoints";
 
 const NuevoTramite = () => {
   const navigate = useNavigate();
@@ -69,7 +69,7 @@ const NuevoTramite = () => {
 
     try {
       const response = await axios.post(
-        `${URL_EXPEDIENTES}/documentos`,
+        URL_DOCUMENTOS,
         formData,
         {
           headers: {

@@ -1,8 +1,13 @@
 import connection from "../configDB/dataBase.js";
-import { enviarWhatsapp } from "../utils/whatsapp.js";
 
-// Obtener todos los expedientes (solo por si querés listar)
+
+// Obtener todos los expedientes — acepta ?estado=<valor> para filtrar
 export const obtenerExpediente = (req, res) => {
+  const { estado } = req.query;
+
+  const whereClause = estado ? `WHERE e.estado_actual = ?` : "";
+  const params = estado ? [estado] : [];
+
   const sql = `
     SELECT 
       e.*,
@@ -25,10 +30,11 @@ export const obtenerExpediente = (req, res) => {
       LEFT JOIN usuario u2 ON h1.id_usuario_responsable = u2.id_usuario
     ) ur ON e.id_expediente = ur.id_expediente
     LEFT JOIN usuario ut ON e.id_profesional_asignado = ut.id_usuario
+    ${whereClause}
     ORDER BY e.fecha_creacion DESC
   `;
-  
-  connection.query(sql, (err, results) => {
+
+  connection.query(sql, params, (err, results) => {
     if (err) {
       console.error("❌ Error al obtener expedientes:", err);
       return res.status(500).json({ error: "Error al obtener los expedientes" });
@@ -172,7 +178,7 @@ export const actualizarExpediente = (req, res) => {
         return res.status(404).json({ error: "Expediente no encontrado" });
       }
 
-      // 2. Lógica de Notificación por WhatsApp
+
       // 2. Lógica de Notificación (Solo si es Aprobado o Rechazado)
       if (estado_actual === 'aprobado' || estado_actual === 'rechazado') {
         
@@ -196,7 +202,7 @@ export const actualizarExpediente = (req, res) => {
                             `_Este es un aviso automático_.\n\n Para más información, consulte al sistema.`;
 
             // LLAMADA SIMPLE: La utilidad se encarga de todo el formateo necesario para Tucumán (agregar 549, validar número, etc.)
-            enviarWhatsapp(telefono, mensaje);
+
             console.log(`📩 Notificación enviada a ${nombre} (${telefono})`);
           }
         });
@@ -293,7 +299,7 @@ export const obtenerPasesPorUsuario = (req, res) => {
         WHERE h1.id_usuario_responsable = ?
       )
     )
-    AND e.estado_actual = 'en revisión'
+    AND e.estado_actual IN ('en revisión', 'asignado')
     ORDER BY e.fecha_creacion DESC
   `;
 
