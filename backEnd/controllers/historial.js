@@ -133,3 +133,67 @@ export const recepcionarExpediente = (req, res) => {
     });
   });
 };
+
+// Deshacer el último pase de un expediente
+export const deshacerPase = (req, res) => {
+  const { id_expediente } = req.params;
+
+  // 1. Encontrar el último pase en historial
+  const sqlBuscar = `
+    SELECT id_historial FROM historial_expediente
+    WHERE id_expediente = ?
+      AND (
+        LOWER(tipo_accion) = 'asignación'
+        OR LOWER(accion) LIKE '%pase%'
+        OR LOWER(accion) LIKE '%asignaci%'
+      )
+    ORDER BY fecha DESC
+    LIMIT 1
+  `;
+
+  connection.query(sqlBuscar, [id_expediente], (err, results) => {
+    if (err) {
+      console.error("❌ Error al buscar el pase:", err);
+      return res.status(500).json({ error: "Error al buscar el pase" });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No se encontró un pase para deshacer" });
+    }
+
+    const id_historial = results[0].id_historial;
+
+    // 2. Eliminar el registro del pase
+    connection.query(
+      "DELETE FROM historial_expediente WHERE id_historial = ?",
+      [id_historial],
+      (err2) => {
+        if (err2) {
+          console.error("❌ Error al eliminar el pase:", err2);
+          return res.status(500).json({ error: "Error al eliminar el pase" });
+        }
+
+        // 3. Revertir el estado del expediente a 'en revisión'
+        connection.query(
+          "UPDATE expedientes SET estado_actual = 'en revisión', id_profesional_asignado = NULL, updated_at = NOW() WHERE id_expediente = ?",
+          [id_expediente],
+          (err3) => {
+            if (err3) {
+              console.error("❌ Error al revertir expediente:", err3);
+              return res.status(500).json({ error: "Error al revertir el expediente" });
+            }
+
+            // 4. Registrar la anulación en historial
+            connection.query(
+              `INSERT INTO historial_expediente (id_expediente, fecha, accion, comentario, tipo_accion)
+               VALUES (?, NOW(), 'Pase anulado', 'El pase fue revertido por el administrador', 'revisión')`,
+              [id_expediente],
+              () => {
+                res.json({ mensaje: "Pase deshecho correctamente" });
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+};
