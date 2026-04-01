@@ -559,7 +559,6 @@ export default function ExpedientesEnRevisionPage() {
             >
               <option value="">— Todos los estados —</option>
               <option value="en revisión">En revisión</option>
-              <option value="asignado">Asignado</option>
               <option value="pendiente">Pendiente</option>
               <option value="aprobado">Aprobado</option>
               <option value="rechazado">Rechazado</option>
