@@ -5,6 +5,7 @@ import {
   URL_DOCUMENTOS,
   URL_SUBIR_DOCUMENTO,
   URL_OBSERVACIONES,
+  URL_HISTORIAL,
 } from "../Constants/endpoints";
 import { useNavigate } from "react-router-dom";
 import {
@@ -44,6 +45,9 @@ function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada" }) {
 const [observacionesTecnico, setObservacionesTecnico] = useState([]);
 const [observacionesJuridico, setObservacionesJuridico] = useState([]);
 const [observacionesDirector, setObservacionesDirector] = useState([]);
+
+  // historial de recepción y pases
+  const [historialModal, setHistorialModal] = useState([]);
 
 
   // nuevos estados para subir documentos en el modal ver
@@ -123,6 +127,14 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
 
       // Cargar observación
       await cargarObservaciones(expediente.id_expediente);
+
+      // Cargar historial (recepción y pases)
+      try {
+        const resHist = await axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`);
+        setHistorialModal(resHist.data || []);
+      } catch (e) {
+        setHistorialModal([]);
+      }
     } else {
       setShowModal(true);
     }
@@ -515,7 +527,6 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 <th>Tipo</th>
                 <th>Descripción</th>
                 <th>Estado</th>
-                <th>Confirmar Pago</th>
                 <th>Prioridad</th>
                 <th>Fecha Creación</th>
                 <th>Acciones</th>
@@ -531,11 +542,6 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                   <td>
                     <Badge bg={getEstadoBadge(expediente.estado_actual)}>
                       {expediente.estado_actual || "N/A"}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge bg={getEstadoBadge(expediente.confirmar_pago)}>
-                      {expediente.confirmar_pago || "N/A"}
                     </Badge>
                   </td>
                   <td>
@@ -667,6 +673,27 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                     {expedienteSeleccionado.estado_actual}
                   </Form.Label>
                 </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Tipo</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.tipo_expediente || "Sin especificar"}
+                  </Form.Label>
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Prioridad</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.prioridad || "Sin especificar"}
+                  </Form.Label>
+                </Form.Group>
+
+                <Form.Group style={{ gridColumn: "1 / -1" }}>
+                  <Form.Label>Descripción</Form.Label>
+                  <Form.Label className="expediente-label" style={{ whiteSpace: "pre-wrap" }}>
+                    {expedienteSeleccionado.descripcion || "Sin descripción"}
+                  </Form.Label>
+                </Form.Group>
               </div>
 
               {/*------Observaciones de los distintos roles---------- */}
@@ -781,6 +808,45 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
               </div>
 
               </div>
+
+              {/* Recepción y pases */}
+              {modalType === "ver" && (
+                <div className="mb-4">
+                  <h5 className="mb-3">📬 Recepción</h5>
+                  {(() => {
+                    const recepcion = [...historialModal]
+                      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+                      .find(h => h.accion?.toLowerCase().includes('recepci'));
+                    return recepcion ? (
+                      <p className="mb-1">
+                        <strong>Recepcionado por:</strong> {recepcion.usuario_nombre} {recepcion.usuario_apellido}<br />
+                        <strong>Fecha y hora:</strong> {new Date(recepcion.fecha).toLocaleString('es-AR')}
+                      </p>
+                    ) : (
+                      <p className="text-muted">Aún no fue recepcionado.</p>
+                    );
+                  })()}
+
+                  <h5 className="mt-3 mb-2">🔁 Orden de pases</h5>
+                  {(() => {
+                    const pases = [...historialModal]
+                      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+                      .filter(h => h.tipo_accion === 'asignación');
+                    return pases.length > 0 ? (
+                      <ol className="ps-3">
+                        {pases.map((p, i) => (
+                          <li key={i}>
+                            <strong>{p.usuario_nombre} {p.usuario_apellido}</strong> — {new Date(p.fecha).toLocaleString('es-AR')}
+                            {p.comentario && <span className="text-muted"> ({p.comentario})</span>}
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="text-muted">Sin pases registrados.</p>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/*Agregar documentos en el modal ver*/}
 
