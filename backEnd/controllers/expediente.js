@@ -244,7 +244,7 @@ export const archivarExpediente = (req, res) => {
 };
 
 // Obtener expedientes con pase pendiente para un usuario (usando historial_expediente)
-// Obtener todos los expedientes finalizados (aprobados o rechazados)
+// Obtener todos los expedientes finalizados (solo aprobados)
 export const obtenerExpedientesFinalizados = (req, res) => {
   const sql = `
     SELECT 
@@ -258,7 +258,7 @@ export const obtenerExpedientesFinalizados = (req, res) => {
       u.apellido AS usuario_apellido
     FROM expedientes e
     LEFT JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
-    WHERE e.estado_actual IN ('aprobado', 'rechazado')
+    WHERE e.estado_actual = 'aprobado'
     ORDER BY e.fecha_creacion DESC
   `;
   connection.query(sql, (err, results) => {

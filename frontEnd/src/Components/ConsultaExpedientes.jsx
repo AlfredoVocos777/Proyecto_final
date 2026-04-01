@@ -18,7 +18,7 @@ import {
 } from "react-bootstrap";
 import "../CSS/Consulta.css";
 
-function ConsultaExpedientes() {
+function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada" }) {
   const [expedientes, setExpedientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,7 +35,7 @@ function ConsultaExpedientes() {
   const [paginaActual, setPaginaActual] = useState(1);
   const porPagina = 10;
   const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState(soloEstado || "");
   const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
 
@@ -377,7 +377,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     <Container fluid className="consulta-expedientes-container">
       <div className="consulta-header">
         <h2>Consulta de Expedientes</h2>
-        <Button variant="secondary" onClick={() => navigate("/Portada")}>
+        <Button variant="secondary" onClick={() => navigate(rutaVolver)}>
           Volver a Portada
         </Button>
       </div>
@@ -428,6 +428,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 ))}
               </select>
             </div>
+            {!soloEstado && (
             <div className="col-md-2">
               <select
                 className="form-select"
@@ -448,6 +449,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 ))}
               </select>
             </div>
+            )}
             <div className="col-md-2">
               <select
                 className="form-select"
@@ -467,7 +469,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 variant="outline-secondary"
                 onClick={() => {
                   setBusqueda("");
-                  setFiltroEstado("");
+                  setFiltroEstado(soloEstado || "");
                   setFiltroPrioridad("");
                   setFiltroTipo("");
                 }}
