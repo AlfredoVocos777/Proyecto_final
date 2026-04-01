@@ -8,9 +8,9 @@ export default function ExpedientesLista({ estado }) {
   // Renderiza ConsultaExpedientes con el filtro de estado
   return (
     <ConsultaExpedientes
-      filtroEstado={filtroEstado}
-      setFiltroEstado={setFiltroEstado}
+      soloEstado={estado || ""}
       ocultarAsignado={(estado || "").toLowerCase() === "en revisión"}
+      rutaVolver="/PortadaAdministrativo"
     />
   );
 }
