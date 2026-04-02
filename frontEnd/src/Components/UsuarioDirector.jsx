@@ -12,10 +12,13 @@ export default function UsuarioDirector() {
   const navigate = useNavigate();
   const [seccionActiva, setSeccionActiva] = useState("bandeja");
   const [generandoPDF, setGenerandoPDF] = useState(false);
+  const [navPreviewUrl, setNavPreviewUrl] = useState(null);
   const [permisosUsuario, setPermisosUsuario] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expedientesPendientes, setExpedientesPendientes] = useState([]);
   const [loadingExpedientes, setLoadingExpedientes] = useState(false);
+  const [paginaBandeja, setPaginaBandeja] = useState(1);
+  const [paginaConsulta, setPaginaConsulta] = useState(1);
   
   // Estados para recepción
   const [expedientesSeleccionados, setExpedientesSeleccionados] = useState([]);
@@ -643,37 +646,46 @@ export default function UsuarioDirector() {
           <div className="seccion-contenido seccion-inicio">
             <h1>Portal del Director</h1>
             <p>Bienvenido al sistema de gestión de expedientes - Dirección Provincial del Agua</p>
-            <BotonesReporte onGenerarPDF={exportarPDF} generando={generandoPDF} mostrarVolver={false} />
             
             {loadingExpedientes ? (
               <p>Cargando expedientes...</p>
             ) : expedientesPendientes.length > 0 ? (
+              (() => {
+                const totalPaginasBandeja = Math.max(1, Math.ceil(expedientesPendientes.length / 6));
+                const expPagBandeja = expedientesPendientes.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
+                return (
               <div className="expedientes-pendientes">
                 <h2>Expedientes Pendientes de Revisión</h2>
-
+                <div className="paginacion mb-2">
+                  <button className="cpag-btn" disabled={paginaBandeja === 1} onClick={() => setPaginaBandeja(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasBandeja}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaBandeja === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaBandeja(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaBandeja === totalPaginasBandeja} onClick={() => setPaginaBandeja(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expedientesPendientes.length} expediente(s)</span>
+                </div>
                 <div className="tabla-container">
                   <table className="tabla-expedientes">
                     <thead>
                       <tr>
                         <th>Nº Expediente</th>
                         <th>Tipo</th>
-                        <th>Descripción</th>
                         <th>Estado</th>
                         <th>Prioridad</th>
-                        <th>Fecha Pase</th>
-                        <th>Desde</th>
+                        <th>Profesional Asignado</th>
+                        <th>Fecha Creación</th>
+                        <th>Última Actualización</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {expedientesPendientes.map(exp => (
+                      {expPagBandeja.map(exp => (
                         <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
                           <td>
                             <strong>{exp.numero_expediente}</strong>
                             {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
                           </td>
-                          <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
-                          <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                          <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
                           <td>
                             <span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>
                               {exp.estado || exp.estado_actual}
@@ -684,8 +696,15 @@ export default function UsuarioDirector() {
                               {exp.prioridad || 'normal'}
                             </span>
                           </td>
-                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                          <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
+                          <td>
+                            {exp.nombre_asignado
+                              ? `${exp.nombre_asignado} ${exp.apellido_asignado || ''}`
+                              : exp.usuario_asignado_nombre
+                                ? `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido || ''}`
+                                : 'Sin asignar'}
+                          </td>
+                          <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
+                          <td>{exp.updated_at ? new Date(exp.updated_at).toLocaleDateString('es-AR') : '-'}</td>
                           <td>
                             <button
                               className="btn btn-sm btn-primary"
@@ -701,6 +720,8 @@ export default function UsuarioDirector() {
                   </table>
                 </div>
               </div>
+                );
+              })()
             ) : (
               <div className="sin-expedientes">
                 <p>No hay expedientes pendientes de revisión</p>
@@ -792,10 +813,35 @@ export default function UsuarioDirector() {
             <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
           </Nav.Item>
           <Nav.Item>
+            <button
+              className="nav-reporte-btn"
+              onClick={() => { const url = exportarPDF(); if (url) setNavPreviewUrl(url); }}
+              disabled={generandoPDF}
+            >
+              {generandoPDF ? "⏳ Generando..." : "🖨️ Reporte"}
+            </button>
+          </Nav.Item>
+          <Nav.Item>
             <Nav.Link active={seccionActiva === "manual-usuario"} onClick={() => setSeccionActiva("manual-usuario")}>📖 Manual</Nav.Link>
           </Nav.Item>
         </Nav>
       </div>
+
+      {/* Vista previa PDF */}
+      {navPreviewUrl && (
+        <div className="pdf-preview-overlay" onClick={e => { if (e.target === e.currentTarget) setNavPreviewUrl(null); }}>
+          <div className="pdf-preview-modal">
+            <div className="pdf-preview-header">
+              <span className="pdf-preview-title">📄 Vista previa del reporte</span>
+              <div className="pdf-preview-actions">
+                <a href={navPreviewUrl} download="reporte.pdf" className="pdf-btn pdf-btn-download">&#8595; Descargar</a>
+                <button className="pdf-btn pdf-btn-close" onClick={() => setNavPreviewUrl(null)}>✕ Cerrar</button>
+              </div>
+            </div>
+            <iframe src={navPreviewUrl} className="pdf-preview-frame" title="Vista previa reporte" />
+          </div>
+        </div>
+      )}
 
       {/* Contenido principal */}
       <main className="director-main">
