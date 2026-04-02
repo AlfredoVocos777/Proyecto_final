@@ -60,6 +60,14 @@ export default function UsuarioTecnico() {
   const [observacionTecnico, setObservacionTecnico] = useState("");
   const [errorObs, setErrorObs] = useState("");
 
+  // Paginación (3 por página)
+  const [paginaConsulta, setPaginaConsulta] = useState(1);
+  const [paginaPase, setPaginaPase] = useState(1);
+  const [paginaBandeja, setPaginaBandeja] = useState(1);
+
+  // Vista previa PDF desde navbar
+  const [navPreviewUrl, setNavPreviewUrl] = useState(null);
+
   useEffect(() => {
         // Cargar todos los expedientes para la consulta general
         setLoadingTodos(true);
@@ -98,25 +106,59 @@ export default function UsuarioTecnico() {
               expedientes.map(async exp => {
                 try {
                   const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
+                  const historialData = historial.data || [];
+
                   // Buscar si este usuario recepcionó el expediente
-                  const recepcionPorUsuario = historial.data.find(h => 
-                    h.id_usuario_responsable === idUsuario && 
+                  const recepcionPorUsuario = historialData.find(h =>
+                    h.id_usuario_responsable === idUsuario &&
                     h.accion?.toLowerCase().includes('recepción')
                   );
                   // Buscar la última recepción (cualquier usuario)
-                  const ultimaRecepcion = historial.data
+                  const ultimaRecepcion = historialData
                     .filter(h => h.accion?.toLowerCase().includes('recepción'))
                     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
                   // El usuario puede hacer pase solo si él fue quien recepcionó
                   const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
-                  return { 
-                    ...exp, 
+
+                  // --- Datos del último pase/asignación a este usuario ---
+                  const historialAsc = [...historialData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                  const ultimoAsignadoAUsuario = historialData
+                    .filter(h => h.id_usuario_responsable === idUsuario)
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+
+                  let fechaPase = exp.fecha_creacion;
+                  let observacionesPase = '';
+                  let desdeUsuario = '-';
+
+                  if (ultimoAsignadoAUsuario) {
+                    fechaPase = ultimoAsignadoAUsuario.fecha;
+                    observacionesPase = ultimoAsignadoAUsuario.comentario || '';
+                    const idxEnAsc = historialAsc.findIndex(h => h.id_historial === ultimoAsignadoAUsuario.id_historial);
+                    if (idxEnAsc > 0) {
+                      const entradaAnterior = historialAsc[idxEnAsc - 1];
+                      desdeUsuario = `${entradaAnterior.usuario_nombre || ''} ${entradaAnterior.usuario_apellido || ''}`.trim() || '-';
+                    }
+                  }
+
+                  return {
+                    ...exp,
+                    tipo_tramite: exp.tipo_expediente,
+                    estado: exp.estado_actual,
+                    fecha_pase: fechaPase,
+                    desde_usuario: desdeUsuario,
+                    observaciones_pase: observacionesPase,
                     recepcionado: !!recepcionPorUsuario,
                     puedeHacerPase: puedeHacerPase,
                     recepcionadoPor: ultimaRecepcion?.id_usuario_responsable
                   };
                 } catch {
-                  return { ...exp, recepcionado: false, puedeHacerPase: false };
+                  return {
+                    ...exp,
+                    tipo_tramite: exp.tipo_expediente,
+                    estado: exp.estado_actual,
+                    recepcionado: false,
+                    puedeHacerPase: false
+                  };
                 }
               })
             );
@@ -137,27 +179,107 @@ export default function UsuarioTecnico() {
     try {
       const doc = new jsPDF();
       const fecha = new Date().toLocaleString("es-AR");
-      doc.setFontSize(14);
-      doc.text("Reporte de Bandeja - Área Técnica", 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Fecha: ${fecha}`, 14, 22);
-      const columns = [
-        { header: "N° Expediente", dataKey: "numero" },
-        { header: "Tipo", dataKey: "tipo" },
-        { header: "Estado", dataKey: "estado" },
-        { header: "Fecha Pase", dataKey: "fecha_pase" },
-        { header: "Origen", dataKey: "origen" },
-        { header: "Observaciones", dataKey: "obs" },
-      ];
-      const rows = expedientesPendientes.map(e => ({
-        numero: e.numero_expediente ?? "",
-        tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
-        estado: e.estado ?? e.estado_actual ?? "",
-        fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
-        origen: e.desde_usuario ?? e.desde_departamento ?? "",
-        obs: e.observaciones_pase ?? "",
-      }));
-      autoTable(doc, { columns, body: rows, startY: 28 });
+
+      if (seccionActiva === "consultar-expediente") {
+        // Reporte de la consulta filtrada actual
+        const filtrados = expedientesTodos.filter(exp => {
+          const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+          return texto.includes(filtroConsulta.toLowerCase());
+        });
+        doc.setFontSize(14);
+        doc.text("Consulta de Expedientes - Área Técnica", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}${filtroConsulta ? `  |  Filtro: "${filtroConsulta}"` : ""}`, 14, 22);
+        doc.text(`Total: ${filtrados.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "Nº Expediente", dataKey: "numero" },
+            { header: "Presentante", dataKey: "presentante" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Descripción", dataKey: "descripcion" },
+            { header: "Prioridad", dataKey: "prioridad" },
+            { header: "Ubicación", dataKey: "ubicacion" },
+            { header: "Fecha", dataKey: "fecha" },
+            { header: "Asignado a", dataKey: "asignado" },
+          ],
+          body: filtrados.map(e => ({
+            numero: e.numero_expediente ?? "",
+            presentante: e.usuario_presentante_nombre ? `${e.usuario_presentante_nombre} ${e.usuario_presentante_apellido}` : "N/A",
+            tipo: e.tipo_expediente ?? "",
+            descripcion: e.descripcion ?? "",
+            prioridad: e.prioridad ?? "",
+            ubicacion: e.ubicacion ?? "",
+            fecha: e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString("es-AR") : "",
+            asignado: e.usuario_asignado_nombre ? `${e.usuario_asignado_nombre} ${e.usuario_asignado_apellido}` : "Sin asignar",
+          })),
+        });
+
+      } else if (seccionActiva === "realizar-pase") {
+        // Reporte de expedientes disponibles para pase
+        const expedientesRecepcionados = Array.from(
+          new Map(
+            expedientesPendientes
+              .filter(exp => exp.recepcionado && exp.puedeHacerPase)
+              .map(exp => [exp.id_expediente, exp])
+          ).values()
+        );
+        doc.setFontSize(14);
+        doc.text("Expedientes para Realizar Pase - Área Técnica", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}`, 14, 22);
+        doc.text(`Total: ${expedientesRecepcionados.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "Nº Expediente", dataKey: "numero" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Estado", dataKey: "estado" },
+            { header: "Fecha Pase", dataKey: "fecha_pase" },
+            { header: "Origen", dataKey: "origen" },
+            { header: "Observaciones", dataKey: "obs" },
+          ],
+          body: expedientesRecepcionados.map(e => ({
+            numero: e.numero_expediente ?? "",
+            tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+            estado: e.estado ?? e.estado_actual ?? "",
+            fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
+            origen: e.desde_usuario ?? e.desde_departamento ?? "",
+            obs: e.observaciones_pase ?? "",
+          })),
+        });
+
+      } else {
+        // Bandeja de entrada (default)
+        const expedientesUnicos = Array.from(
+          new Map(expedientesPendientes.map(e => [e.id_expediente, e])).values()
+        );
+        doc.setFontSize(14);
+        doc.text("Bandeja de Entrada - Área Técnica", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}`, 14, 22);
+        doc.text(`Total: ${expedientesUnicos.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "Nº Expediente", dataKey: "numero" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Estado", dataKey: "estado" },
+            { header: "Fecha Pase", dataKey: "fecha_pase" },
+            { header: "Origen", dataKey: "origen" },
+            { header: "Observaciones", dataKey: "obs" },
+          ],
+          body: expedientesUnicos.map(e => ({
+            numero: e.numero_expediente ?? "",
+            tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+            estado: e.estado ?? e.estado_actual ?? "",
+            fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
+            origen: e.desde_usuario ?? e.desde_departamento ?? "",
+            obs: e.observaciones_pase ?? "",
+          })),
+        });
+      }
+
       return doc.output('bloburl');
     } catch (err) {
       alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
@@ -244,25 +366,57 @@ export default function UsuarioTecnico() {
                 expedientes.map(async exp => {
                   try {
                     const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                    
-                    const recepcionPorUsuario = historial.data.find(h => 
-                      h.id_usuario_responsable === usuarioLogueado.id_usuario && 
+                    const historialData = historial.data || [];
+
+                    const recepcionPorUsuario = historialData.find(h =>
+                      h.id_usuario_responsable === usuarioLogueado.id_usuario &&
                       h.accion?.toLowerCase().includes('recepción')
                     );
-                    
-                    const ultimaRecepcion = historial.data
+
+                    const ultimaRecepcion = historialData
                       .filter(h => h.accion?.toLowerCase().includes('recepción'))
                       .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-                    
+
                     const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === usuarioLogueado.id_usuario;
-                    
-                    return { 
-                      ...exp, 
+
+                    // --- Datos del último pase/asignación a este usuario ---
+                    const historialAsc = [...historialData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                    const ultimoAsignadoAUsuario = historialData
+                      .filter(h => h.id_usuario_responsable === usuarioLogueado.id_usuario)
+                      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+
+                    let fechaPase = exp.fecha_creacion;
+                    let observacionesPase = '';
+                    let desdeUsuario = '-';
+
+                    if (ultimoAsignadoAUsuario) {
+                      fechaPase = ultimoAsignadoAUsuario.fecha;
+                      observacionesPase = ultimoAsignadoAUsuario.comentario || '';
+                      const idxEnAsc = historialAsc.findIndex(h => h.id_historial === ultimoAsignadoAUsuario.id_historial);
+                      if (idxEnAsc > 0) {
+                        const entradaAnterior = historialAsc[idxEnAsc - 1];
+                        desdeUsuario = `${entradaAnterior.usuario_nombre || ''} ${entradaAnterior.usuario_apellido || ''}`.trim() || '-';
+                      }
+                    }
+
+                    return {
+                      ...exp,
+                      tipo_tramite: exp.tipo_expediente,
+                      estado: exp.estado_actual,
+                      fecha_pase: fechaPase,
+                      desde_usuario: desdeUsuario,
+                      observaciones_pase: observacionesPase,
                       recepcionado: !!recepcionPorUsuario,
-                      puedeHacerPase: puedeHacerPase 
+                      puedeHacerPase: puedeHacerPase
                     };
                   } catch {
-                    return { ...exp, recepcionado: false, puedeHacerPase: false };
+                    return {
+                      ...exp,
+                      tipo_tramite: exp.tipo_expediente,
+                      estado: exp.estado_actual,
+                      recepcionado: false,
+                      puedeHacerPase: false
+                    };
                   }
                 })
               );
@@ -420,54 +574,79 @@ export default function UsuarioTecnico() {
           const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
           return texto.includes(filtroConsulta.toLowerCase());
         });
+        const totalPaginasConsulta = Math.max(1, Math.ceil(expedientesFiltrados.length / 6));
+        const expPagConsulta = expedientesFiltrados.slice((paginaConsulta - 1) * 6, paginaConsulta * 6);
         return (
           <div className="seccion-contenido seccion-consulta">
             <h2>Consulta de Expedientes</h2>
-            <Form.Group className="mb-3" style={{maxWidth: 400}}>
-              <Form.Label>Filtrar por número, estado o usuario</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Buscar..."
-                value={filtroConsulta}
-                onChange={e => setFiltroConsulta(e.target.value)}
-                disabled={loadingTodos}
-              />
-            </Form.Group>
+            <div className="consulta-toolbar mb-3">
+              <div className="consulta-search-wrap">
+                <span className="consulta-search-icon">🔍</span>
+                <input
+                  className="consulta-search-input"
+                  type="text"
+                  placeholder="Buscar por número, estado o usuario…"
+                  value={filtroConsulta}
+                  onChange={e => { setFiltroConsulta(e.target.value); setPaginaConsulta(1); }}
+                  disabled={loadingTodos}
+                />
+              </div>
+              {!loadingTodos && (
+                <div className="consulta-pag">
+                  <button className="cpag-btn" disabled={paginaConsulta === 1} onClick={() => setPaginaConsulta(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasConsulta}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaConsulta === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaConsulta(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaConsulta === totalPaginasConsulta} onClick={() => setPaginaConsulta(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expedientesFiltrados.length} resultados</span>
+                </div>
+              )}
+            </div>
             {loadingTodos ? (
               <p>Cargando expedientes...</p>
             ) : (
-              <div className="tabla-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                <table className="table table-sm table-bordered">
-                  <thead>
-                    <tr>
-                      <th>Nº Expediente</th>
-                      <th>Estado</th>
-                      <th>Descripción</th>
-                      <th>Usuario Asignado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expedientesFiltrados.map(exp => {
-                      let usuarioAsignado = 'Sin asignar';
-                      if (exp.usuario_asignado_nombre) {
-                        usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
-                      }
-                      if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
-                        usuarioAsignado = 'Pendiente de recepción';
-                      }
-                      return (
-                        <tr key={exp.id_expediente}>
-                          <td>{exp.numero_expediente}</td>
-                          <td>{exp.estado_actual}</td>
-                          <td>{exp.descripcion}</td>
-                          <td>{usuarioAsignado}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                {expedientesFiltrados.length === 0 && <p>No se encontraron expedientes.</p>}
-              </div>
+              <>
+                <div className="tabla-container">
+                  <table className="table table-sm table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Nº Expediente</th>
+                        <th>Presentante</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Prioridad</th>
+                        <th>Ubicación</th>
+                        <th>Fecha</th>
+                        <th>Asignado a</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expPagConsulta.map(exp => {
+                        let usuarioAsignado = 'Sin asignar';
+                        if (exp.usuario_asignado_nombre) {
+                          usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
+                        }
+                        if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
+                          usuarioAsignado = 'Pendiente de recepción';
+                        }
+                        return (
+                          <tr key={exp.id_expediente}>
+                            <td>{exp.numero_expediente}</td>
+                            <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                            <td>{exp.tipo_expediente || 'N/A'}</td>
+                            <td>{exp.descripcion || 'N/A'}</td>
+                            <td>{exp.prioridad || 'N/A'}</td>
+                            <td>{exp.ubicacion || 'N/A'}</td>
+                            <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
+                            <td>{usuarioAsignado}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {expedientesFiltrados.length === 0 && <p>No se encontraron expedientes.</p>}
+                </div>
+              </>
             )}
           </div>
         );
@@ -482,28 +661,45 @@ export default function UsuarioTecnico() {
         }
       }
       const expedientesRecepcionados = Array.from(expedientesMap.values());
+      const totalPaginasPase = Math.max(1, Math.ceil(expedientesRecepcionados.length / 6));
+      const expPagPase = expedientesRecepcionados.slice((paginaPase - 1) * 6, paginaPase * 6);
       return (
         <div className="seccion-contenido seccion-pase">
           <h2>Realizar Pase de Expedientes</h2>
           {expedientesRecepcionados.length === 0 ? (
             <Alert variant="info">No tienes expedientes recepcionados para realizar pase.</Alert>
           ) : (
-            <div className="tabla-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              <table className="table table-sm table-bordered">
-                <thead>
-                  <tr>
-                    <th>Nº Expediente</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expedientesRecepcionados.map(exp => (
+            <>
+              <div className="paginacion mb-2">
+                <button className="btn btn-sm btn-outline-secondary me-1" disabled={paginaPase === 1} onClick={() => setPaginaPase(p => p - 1)}>‹</button>
+                {Array.from({length: totalPaginasPase}, (_, i) => (
+                  <button key={i+1} className={`btn btn-sm me-1 ${paginaPase === i+1 ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setPaginaPase(i+1)}>{i+1}</button>
+                ))}
+                <button className="btn btn-sm btn-outline-secondary" disabled={paginaPase === totalPaginasPase} onClick={() => setPaginaPase(p => p + 1)}>›</button>
+                <span className="ms-2 text-muted" style={{fontSize:'0.85rem'}}>{expedientesRecepcionados.length} expediente(s)</span>
+              </div>
+              <div className="tabla-container">
+                <table className="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Nº Expediente</th>
+                      <th>Presentante</th>
+                      <th>Tipo</th>
+                      <th>Descripción</th>
+                      <th>Ubicación</th>
+                      <th>Fecha</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expPagPase.map(exp => (
                     <tr key={exp.id_expediente}>
                       <td><strong>{exp.numero_expediente}</strong></td>
+                      <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
                       <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
-                      <td>{exp.estado_actual || exp.estado || 'N/A'}</td>
+                      <td>{exp.descripcion || 'N/A'}</td>
+                      <td>{exp.ubicacion || 'N/A'}</td>
+                      <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
                       <td>
                         <Button variant="primary" size="sm" onClick={async () => {
                           setExpedienteVer(exp);
@@ -524,6 +720,7 @@ export default function UsuarioTecnico() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       );
@@ -539,6 +736,8 @@ export default function UsuarioTecnico() {
         }
       }
       const expedientesUnicos = Array.from(expedientesMap.values());
+      const totalPaginasBandeja = Math.max(1, Math.ceil(expedientesUnicos.length / 6));
+      const expPagBandeja = expedientesUnicos.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
       // LOGS DE DEPURACIÓN
       console.log("[BANDEJA] usuarioLogueado:", usuarioLogueado);
       console.log("[BANDEJA] expedientesPendientes:", expedientesPendientes);
@@ -547,7 +746,6 @@ export default function UsuarioTecnico() {
         <div className="seccion-contenido seccion-inicio">
           <h1>Portal de Usuario Técnico</h1>
           <p>Bienvenido al sistema de gestión de expedientes - Área Técnica</p>
-          <BotonesReporte onGenerarPDF={exportarPDF} generando={generandoPDF} mostrarVolver={false} />
           {loadingExpedientes ? (
             <p>Cargando expedientes...</p>
           ) : expedientesUnicos.length > 0 ? (
@@ -571,6 +769,14 @@ export default function UsuarioTecnico() {
                     : "Seleccionar Todos"}
                 </Button>
               </div>
+              <div className="paginacion mb-2">
+                <button className="btn btn-sm btn-outline-secondary me-1" disabled={paginaBandeja === 1} onClick={() => setPaginaBandeja(p => p - 1)}>‹</button>
+                {Array.from({length: totalPaginasBandeja}, (_, i) => (
+                  <button key={i+1} className={`btn btn-sm me-1 ${paginaBandeja === i+1 ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setPaginaBandeja(i+1)}>{i+1}</button>
+                ))}
+                <button className="btn btn-sm btn-outline-secondary" disabled={paginaBandeja === totalPaginasBandeja} onClick={() => setPaginaBandeja(p => p + 1)}>›</button>
+                <span className="ms-2 text-muted" style={{fontSize:'0.85rem'}}>{expedientesUnicos.length} expediente(s)</span>
+              </div>
               <div className="tabla-container">
                 <table className="tabla-expedientes">
                   <thead>
@@ -588,15 +794,14 @@ export default function UsuarioTecnico() {
                       </th>
                       <th>Nº Expediente</th>
                       <th>Tipo</th>
-                      <th>Estado</th>
+                      <th>Descripción</th>
+                      <th>Prioridad</th>
                       <th>Fecha Pase</th>
-                      <th>Desde</th>
-                      <th>Observaciones</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {expedientesUnicos.map(exp => (
+                    {expPagBandeja.map(exp => (
                       <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
                         <td>
                           <input
@@ -615,15 +820,15 @@ export default function UsuarioTecnico() {
                             </span>
                           )}
                         </td>
-                        <td>{exp.tipo_tramite}</td>
+                        <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
+                        <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                        <td>{exp.ubicacion || '-'}</td>
                         <td>
-                          <span className={`badge-estado estado-${exp.estado}`}>
-                            {exp.estado}
+                          <span className={`badge badge-${exp.prioridad}`}>
+                            {exp.prioridad || 'normal'}
                           </span>
                         </td>
                         <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                        <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                        <td>{exp.observaciones_pase || '-'}</td>
                         <td>
                           <button
                             className="btn btn-sm btn-info"
@@ -759,10 +964,35 @@ export default function UsuarioTecnico() {
             <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
           </Nav.Item>
           <Nav.Item>
+            <button
+              className="nav-reporte-btn"
+              onClick={() => { const url = exportarPDF(); if (url) setNavPreviewUrl(url); }}
+              disabled={generandoPDF}
+            >
+              {generandoPDF ? "⏳ Generando..." : "🖨️ Reporte"}
+            </button>
+          </Nav.Item>
+          <Nav.Item>
             <Nav.Link active={seccionActiva === "manual-usuario"} onClick={() => setSeccionActiva("manual-usuario")}>📖 Manual</Nav.Link>
           </Nav.Item>
         </Nav>
       </div>
+
+      {/* Vista previa PDF */}
+      {navPreviewUrl && (
+        <div className="pdf-preview-overlay" onClick={e => { if (e.target === e.currentTarget) setNavPreviewUrl(null); }}>
+          <div className="pdf-preview-modal">
+            <div className="pdf-preview-header">
+              <span className="pdf-preview-title">📄 Vista previa del reporte</span>
+              <div className="pdf-preview-actions">
+                <a href={navPreviewUrl} download="reporte.pdf" className="pdf-btn pdf-btn-download">&#8595; Descargar</a>
+                <button className="pdf-btn pdf-btn-close" onClick={() => setNavPreviewUrl(null)}>✕ Cerrar</button>
+              </div>
+            </div>
+            <iframe src={navPreviewUrl} className="pdf-preview-frame" title="Vista previa reporte" />
+          </div>
+        </div>
+      )}
 
       {/* Contenido principal */}
       <main className="tecnico-main">

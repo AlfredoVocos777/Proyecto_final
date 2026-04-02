@@ -12,6 +12,7 @@ export default function UsuarioJuridico() {
   const navigate = useNavigate();
   const [seccionActiva, setSeccionActiva] = useState("bandeja");
   const [generandoPDF, setGenerandoPDF] = useState(false);
+  const [navPreviewUrl, setNavPreviewUrl] = useState(null);
   const [permisosUsuario, setPermisosUsuario] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expedientesPendientes, setExpedientesPendientes] = useState([]);
@@ -34,6 +35,9 @@ export default function UsuarioJuridico() {
   const [expedientesTodos, setExpedientesTodos] = useState([]);
   const [filtroConsulta, setFiltroConsulta] = useState("");
   const [loadingTodos, setLoadingTodos] = useState(false);
+  const [paginaBandeja, setPaginaBandeja] = useState(1);
+  const [paginaConsulta, setPaginaConsulta] = useState(1);
+  const [paginaPase, setPaginaPase] = useState(1);
 
   // Estados para subir documentación
   const [showModalDoc, setShowModalDoc] = useState(false);
@@ -317,19 +321,40 @@ export default function UsuarioJuridico() {
           const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
           return texto.includes(filtroConsulta.toLowerCase());
         });
+        const totalPaginasConsulta = Math.max(1, Math.ceil(expedientesFiltrados.length / 6));
+        const expPagConsulta = expedientesFiltrados.slice((paginaConsulta - 1) * 6, paginaConsulta * 6);
         return (
           <div className="seccion-contenido seccion-consulta">
             <h2>Consulta de Expedientes</h2>
-            <Form.Group className="mb-3" style={{ maxWidth: 400 }}>
-              <Form.Label>Filtrar por número, estado o usuario</Form.Label>
-              <Form.Control type="text" placeholder="Buscar..." value={filtroConsulta} onChange={e => setFiltroConsulta(e.target.value)} disabled={loadingTodos} />
-            </Form.Group>
+            <div className="consulta-toolbar mb-3">
+              <div className="consulta-search-wrap">
+                <span className="consulta-search-icon">🔍</span>
+                <input
+                  className="consulta-search-input"
+                  type="text"
+                  placeholder="Buscar por número, estado o usuario…"
+                  value={filtroConsulta}
+                  onChange={e => { setFiltroConsulta(e.target.value); setPaginaConsulta(1); }}
+                  disabled={loadingTodos}
+                />
+              </div>
+              {!loadingTodos && (
+                <div className="consulta-pag">
+                  <button className="cpag-btn" disabled={paginaConsulta === 1} onClick={() => setPaginaConsulta(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasConsulta}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaConsulta === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaConsulta(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaConsulta === totalPaginasConsulta} onClick={() => setPaginaConsulta(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expedientesFiltrados.length} resultados</span>
+                </div>
+              )}
+            </div>
             {loadingTodos ? <p>Cargando expedientes...</p> : (
-              <div className="tabla-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <div className="tabla-container">
                 <table className="table table-sm table-bordered">
                   <thead><tr><th>Nº Expediente</th><th>Estado</th><th>Descripción</th><th>Usuario Asignado</th></tr></thead>
                   <tbody>
-                    {expedientesFiltrados.map(exp => (
+                    {expPagConsulta.map(exp => (
                       <tr key={exp.id_expediente}>
                         <td>{exp.numero_expediente}</td>
                         <td>{exp.estado_actual}</td>
@@ -353,21 +378,45 @@ export default function UsuarioJuridico() {
           }
         }
         const expedientesRecepcionados = Array.from(expedientesMap.values());
+        const totalPaginasPase = Math.max(1, Math.ceil(expedientesRecepcionados.length / 6));
+        const expPagPase = expedientesRecepcionados.slice((paginaPase - 1) * 6, paginaPase * 6);
         return (
           <div className="seccion-contenido seccion-pase">
             <h2>Realizar Pase de Expedientes</h2>
             {expedientesRecepcionados.length === 0 ? (
               <Alert variant="info">No tenés expedientes recepcionados para realizar pase.</Alert>
             ) : (
-              <div className="tabla-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                <table className="table table-sm table-bordered">
-                  <thead><tr><th>Nº Expediente</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <>
+                <div className="paginacion mb-2">
+                  <button className="cpag-btn" disabled={paginaPase === 1} onClick={() => setPaginaPase(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasPase}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaPase === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaPase(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaPase === totalPaginasPase} onClick={() => setPaginaPase(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expedientesRecepcionados.length} expediente(s)</span>
+                </div>
+                <div className="tabla-container">
+                  <table className="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Nº Expediente</th>
+                      <th>Presentante</th>
+                      <th>Tipo</th>
+                      <th>Descripción</th>
+                      <th>Ubicación</th>
+                      <th>Fecha</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {expedientesRecepcionados.map(exp => (
+                    {expPagPase.map(exp => (
                       <tr key={exp.id_expediente}>
                         <td><strong>{exp.numero_expediente}</strong></td>
+                        <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
                         <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
-                        <td>{exp.estado_actual || exp.estado || 'N/A'}</td>
+                        <td>{exp.descripcion || 'N/A'}</td>
+                        <td>{exp.ubicacion || 'N/A'}</td>
+                        <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
                         <td>
                           <Button variant="primary" size="sm" onClick={async () => {
                             setExpedienteVer(exp);
@@ -385,6 +434,7 @@ export default function UsuarioJuridico() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         );
@@ -399,14 +449,23 @@ export default function UsuarioJuridico() {
           }
         }
         const expedientesUnicos = Array.from(expedientesMap.values());
+        const totalPaginasBandeja = Math.max(1, Math.ceil(expedientesUnicos.length / 6));
+        const expPagBandeja = expedientesUnicos.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
         return (
           <div className="seccion-contenido seccion-inicio">
             <h1>Portal de Usuario Jurídico</h1>
             <p>Bienvenido al sistema de gestión de expedientes - Área Jurídica</p>
-            <BotonesReporte onGenerarPDF={exportarPDF} generando={generandoPDF} mostrarVolver={false} />
             {loadingExpedientes ? <p>Cargando expedientes...</p> : expedientesUnicos.length > 0 ? (
               <div className="expedientes-pendientes">
                 <h2>Bandeja de Entrada - Expedientes asignados</h2>
+                <div className="paginacion mb-2">
+                  <button className="cpag-btn" disabled={paginaBandeja === 1} onClick={() => setPaginaBandeja(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasBandeja}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaBandeja === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaBandeja(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaBandeja === totalPaginasBandeja} onClick={() => setPaginaBandeja(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expedientesUnicos.length} expediente(s)</span>
+                </div>
                 <div className="acciones-seleccion">
                   <Button variant="primary" onClick={abrirModalRecepcion} disabled={expedientesSeleccionados.length === 0}>
                     Recepcionar Seleccionados ({expedientesSeleccionados.length})
@@ -420,11 +479,11 @@ export default function UsuarioJuridico() {
                     <thead>
                       <tr>
                         <th><input type="checkbox" checked={expedientesUnicos.filter(e => !e.recepcionado).length > 0 && expedientesSeleccionados.length === expedientesUnicos.filter(e => !e.recepcionado).length} onChange={toggleSeleccionTodos} disabled={expedientesUnicos.filter(e => !e.recepcionado).length === 0} /></th>
-                        <th>Nº Expediente</th><th>Tipo</th><th>Estado</th><th>Fecha Pase</th><th>Desde</th><th>Observaciones</th><th>Acciones</th>
+                        <th>Nº Expediente</th><th>Tipo</th><th>Descripción</th><th>Estado</th><th>Prioridad</th><th>Fecha Creación</th><th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {expedientesUnicos.map(exp => (
+                      {expPagBandeja.map(exp => (
                         <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
                           <td><input type="checkbox" checked={expedientesSeleccionados.includes(exp.id_expediente)} onChange={() => toggleSeleccion(exp.id_expediente)} disabled={exp.recepcionado} /></td>
                           <td>
@@ -432,11 +491,11 @@ export default function UsuarioJuridico() {
                             {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
                             {exp.recepcionado && !exp.puedeHacerPase && <span className="badge bg-warning text-dark ms-2" title="Solo quien recepcionó puede hacer pases">🔒 Sin permiso de pase</span>}
                           </td>
-                          <td>{exp.tipo_tramite}</td>
-                          <td><span className={`badge-estado estado-${exp.estado}`}>{exp.estado}</span></td>
-                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                          <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                          <td>{exp.observaciones_pase || '-'}</td>
+                          <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
+                          <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                          <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
+                          <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
+                          <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
                           <td><button className="btn btn-sm btn-info" onClick={() => abrirModalDoc(exp)}>📄 Docs</button></td>
                         </tr>
                       ))}
@@ -468,10 +527,35 @@ export default function UsuarioJuridico() {
             <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
           </Nav.Item>
           <Nav.Item>
+            <button
+              className="nav-reporte-btn"
+              onClick={() => { const url = exportarPDF(); if (url) setNavPreviewUrl(url); }}
+              disabled={generandoPDF}
+            >
+              {generandoPDF ? "⏳ Generando..." : "🖨️ Reporte"}
+            </button>
+          </Nav.Item>
+          <Nav.Item>
             <Nav.Link active={seccionActiva === "manual-usuario"} onClick={() => setSeccionActiva("manual-usuario")}>📖 Manual</Nav.Link>
           </Nav.Item>
         </Nav>
       </div>
+
+      {/* Vista previa PDF */}
+      {navPreviewUrl && (
+        <div className="pdf-preview-overlay" onClick={e => { if (e.target === e.currentTarget) setNavPreviewUrl(null); }}>
+          <div className="pdf-preview-modal">
+            <div className="pdf-preview-header">
+              <span className="pdf-preview-title">📄 Vista previa del reporte</span>
+              <div className="pdf-preview-actions">
+                <a href={navPreviewUrl} download="reporte.pdf" className="pdf-btn pdf-btn-download">&#8595; Descargar</a>
+                <button className="pdf-btn pdf-btn-close" onClick={() => setNavPreviewUrl(null)}>✕ Cerrar</button>
+              </div>
+            </div>
+            <iframe src={navPreviewUrl} className="pdf-preview-frame" title="Vista previa reporte" />
+          </div>
+        </div>
+      )}
 
       {/* Contenido principal */}
       <main className="juridico-main">

@@ -3,7 +3,7 @@
   display: flex;
   min-height: calc(100vh - 80px - 220px); /* altura mínima: viewport - header - footer aprox */
   padding-top: 80px; /* espacio para header fijo */
-  background: linear-gradient(135deg, #f5f7fa 0%, #fff3e0 100%);
+  background: #f0f6fd;
   padding-bottom: 0; /* sin padding para el footer */
 }
 
@@ -14,9 +14,9 @@
   left: 0;
   bottom: 0;
   width: 260px;
-  background: linear-gradient(180deg, #ffffff 0%, #fff8e1 100%);
-  border-right: 2px solid #ffb74d;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border-right: 2px solid var(--color-azul-claro);
+  box-shadow: 2px 0 12px rgba(90,161,227,0.10);
   transition: transform 0.3s ease, width 0.3s ease;
   z-index: 100;
   overflow-y: auto;
@@ -63,32 +63,28 @@
 .juridico-menu-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f5faff 100%);
-  border: 1px solid #d6e8ff;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 600;
+  gap: 10px;
+  padding: 11px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.88rem;
+  font-weight: 500;
   color: #2c3e50;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: background 0.15s ease, color 0.15s ease;
   text-align: left;
 }
 
 .juridico-menu-btn:hover {
-  transform: translateY(-2px);
-  background: #eef6ff;
-  border-color: #c7dfff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  background: #e8f3fc;
+  color: var(--color-azul-acento);
 }
 
 .juridico-menu-btn.active {
   background: var(--color-azul-acento);
   color: #fff;
-  border-color: var(--color-azul-acento);
-  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+  font-weight: 600;
 }
 
 .juridico-icon {
@@ -133,22 +129,28 @@
 /* Secciones de contenido */
 .seccion-contenido {
   background: #fff;
-  padding: 32px;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  max-width: 1000px;
+  padding: 28px 32px;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(90,161,227,0.08), 0 4px 16px rgba(90,161,227,0.06);
+  border: 1px solid var(--color-azul-claro);
+  max-width: 100%;
   margin: 0 auto;
 }
 
 .seccion-contenido h2 {
   color: var(--color-azul-acento);
-  margin-bottom: 16px;
-  font-size: 1.8rem;
+  margin-bottom: 20px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--color-azul-claro);
 }
 
 .seccion-contenido p {
-  color: #555;
+  color: #5a6779;
   line-height: 1.6;
+  font-size: 0.95rem;
 }
 
 .seccion-inicio {
@@ -156,9 +158,10 @@
 }
 
 .seccion-inicio h1 {
-  color: var(--text-color);
-  margin-bottom: 12px;
-  font-size: 2.2rem;
+  color: var(--color-azul-acento);
+  margin-bottom: 6px;
+  font-size: 1.6rem;
+  font-weight: 700;
 }
 
 /* Estilos para tabla de expedientes pendientes */
@@ -228,8 +231,9 @@
 
 .tabla-container {
   overflow-x: auto;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  border: 1px solid var(--color-azul-claro);
+  width: 100%;
 }
 
 .tabla-expedientes {
@@ -240,27 +244,30 @@
 }
 
 .tabla-expedientes thead {
-  background: linear-gradient(135deg, var(--color-azul-acento) 0%, #5a9fd4 100%);
+  background: var(--color-azul-acento);
   color: #fff;
 }
 
 .tabla-expedientes th {
-  padding: 14px 12px;
+  padding: 11px 14px;
   text-align: left;
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
 .tabla-expedientes td {
-  padding: 12px;
-  border-bottom: 1px solid #e9ecef;
-  color: #333;
-  vertical-align: top;
+  padding: 10px 14px;
+  border-bottom: 1px solid #ddeeff;
+  color: #374151;
+  vertical-align: middle;
+  font-size: 0.87rem;
 }
 
 .tabla-expedientes tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: #f0f6fd;
 }
 
 .tabla-expedientes tbody tr.fila-seleccionada {
@@ -301,48 +308,49 @@
 /* Badges para estados y prioridades */
 .badge {
   display: inline-block;
-  padding: 5px 10px;
-  border-radius: 12px;
-  font-size: 0.85rem;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: capitalize;
   white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .badge-en.revisión,
 .badge-en\ revisión {
-  background-color: #ffc107;
-  color: #333;
+  background-color: #fff3cd;
+  color: #856404;
 }
 
 .badge-aprobado {
-  background-color: #28a745;
-  color: #fff;
+  background-color: #d1fae5;
+  color: #065f46;
 }
 
 .badge-rechazado {
-  background-color: #dc3545;
-  color: #fff;
+  background-color: #fee2e2;
+  color: #991b1b;
 }
 
 .badge-archivado {
-  background-color: #6c757d;
-  color: #fff;
+  background-color: #e5e7eb;
+  color: #4b5563;
 }
 
 .badge-alta {
-  background-color: #dc3545;
-  color: #fff;
+  background-color: #fee2e2;
+  color: #991b1b;
 }
 
 .badge-media {
-  background-color: #ffc107;
-  color: #333;
+  background-color: #fff3cd;
+  color: #856404;
 }
 
 .badge-baja {
-  background-color: #28a745;
-  color: #fff;
+  background-color: #d1fae5;
+  color: #065f46;
 }
 
 /* Estilos para modal de consulta de expediente */
@@ -445,14 +453,73 @@
   padding: 28px 24px;
 }
 .user-nav-juridico {
-  background: linear-gradient(90deg, #fff 0%, #fff8e1 100%);
-  border-bottom: 2px solid #ffb74d;
+  background: var(--color-azul-claro);
+  border-bottom: 2px solid var(--color-azul-acento);
+  box-shadow: 0 2px 8px rgba(90,161,227,0.15);
 }
 .user-nav-juridico .nav-link.active {
-  background-color: #fb8c00 !important;
+  background-color: var(--color-azul-acento) !important;
   color: #fff !important;
-  box-shadow: 0 2px 8px rgba(251,140,0,0.3);
+  font-weight: 600;
 }
 .user-nav-juridico .nav-link:hover:not(.active) {
-  background-color: #fff3e0;
+  background-color: #d0e8fa;
+  color: #2c3e50;
+}
+
+/* Paginación */
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 4px;
+  border-top: 1px solid var(--color-azul-claro);
+  border-bottom: 1px solid var(--color-azul-claro);
+  margin-bottom: 12px;
+  background: #f7fbff;
+  border-radius: 7px;
+}
+
+.paginacion-info {
+  font-size: 0.82rem;
+  color: #5a6779;
+  font-weight: 500;
+}
+
+.paginacion-botones {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.paginacion .btn {
+  border-radius: 6px !important;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  line-height: 1.5;
+  min-width: 34px;
+  transition: all 0.15s ease;
+}
+.paginacion .btn-primary {
+  background: var(--color-azul-acento) !important;
+  border-color: var(--color-azul-acento) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 6px rgba(90,161,227,0.3);
+}
+.paginacion .btn-outline-secondary {
+  color: #2c3e50;
+  border-color: var(--color-azul-claro);
+  background: #fff;
+}
+.paginacion .btn-outline-secondary:hover:not(:disabled) {
+  background: #e8f3fc;
+  color: var(--color-azul-acento);
+  border-color: var(--color-azul-acento);
+}
+.paginacion .btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
 }
