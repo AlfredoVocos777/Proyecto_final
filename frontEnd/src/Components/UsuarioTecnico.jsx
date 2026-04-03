@@ -10,6 +10,7 @@ import BotonesReporte from "./BotonesReporte";
 
 export default function UsuarioTecnico() {
   const navigate = useNavigate();
+  const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
   const [seccionActiva, setSeccionActiva] = useState("bandeja");
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [permisosUsuario, setPermisosUsuario] = useState([]);
@@ -55,11 +56,30 @@ export default function UsuarioTecnico() {
   const [mensajeVer, setMensajeVer] = useState({ tipo: "", texto: "" });
   const [destinatarioPase, setDestinatarioPase] = useState("");
   const [usuariosPase, setUsuariosPase] = useState([]);
+  const [cargandoDestinatarios, setCargandoDestinatarios] = useState(null); 
+  const [pasesPorExp, setPasesPorExp] = useState({}); // id_expediente -> true/false
+  const [modalDeshacer, setModalDeshacer] = useState(null); // expediente para deshacer
 
   //observaciones generales modal ver
   const [observacionTecnico, setObservacionTecnico] = useState("");
   const [errorObs, setErrorObs] = useState("");
+  const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
 
+  const cargarObservaciones = async (idExp) => {
+    try {
+      const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
+      const data = res.data || {};
+      const todas = [
+        ...(data.Administrativo || []),
+        ...(data.Técnico || []),
+        ...(data.Jurídico || []),
+        ...(data.Director || [])
+      ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
+      setObservacionesExps(todas);
+    } catch (err) {
+      console.error("Error al cargar observaciones:", err);
+    }
+  };
   // Paginación (3 por página)
   const [paginaConsulta, setPaginaConsulta] = useState(1);
   const [paginaPase, setPaginaPase] = useState(1);
@@ -76,8 +96,7 @@ export default function UsuarioTecnico() {
           .catch(() => setExpedientesTodos([]))
           .finally(() => setLoadingTodos(false));
     try {
-      const raw = localStorage.getItem("usuarioLogueado");
-      const user = raw ? JSON.parse(raw) : null;
+      const user = usuarioLogueado;
       const idRol = user?.id_rol;
       const idUsuario = user?.id_usuario;
       
@@ -95,84 +114,113 @@ export default function UsuarioTecnico() {
         .catch(() => {})
         .finally(() => setLoading(false));
       
-      // Cargar expedientes asignados
-      if (idUsuario) {
-        setLoadingExpedientes(true);
-        axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`)
-          .then(async res => {
-            const expedientes = res.data || [];
-            // Verificar cuáles expedientes ya fueron recepcionados por este usuario
-            const expedientesConEstado = await Promise.all(
-              expedientes.map(async exp => {
-                try {
-                  const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                  const historialData = historial.data || [];
-
-                  // Buscar si este usuario recepcionó el expediente
-                  const recepcionPorUsuario = historialData.find(h =>
-                    h.id_usuario_responsable === idUsuario &&
-                    h.accion?.toLowerCase().includes('recepción')
-                  );
-                  // Buscar la última recepción (cualquier usuario)
-                  const ultimaRecepcion = historialData
-                    .filter(h => h.accion?.toLowerCase().includes('recepción'))
-                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-                  // El usuario puede hacer pase solo si él fue quien recepcionó
-                  const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
-
-                  // --- Datos del último pase/asignación a este usuario ---
-                  const historialAsc = [...historialData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-                  const ultimoAsignadoAUsuario = historialData
-                    .filter(h => h.id_usuario_responsable === idUsuario)
-                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-
-                  let fechaPase = exp.fecha_creacion;
-                  let observacionesPase = '';
-                  let desdeUsuario = '-';
-
-                  if (ultimoAsignadoAUsuario) {
-                    fechaPase = ultimoAsignadoAUsuario.fecha;
-                    observacionesPase = ultimoAsignadoAUsuario.comentario || '';
-                    const idxEnAsc = historialAsc.findIndex(h => h.id_historial === ultimoAsignadoAUsuario.id_historial);
-                    if (idxEnAsc > 0) {
-                      const entradaAnterior = historialAsc[idxEnAsc - 1];
-                      desdeUsuario = `${entradaAnterior.usuario_nombre || ''} ${entradaAnterior.usuario_apellido || ''}`.trim() || '-';
-                    }
-                  }
-
-                  return {
-                    ...exp,
-                    tipo_tramite: exp.tipo_expediente,
-                    estado: exp.estado_actual,
-                    fecha_pase: fechaPase,
-                    desde_usuario: desdeUsuario,
-                    observaciones_pase: observacionesPase,
-                    recepcionado: !!recepcionPorUsuario,
-                    puedeHacerPase: puedeHacerPase,
-                    recepcionadoPor: ultimaRecepcion?.id_usuario_responsable
-                  };
-                } catch {
-                  return {
-                    ...exp,
-                    tipo_tramite: exp.tipo_expediente,
-                    estado: exp.estado_actual,
-                    recepcionado: false,
-                    puedeHacerPase: false
-                  };
-                }
-              })
-            );
-            setExpedientesPendientes(expedientesConEstado);
-          })
-          .catch(err => {
-            console.error("Error al cargar expedientes con pase:", err);
-          })
-          .finally(() => setLoadingExpedientes(false));
-      }
+      // Cargar expedientes iniciales
+      recargarExpedientes();
     } catch {
       setLoading(false);
     }
   }, []);
+
+  // Recargar expedientes (Unificado)
+  const recargarExpedientes = () => {
+    const idUsuario = usuarioLogueado?.id_usuario;
+    if (!idUsuario) return;
+    
+    setLoadingExpedientes(true);
+    // Traemos los asignados a mí Y todos los en revisión/asignados para buscar los que yo mandé
+    Promise.all([
+      axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`),
+      axios.get(URL_EXPEDIENTES, { params: { estado: 'asignado' } })
+    ]).then(async ([resAsignados, resAsignadosGral]) => {
+        const listAsignados = resAsignados.data || [];
+        const listGral = resAsignadosGral.data || [];
+        
+        // Unificamos (evitando duplicados)
+        const mapUnico = new Map();
+        listAsignados.forEach(e => mapUnico.set(e.id_expediente, e));
+        listGral.forEach(e => mapUnico.set(e.id_expediente, e));
+        
+        const expedientes = Array.from(mapUnico.values());
+        const mapaPases = {};
+
+        const expedientesConEstado = await Promise.all(
+          expedientes.map(async exp => {
+            try {
+              const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
+              const historialData = historial.data || [];
+
+              // Detectar si yo fui el último en realizar una asignación (reversible)
+              const pasesReversibles = historialData.filter(h => 
+                (h.tipo_accion ?? "").toLowerCase() === "asignación" ||
+                (h.accion ?? "").toLowerCase().includes("pase")
+              );
+              const ultimoPase = pasesReversibles[0];
+              const penultimoPase = pasesReversibles[1];
+
+              // Es reversible si yo lo tenía antes y ahora lo tiene otro
+              const esReversible = ultimoPase && 
+                                  ultimoPase.id_usuario_responsable !== idUsuario && 
+                                  penultimoPase && penultimoPase.id_usuario_responsable === idUsuario;
+
+              mapaPases[exp.id_expediente] = !!esReversible;
+
+              // Buscar si este usuario recepcionó el expediente
+              const recepcionPorUsuario = historialData.find(h =>
+                h.id_usuario_responsable === idUsuario &&
+                h.accion?.toLowerCase().includes('recepción')
+              );
+              // Buscar la última recepción (cualquier usuario)
+              const ultimaRecepcion = historialData
+                .filter(h => h.accion?.toLowerCase().includes('recepción'))
+                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+              // El usuario puede hacer pase solo si él fue quien recepcionó
+              const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
+
+              // --- Datos del último pase/asignación a este usuario ---
+              const historialAsc = [...historialData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+              const ultimoAsignadoAUsuario = historialData
+                .filter(h => h.id_usuario_responsable === idUsuario)
+                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+
+              let fechaPase = exp.fecha_creacion;
+              let observacionesPase = '';
+              let desdeUsuario = '-';
+
+              if (ultimoAsignadoAUsuario) {
+                fechaPase = ultimoAsignadoAUsuario.fecha;
+                observacionesPase = ultimoAsignadoAUsuario.comentario || '';
+                const idxEnAsc = historialAsc.findIndex(h => h.id_historial === ultimoAsignadoAUsuario.id_historial);
+                if (idxEnAsc > 0) {
+                  const entradaAnterior = historialAsc[idxEnAsc - 1];
+                  desdeUsuario = `${entradaAnterior.usuario_nombre || ''} ${entradaAnterior.usuario_apellido || ''}`.trim() || '-';
+                }
+              }
+
+              return {
+                ...exp,
+                tipo: exp.tipo_expediente || exp.tipo_tramite || exp.tipo || 'N/A',
+                descripcion: exp.descripcion || exp.detalle || '-',
+                estado: exp.estado_actual || exp.estado || 'N/A',
+                fecha_pase: fechaPase,
+                desde_usuario: desdeUsuario,
+                observaciones_pase: observacionesPase,
+                recepcionado: !!recepcionPorUsuario,
+                puedeHacerPase: puedeHacerPase,
+                recepcionadoPor: ultimaRecepcion?.id_usuario_responsable
+              };
+            } catch {
+              return { ...exp, tipo: exp.tipo_expediente || 'N/A', descripcion: '-', estado: exp.estado_actual || 'N/A', recepcionado: false, puedeHacerPase: false };
+            }
+          })
+        );
+        setPasesPorExp(mapaPases);
+        setExpedientesPendientes(expedientesConEstado);
+      })
+      .catch(err => {
+        console.error("Error al cargar expedientes con pase:", err);
+      })
+      .finally(() => setLoadingExpedientes(false));
+  };
 
   const exportarPDF = () => {
     setGenerandoPDF(true);
@@ -488,6 +536,7 @@ export default function UsuarioTecnico() {
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
+    cargarObservaciones(expediente.id_expediente);
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
       .catch(err => console.error('Error al cargar documentos:', err))
@@ -652,11 +701,17 @@ export default function UsuarioTecnico() {
         );
       }
     case "realizar-pase": {
-      // Mostrar expedientes recepcionados por el usuario técnico y que puede hacer pase
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      // Mostrar expedientes recepcionados por el usuario técnico que puede hacer pase
+      // Y también aquellos asignados a otro (ya pasados) para que pueda deshacer
       const expedientesMap = new Map();
       for (const exp of expedientesPendientes) {
-        if (exp.recepcionado && exp.puedeHacerPase) {
+        const tienePaseUndoble = !!pasesPorExp[exp.id_expediente];
+        // Caso 1: Asignado a mí y ya lo recepcioné (puedo realizar pase)
+        if (exp.recepcionado && exp.puedeHacerPase && exp.id_profesional_asignado === usuarioLogueado.id_usuario) {
+          expedientesMap.set(exp.id_expediente, exp);
+        }
+        // Caso 2: Ya lo pasé y puedo deshacer
+        if (tienePaseUndoble && (exp.estado_actual === 'asignado' || exp.estado_actual === 'en revisión')) {
           expedientesMap.set(exp.id_expediente, exp);
         }
       }
@@ -701,19 +756,40 @@ export default function UsuarioTecnico() {
                       <td>{exp.ubicacion || 'N/A'}</td>
                       <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
                       <td>
-                        <Button variant="primary" size="sm" onClick={async () => {
-                          setExpedienteVer(exp);
-                          // Cargar usuarios jurídicos como destinatarios
-                          try {
-                            const resp = await axios.get('http://localhost:8000/usuarios/juridicos');
-                            setUsuariosPase(resp.data || []);
-                          } catch (err) {
-                            setUsuariosPase([]);
-                          }
-                          setShowModalVer(true);
-                        }}>
-                          Realizar Pase
-                        </Button>
+                        <div className="d-flex gap-2">
+                          {!!pasesPorExp[exp.id_expediente] ? (
+                            <Button
+                              variant="warning"
+                              size="sm"
+                              onClick={() => setModalDeshacer(exp)}
+                            >
+                              ↩️ Deshacer Pase
+                            </Button>
+                          ) : (
+                            exp.id_profesional_asignado === usuarioLogueado?.id_usuario && (
+                              <Button 
+                                variant="primary" 
+                                size="sm" 
+                                disabled={cargandoDestinatarios === exp.id_expediente}
+                                onClick={async () => {
+                                  try {
+                                    setCargandoDestinatarios(exp.id_expediente);
+                                    setExpedienteVer(exp);
+                                    const resp = await axios.get('http://localhost:8000/usuarios/juridicos');
+                                    setUsuariosPase(resp.data || []);
+                                    setShowModalVer(true);
+                                  } catch (err) {
+                                    console.error("Error al preparar pase:", err);
+                                  } finally {
+                                    setCargandoDestinatarios(null);
+                                  }
+                                }}
+                              >
+                                Realizar Pase
+                              </Button>
+                            )
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -795,7 +871,7 @@ export default function UsuarioTecnico() {
                       <th>Nº Expediente</th>
                       <th>Tipo</th>
                       <th>Descripción</th>
-                      <th>Prioridad</th>
+                      <th>Nombre</th>
                       <th>Fecha Pase</th>
                       <th>Acciones</th>
                     </tr>
@@ -820,14 +896,9 @@ export default function UsuarioTecnico() {
                             </span>
                           )}
                         </td>
-                        <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
-                        <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                        <td>{exp.ubicacion || '-'}</td>
-                        <td>
-                          <span className={`badge badge-${exp.prioridad}`}>
-                            {exp.prioridad || 'normal'}
-                          </span>
-                        </td>
+                        <td>{exp.tipo}</td>
+                        <td className="descripcion-cell">{exp.descripcion}</td>
+                        <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
                         <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
                         <td>
                           <button
@@ -896,58 +967,33 @@ export default function UsuarioTecnico() {
     setObservacionVer("");
     setArchivosVer([]);
     setMensajeVer({ tipo: "", texto: "" });
+    setCargandoDestinatarios(null);
+  };
+
+  const handleDeshacerExito = (id_expediente) => {
+    setExpedientesPendientes(prev =>
+      prev.map(e => e.id_expediente === id_expediente
+        ? { ...e, estado_actual: "en revisión", id_profesional_asignado: usuarioLogueado?.id_usuario, recepcionado: true, puedeHacerPase: true }
+        : e
+      )
+    );
+    setPasesPorExp(prev => ({ ...prev, [id_expediente]: false }));
+    recargarExpedientes();
+  };
+
+  const confirmarDeshacerPase = async () => {
+    if (!modalDeshacer) return;
+    try {
+      await axios.delete(`${URL_HISTORIAL}/deshacer-pase/${modalDeshacer.id_expediente}`);
+      handleDeshacerExito(modalDeshacer.id_expediente);
+      setModalDeshacer(null);
+    } catch (err) {
+      alert("Error al deshacer el pase.");
+    }
   };
 
   // Obtener usuario actual desde localStorage
-  const usuarioActual = (() => {
-    try {
-      const raw = localStorage.getItem("usuarioLogueado");
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  })();
-
-  // Recargar expedientes
-  const recargarExpedientes = () => {
-    const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-    if (usuarioLogueado?.id_usuario) {
-      setLoadingExpedientes(true);
-      axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`)
-        .then(async res => {
-          const expedientes = res.data || [];
-          const expedientesConEstado = await Promise.all(
-            expedientes.map(async exp => {
-              try {
-                const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                
-                const recepcionPorUsuario = historial.data.find(h => 
-                  h.id_usuario_responsable === usuarioLogueado.id_usuario && 
-                  h.accion?.toLowerCase().includes('recepción')
-                );
-                
-                const ultimaRecepcion = historial.data
-                  .filter(h => h.accion?.toLowerCase().includes('recepción'))
-                  .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-                
-                const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === usuarioLogueado.id_usuario;
-                
-                return { 
-                  ...exp, 
-                  recepcionado: !!recepcionPorUsuario,
-                  puedeHacerPase: puedeHacerPase 
-                };
-              } catch {
-                return { ...exp, recepcionado: false, puedeHacerPase: false };
-              }
-            })
-          );
-          setExpedientesPendientes(expedientesConEstado);
-        })
-        .catch(err => console.error("Error al recargar expedientes:", err))
-        .finally(() => setLoadingExpedientes(false));
-    }
-  };
+  const usuarioActual = usuarioLogueado;
 
   return (
     <div className="tecnico-layout">
@@ -1011,17 +1057,7 @@ export default function UsuarioTecnico() {
             </Alert>
           )}
           <p><strong>Expedientes seleccionados:</strong> {expedientesSeleccionados.length}</p>
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Observaciones</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              placeholder="Agregue observaciones técnicas sobre la recepción..."
-              value={observacionesRecepcion}
-              onChange={(e) => setObservacionesRecepcion(e.target.value)}
-              disabled={procesandoRecepcion}
-            />
-          </Form.Group>
+          
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarModalRecepcion} disabled={procesandoRecepcion}>
@@ -1125,19 +1161,56 @@ export default function UsuarioTecnico() {
               disabled={subiendoDoc}
             />
             <Form.Text>Archivos seleccionados: {archivosStaged.length}</Form.Text>
+            <Button 
+              className="mt-2"
+              size="sm"
+              variant="primary"
+              disabled={archivosStaged.length === 0 || subiendoDoc}
+              onClick={async () => {
+                try {
+                  if (!archivosStaged.length) return;
+                  setSubiendoDoc(true);
+                  setMensajeDoc({ tipo: "", texto: "" });
+                  const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                  let ok = 0, fail = 0;
+                  for (const f of archivosStaged) {
+                    try {
+                      const fd = new FormData();
+                      fd.append('archivo', f);
+                      fd.append('id_expediente', expedienteDoc.id_expediente);
+                      fd.append('subido_por', user?.id_usuario);
+                      if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
+                      await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                      ok++;
+                    } catch (e) {
+                      console.error('Falló subida de', f.name, e);
+                      fail++;
+                    }
+                  }
+                  const msg = fail === 0
+                    ? `Se subieron ${ok} archivo(s)`
+                    : `Subidos ${ok}, fallidos ${fail}`;
+                  setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
+                  const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                  setDocumentosDoc(resp.data || []);
+                  setArchivosStaged([]);
+                } catch (err) {
+                  console.error('Error en guardado de documentos:', err);
+                  setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
+                } finally {
+                  setSubiendoDoc(false);
+                }
+              }}
+            >
+              {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
+            </Button>
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Comentario técnico</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              placeholder="Descripción técnica de los documentos..."
-              value={comentarioDoc}
-              onChange={(e) => setComentarioDoc(e.target.value)}
-              disabled={subiendoDoc}
-            />
-          </Form.Group>
+         <br />
+         <br />
+         <hr />
+         <br />
+         <br />
 
          
                         {/*Observaciones grales*/}
@@ -1148,7 +1221,7 @@ export default function UsuarioTecnico() {
                             </Form.Label>
                             <Form.Control
                               type="text"
-                              placeholder="Escriba observaciones generales del expediente..."
+                              placeholder="Escriba una observación para el PRESENTANTE del expediente..."
                               value={observacionTecnico || ""}
                               onChange={(e) => {
                                 setObservacionTecnico(e.target.value);
@@ -1188,26 +1261,24 @@ export default function UsuarioTecnico() {
                                   alert("Observación guardada ✅");
                                   setObservacionTecnico(""); // opcional: limpiar input
                                   setErrorObs("");
-          
+                                  cargarObservaciones(expedienteDoc.id_expediente);
                                 } catch (err) {
                                   console.error(err);
                                   alert("No se pudo guardar la observación.");
-          
                                 }
-          
-                      
-                                console.log("Enviando observación:", {
-                                id_expediente: expedienteDoc.id_expediente,
-                                id_usuario: usuario?.id_usuario,
-                                rol: usuario?.rol,
-                                observacion: observacionTecnico,
-                              });
-          
-          
                               }}
                             >
                               Guardar Observación
                             </Button>
+                            {/* Lista de observaciones enviadas */}
+                            <div className="mt-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                              {observacionesExps.length > 0 && observacionesExps.map((obs, idx) => (
+                                <div key={idx} className="mb-1 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#555' }}>
+                                  <span className="me-2" style={{ color: '#000' }}>•</span>
+                                  <span>{obs.observacion}</span>
+                                </div>
+                              ))}
+                            </div>
                           </Form.Group>
                               <br />
                               
@@ -1238,22 +1309,32 @@ export default function UsuarioTecnico() {
                       <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
                       <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString("es-AR") : '-'}</td>
                       <td>
-                        <button
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={async () => {
-                            if (!window.confirm('¿Eliminar este documento?')) return;
-                            try {
-                              await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                              const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                              setDocumentosDoc(resp.data || []);
-                            } catch (err) {
-                              console.error('Error al eliminar documento:', err);
-                              setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                            }
-                          }}
-                        >
-                          Eliminar
-                        </button>
+                        <div className="d-flex gap-2">
+                          <a
+                            href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-outline-primary btn-sm"
+                          >
+                            Ver
+                          </a>
+                          <button
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={async () => {
+                              if (!window.confirm('¿Eliminar este documento?')) return;
+                              try {
+                                await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                setDocumentosDoc(resp.data || []);
+                              } catch (err) {
+                                console.error('Error al eliminar documento:', err);
+                                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
+                              }
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1263,49 +1344,8 @@ export default function UsuarioTecnico() {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>
+          <Button variant="secondary" className="w-100" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>
             Cancelar
-          </Button>
-          <Button 
-            variant="primary"
-            disabled={archivosStaged.length === 0 || subiendoDoc}
-            onClick={async () => {
-              try {
-                if (!archivosStaged.length) return;
-                setSubiendoDoc(true);
-                setMensajeDoc({ tipo: "", texto: "" });
-                const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-                let ok = 0, fail = 0;
-                for (const f of archivosStaged) {
-                  try {
-                    const fd = new FormData();
-                    fd.append('archivo', f);
-                    fd.append('id_expediente', expedienteDoc.id_expediente);
-                    fd.append('subido_por', user?.id_usuario);
-                    if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
-                    await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                    ok++;
-                  } catch (e) {
-                    console.error('Falló subida de', f.name, e);
-                    fail++;
-                  }
-                }
-                const msg = fail === 0
-                  ? `Se subieron ${ok} archivo(s)`
-                  : `Subidos ${ok}, fallidos ${fail}`;
-                setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
-                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                setDocumentosDoc(resp.data || []);
-                setArchivosStaged([]);
-              } catch (err) {
-                console.error('Error en guardado de documentos:', err);
-                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
-              } finally {
-                setSubiendoDoc(false);
-              }
-            }}
-          >
-            {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -1322,15 +1362,9 @@ export default function UsuarioTecnico() {
               <p><strong>Estado:</strong> {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}</p>
               <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleString("es-AR")}</p>
               <hr />
-              <Form.Group controlId="formArchivosVer">
-                <Form.Label>Adjuntar Documentos</Form.Label>
-                <Form.Control type="file" multiple onChange={handleArchivosVer} />
-              </Form.Group>
+              
               <hr />
-              <h5>Observaciones</h5>
-              <Form.Group controlId="formObservacionVer">
-                <Form.Control as="textarea" rows={3} value={observacionVer} onChange={e => setObservacionVer(e.target.value)} placeholder="Escriba una observación..." />
-              </Form.Group>
+             
               <hr />
               <h5>Realizar Pase</h5>
               <Form.Group controlId="formDestinatarioPase">
@@ -1353,6 +1387,23 @@ export default function UsuarioTecnico() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarModalVer}>Cerrar</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal Deshacer Pase */}
+      <Modal show={!!modalDeshacer} onHide={() => setModalDeshacer(null)} centered>
+        <Modal.Header closeButton className="bg-warning">
+          <Modal.Title>⚠️ Deshacer Pase</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>¿Estás seguro de que deseas deshacer el último pase del expediente <strong>{modalDeshacer?.numero_expediente}</strong>?</p>
+          <p className="text-muted small">
+            El expediente volverá a tu bandeja y se quitará la asignación actual.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setModalDeshacer(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={confirmarDeshacerPase}>Sí, deshacer pase</Button>
         </Modal.Footer>
       </Modal>
     </div>

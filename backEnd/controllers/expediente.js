@@ -155,14 +155,25 @@ export const actualizarExpediente = (req, res) => {
 
   const updated_at = new Date();
 
-  const expedienteUpdate = {
-    tipo_expediente,
-    descripcion,
-    prioridad,
-    estado_actual,
-    updated_at,
-    id_profesional_asignado
-  };
+  // Construir el objeto de actualización de forma dinámica
+  // Solo se agregan al objeto los campos que vienen definidos en el body
+  const expedienteUpdate = { updated_at };
+
+  const camposPermitidos = [
+    'tipo_expediente', 
+    'descripcion', 
+    'prioridad', 
+    'estado_actual', 
+    'id_profesional_asignado',
+    'ubicacion'
+  ];
+
+  camposPermitidos.forEach(campo => {
+    if (req.body[campo] !== undefined) {
+      expedienteUpdate[campo] = req.body[campo];
+    }
+  });
+
 
   // 1. Actualizamos los datos en la DB
   connection.query(
@@ -283,9 +294,12 @@ export const obtenerPasesPorUsuario = (req, res) => {
            e.fecha_creacion,
            e.id_profesional_asignado,
            u.nombre AS nombre_asignado,
-           u.apellido AS apellido_asignado
+           u.apellido AS apellido_asignado,
+           up.nombre AS usuario_presentante_nombre,
+           up.apellido AS usuario_presentante_apellido
     FROM expedientes e
     LEFT JOIN usuario u ON e.id_profesional_asignado = u.id_usuario
+    LEFT JOIN usuario up ON e.id_usuario_presentante = up.id_usuario
     WHERE (
       e.id_profesional_asignado = ?
       OR e.id_expediente IN (

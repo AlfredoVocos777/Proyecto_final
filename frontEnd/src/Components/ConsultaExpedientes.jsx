@@ -251,7 +251,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   const cargarObservaciones = async (idExpediente) => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/observaciones/${idExpediente}`
+        `${URL_OBSERVACIONES}/${idExpediente}`
       );
       const data = res.data;
 
@@ -265,7 +265,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
       setObservacionesJuridico(data.Jurídico || []);
 
       // Director
-      ssetObservacionesDirector(data.Director || []);
+      setObservacionesDirector(data.Director || []);
     } catch (error) {
       console.error("Error al cargar observaciones", error);
     }
@@ -700,113 +700,94 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
 
               <div className="observaciones-box">
                 <h5>Observaciones</h5>
-                <div className="observacion-item">
-                  <h5>Administrativo</h5>
-                  
-                  <div className="observaciones-scroll">
+                
+                {/* Administrativo */}
+                <div className="observacion-item mb-3">
+                  <h6 className="text-primary fw-bold">Administrativo</h6>
+                  <div className="observaciones-scroll p-2 border rounded" style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#f9f9f9' }}>
                     {observacionesAdmin.length > 0 ? (
                       observacionesAdmin.map((obs, i) => (
-                        <Form.Control
-                          key={i}
-                          as="textarea"
-                          rows={3}
-                          className="mb-2"
-                          disabled
-                          value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
-                        />
+                        <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
+                          <span className="me-2" style={{ color: '#007bff' }}>•</span>
+                          <div>
+                            <div>{obs.observacion}</div>
+                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                              {new Date(obs.fecha_hora).toLocaleString('es-AR')}
+                            </small>
+                          </div>
+                        </div>
                       ))
                     ) : (
-                      <Form.Control
-                        as="textarea"
-                        rows={3}
-                        disabled
-                        value="Sin observaciones"
-                      />
+                      <p className="text-muted small mb-0">Sin observaciones</p>
                     )}
-                    </div>
+                  </div>
                 </div>
 
-
-                <div className="observacion-item">
-                  <h5>Técnico</h5>
-
-                  <div className="observaciones-scroll">
-                  {observacionesTecnico.length > 0 ? (
-                    observacionesTecnico.map((obs, i) => (
-                      <Form.Control
-                        key={i}
-                        as="textarea"
-                        rows={2}
-                        className="mb-2"
-                        disabled
-                        value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
-                      />
-                    ))
-                  ) : (
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      disabled
-                      value="Sin observaciones"
-                    />
-                  )}
-                </div>
+                {/* Técnico */}
+                <div className="observacion-item mb-3">
+                  <h6 className="text-success fw-bold">Técnico</h6>
+                  <div className="observaciones-scroll p-2 border rounded" style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#f9f9f9' }}>
+                    {observacionesTecnico.length > 0 ? (
+                      observacionesTecnico.map((obs, i) => (
+                        <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
+                          <span className="me-2" style={{ color: '#28a745' }}>•</span>
+                          <div>
+                            <div>{obs.observacion}</div>
+                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                              {new Date(obs.fecha_hora).toLocaleString('es-AR')}
+                            </small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted small mb-0">Sin observaciones</p>
+                    )}
+                  </div>
                 </div>
 
-
-                <div className="observacion-item">
-                  <h5>Jurídico</h5>
-
-                  <div className="observaciones-scroll">
-                  {observacionesJuridico.length > 0 ? (
-                    observacionesJuridico.map((obs, i) => (
-                      <Form.Control
-                        key={i}
-                        as="textarea"
-                        rows={2}
-                        className="mb-2"
-                        disabled
-                        value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
-                      />
-                    ))
-                  ) : (
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      disabled
-                      value="Sin observaciones"
-                    />
-                  )}
-                </div>
+                {/* Jurídico */}
+                <div className="observacion-item mb-3">
+                  <h6 className="text-info fw-bold">Jurídico</h6>
+                  <div className="observaciones-scroll p-2 border rounded" style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#f9f9f9' }}>
+                    {observacionesJuridico.length > 0 ? (
+                      observacionesJuridico.map((obs, i) => (
+                        <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
+                          <span className="me-2" style={{ color: '#17a2b8' }}>•</span>
+                          <div>
+                            <div>{obs.observacion}</div>
+                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                              {new Date(obs.fecha_hora).toLocaleString('es-AR')}
+                            </small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted small mb-0">Sin observaciones</p>
+                    )}
+                  </div>
                 </div>
 
-
-                <div className="observacion-item">
-                <h5>Director</h5>
-                
-                <div className="observaciones-scroll">
-                {observacionesDirector.length > 0 ? (
-                  observacionesDirector.map((obs, i) => (
-                    <Form.Control
-                      key={i}
-                      as="textarea"
-                      rows={2}
-                      className="mb-2"
-                      disabled
-                      value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
-                    />
-                  ))
-                ) : (
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    disabled
-                    value="Sin observaciones"
-                  />
-                )}
-              </div>
-              </div>
-
+                {/* Director */}
+                <div className="observacion-item mb-3">
+                  <h6 className="text-danger fw-bold">Director</h6>
+                  <div className="observaciones-scroll p-2 border rounded" style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#fff0f0' }}>
+                    {observacionesDirector.length > 0 ? (
+                      observacionesDirector.map((obs, i) => (
+                        <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
+                          <span className="me-2" style={{ color: '#dc3545' }}>•</span>
+                          <div>
+                            <div>{obs.observacion}</div>
+                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                              {new Date(obs.fecha_hora).toLocaleString('es-AR')}
+                            </small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted small mb-0">Sin observaciones</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Recepción y pases */}

@@ -109,35 +109,11 @@ const NuevoTramite = () => {
         return;
       }
 
-      // Asegurar que exista un expediente creado para asociar los archivos
-      let expedienteCreado = localStorage.getItem("expedienteCreado");
-      let expedienteId = null;
+      // En la lógica de carga temporal, el expediente aún no existe en la BD formalmente.
+      // Usamos el ID del usuario como referencia si es necesario, pero lo importante es 
+      // que el backend acepte la subida física de los archivos.
+      const expedienteId = usuario?.id_usuario || usuario?.id || 0;
 
-      if (expedienteCreado) {
-        const exp = JSON.parse(expedienteCreado);
-        expedienteId = exp.id;
-      } else {
-        // Crear el expediente ahora con los datos pendientes
-        if (!expedienteInfo) {
-          setError(
-            "No se encontró la información del expediente para crearlo."
-          );
-          return;
-        }
-
-        const resp = await axios.post(URL_EXPEDIENTES, expedienteInfo);
-        expedienteId = resp.data?.id_expediente;
-        if (!expedienteId) {
-          throw new Error("No se obtuvo ID de expediente al crear.");
-        }
-        const nuevoExp = {
-          id: expedienteId,
-          numero_expediente: resp.data.numero_expediente,
-          ...expedienteInfo,
-        };
-        localStorage.setItem("expedienteCreado", JSON.stringify(nuevoExp));
-        setExpedienteInfo(nuevoExp);
-      }
 
       // Subir múltiples archivos al endpoint '/expedientes/documentos/upload'
       const formData = new FormData();
