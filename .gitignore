@@ -30,3 +30,7 @@ logs/
 # WhatsApp
 backEnd/.wwebjs_auth/
 backEnd/.wwebjs_cache/
+
+# Uploads
+backEnd/uploads/*
+!backEnd/uploads/.gitkeep
