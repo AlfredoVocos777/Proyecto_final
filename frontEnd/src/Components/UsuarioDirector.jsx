@@ -45,6 +45,25 @@ export default function UsuarioDirector() {
   const [documentosDoc, setDocumentosDoc] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
 
+  // Estados para Observaciones (Director) - Sincronizado con Decisión Final
+  const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
+
+  const cargarObservaciones = async (idExp) => {
+    try {
+      const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
+      const data = res.data || {};
+      const todas = [
+        ...(data.Administrativo || []).map(o => ({ ...o, rol: 'Administrativo' })),
+        ...(data.Técnico || []).map(o => ({ ...o, rol: 'Técnico' })),
+        ...(data.Jurídico || []).map(o => ({ ...o, rol: 'Jurídico' })),
+        ...(data.Director || []).map(o => ({ ...o, rol: 'Director' }))
+      ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
+      setObservacionesExps(todas);
+    } catch (err) {
+      console.error("Error al cargar observaciones:", err);
+    }
+  };
+
   // Estados para aprobar/rechazar expediente (integrado en modal de revisión)
   const [showModalRevision, setShowModalRevision] = useState(false);
   const [expedienteRevision, setExpedienteRevision] = useState(null);
@@ -326,6 +345,7 @@ export default function UsuarioDirector() {
 
     // Cargar historial del expediente
     try {
+      cargarObservaciones(expediente.id_expediente);
       const resHist = await axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`);
       setHistorialRevision(resHist.data || []);
     } catch (err) {
@@ -502,7 +522,10 @@ export default function UsuarioDirector() {
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
       .catch(err => console.error('Error al cargar documentos:', err))
-      .finally(() => setLoadingDocs(false));
+      .finally(() => {
+        setLoadingDocs(false);
+        cargarObservaciones(expediente.id_expediente);
+      });
   };
 
   const cerrarModalDoc = () => {
@@ -651,8 +674,21 @@ export default function UsuarioDirector() {
               <p>Cargando expedientes...</p>
             ) : expedientesPendientes.length > 0 ? (
               (() => {
-                const totalPaginasBandeja = Math.max(1, Math.ceil(expedientesPendientes.length / 6));
-                const expPagBandeja = expedientesPendientes.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
+                // Filtrar para que solo aparezcan los que NO están aprobados ni rechazados
+                const pendientesRealmente = expedientesPendientes.filter(exp => 
+                  !['aprobado', 'rechazado'].includes((exp.estado || exp.estado_actual || '').toLowerCase())
+                );
+
+                if (pendientesRealmente.length === 0) {
+                  return (
+                    <div className="sin-expedientes">
+                      <p>No hay expedientes pendientes de revisión</p>
+                    </div>
+                  );
+                }
+
+                const totalPaginasBandeja = Math.max(1, Math.ceil(pendientesRealmente.length / 6));
+                const expPagBandeja = pendientesRealmente.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
                 return (
               <div className="expedientes-pendientes">
                 <h2>Expedientes Pendientes de Revisión</h2>
@@ -662,7 +698,7 @@ export default function UsuarioDirector() {
                     <button key={i+1} className={`cpag-btn${paginaBandeja === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaBandeja(i+1)}>{i+1}</button>
                   ))}
                   <button className="cpag-btn" disabled={paginaBandeja === totalPaginasBandeja} onClick={() => setPaginaBandeja(p => p + 1)}>›</button>
-                  <span className="cpag-info">{expedientesPendientes.length} expediente(s)</span>
+                  <span className="cpag-info">{pendientesRealmente.length} expediente(s)</span>
                 </div>
                 <div className="tabla-container">
                   <table className="tabla-expedientes">
@@ -807,10 +843,16 @@ export default function UsuarioDirector() {
             <Nav.Link active={["inicio","bandeja"].includes(seccionActiva)} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
           </Nav.Item>
           <Nav.Item>
-            <Nav.Link active={seccionActiva === "recepcion-pase"} onClick={() => setSeccionActiva("recepcion-pase")}>📤 Realizar Pase</Nav.Link>
+            <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
           </Nav.Item>
           <Nav.Item>
-            <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
+            <button
+              className="nav-reporte-btn"
+              onClick={() => { const url = exportarPDF(); if (url) setNavPreviewUrl(url); }}
+              disabled={generandoPDF}
+            >
+              {generandoPDF ? "⏳ Generando..." : "🖨️ Reporte"}
+            </button>
           </Nav.Item>
           <Nav.Item>
             <button
@@ -1252,18 +1294,7 @@ export default function UsuarioDirector() {
                       : 'Puede adjuntar resoluciones, dictámenes u otros documentos oficiales'}
                   </Form.Text>
                 </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label><strong>Comentario sobre los documentos</strong></Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    placeholder="Describa los documentos que está adjuntando..."
-                    value={comentarioDocRevision}
-                    onChange={(e) => setComentarioDocRevision(e.target.value)}
-                    disabled={subiendoDoc || procesandoDecision}
-                  />
-                </Form.Group>
+                <br />
 
                 <Button 
                   variant="outline-success"
@@ -1274,8 +1305,9 @@ export default function UsuarioDirector() {
                   {subiendoDoc ? 'Subiendo...' : '📤 Subir Documentos'}
                 </Button>
               </div>
-
+              <br />
               <hr />
+              <br />
 
               {/* Decisión Final */}
               <div className="mb-3">
@@ -1332,6 +1364,17 @@ export default function UsuarioDirector() {
                     onChange={(e) => setComentarioDecision(e.target.value)}
                     disabled={procesandoDecision || !decisionTipo}
                   />
+                  {/* Historial de observaciones enviadas (reubicado) */}
+                  <div className="mt-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                    {observacionesExps.length > 0 && observacionesExps.map((obs, idx) => (
+                      <div key={idx} className="mb-1 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#555' }}>
+                        <span className="me-2" style={{ color: '#000' }}>•</span>
+                        <span>
+                          <strong style={{ fontSize: '0.75rem', color: '#333' }}>[{obs.rol}]</strong> {obs.observacion}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </Form.Group>
               </div>
             </>

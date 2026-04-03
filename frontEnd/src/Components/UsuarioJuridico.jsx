@@ -10,6 +10,7 @@ import BotonesReporte from "./BotonesReporte";
 
 export default function UsuarioJuridico() {
   const navigate = useNavigate();
+  const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
   const [seccionActiva, setSeccionActiva] = useState("bandeja");
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [navPreviewUrl, setNavPreviewUrl] = useState(null);
@@ -58,10 +59,30 @@ export default function UsuarioJuridico() {
   const [mensajeVer, setMensajeVer] = useState({ tipo: "", texto: "" });
   const [destinatarioPase, setDestinatarioPase] = useState("");
   const [usuariosPase, setUsuariosPase] = useState([]);
+  const [pasesPorExp, setPasesPorExp] = useState({}); // id_expediente -> true/false
+  const [modalDeshacer, setModalDeshacer] = useState(null); // expediente para deshacer
 
   // Observaciones generales
   const [observacionJuridico, setObservacionJuridico] = useState("");
   const [errorObs, setErrorObs] = useState("");
+  const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
+  
+  const cargarObservaciones = async (idExp) => {
+    try {
+      const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
+      // El backend devuelve { Administrativo: [], Técnico: [], Jurídico: [], Director: [] }
+      const data = res.data || {};
+      const todas = [
+        ...(data.Administrativo || []),
+        ...(data.Técnico || []),
+        ...(data.Jurídico || []),
+        ...(data.Director || [])
+      ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
+      setObservacionesExps(todas);
+    } catch (err) {
+      console.error("Error al cargar observaciones:", err);
+    }
+  };
 
   useEffect(() => {
     setLoadingTodos(true);
@@ -70,45 +91,18 @@ export default function UsuarioJuridico() {
       .catch(() => setExpedientesTodos([]))
       .finally(() => setLoadingTodos(false));
     try {
-      const raw = localStorage.getItem("usuarioLogueado");
-      const user = raw ? JSON.parse(raw) : null;
+      const user = usuarioLogueado;
       const idRol = user?.id_rol;
       const idUsuario = user?.id_usuario;
       if (!idRol) { setLoading(false); return; }
 
       axios.get(`${URL_ROLES}/${idRol}`)
-        .then(res => setPermisosUsuario((res?.data?.permisos || []).map(p => p.nombre)))
-        .catch(() => {})
-        .finally(() => setLoading(false));
+        .then(res => {
+          const perms = (res?.data?.permisos || []).map(p => p.nombre);
+          setPermisosUsuario(perms);
+        }).catch(() => {}).finally(() => setLoading(false));
 
-      if (idUsuario) {
-        setLoadingExpedientes(true);
-        axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`)
-          .then(async res => {
-            const expedientes = res.data || [];
-            const expedientesConEstado = await Promise.all(
-              expedientes.map(async exp => {
-                try {
-                  const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                  const recepcionPorUsuario = historial.data.find(h =>
-                    h.id_usuario_responsable === idUsuario &&
-                    h.accion?.toLowerCase().includes('recepción')
-                  );
-                  const ultimaRecepcion = historial.data
-                    .filter(h => h.accion?.toLowerCase().includes('recepción'))
-                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-                  const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
-                  return { ...exp, recepcionado: !!recepcionPorUsuario, puedeHacerPase, recepcionadoPor: ultimaRecepcion?.id_usuario_responsable };
-                } catch {
-                  return { ...exp, recepcionado: false, puedeHacerPase: false };
-                }
-              })
-            );
-            setExpedientesPendientes(expedientesConEstado);
-          })
-          .catch(err => console.error("Error al cargar expedientes con pase:", err))
-          .finally(() => setLoadingExpedientes(false));
-      }
+      recargarExpedientes();
     } catch { setLoading(false); }
   }, []);
 
@@ -231,6 +225,7 @@ export default function UsuarioJuridico() {
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
+    cargarObservaciones(expediente.id_expediente);
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
       .catch(err => console.error('Error al cargar documentos:', err))
@@ -281,25 +276,74 @@ export default function UsuarioJuridico() {
     setMensajeVer({ tipo: "", texto: "" });
   };
 
+  const handleDeshacerExito = (id_expediente) => {
+    setExpedientesPendientes(prev =>
+      prev.map(e => e.id_expediente === id_expediente
+        ? { ...e, estado_actual: "en revisión", id_profesional_asignado: usuarioLogueado?.id_usuario, recepcionado: true, puedeHacerPase: true }
+        : e
+      )
+    );
+    setPasesPorExp(prev => ({ ...prev, [id_expediente]: false }));
+    recargarExpedientes();
+  };
+
+  const confirmarDeshacerPase = async () => {
+    if (!modalDeshacer) return;
+    try {
+      await axios.delete(`${URL_HISTORIAL}/deshacer-pase/${modalDeshacer.id_expediente}`);
+      handleDeshacerExito(modalDeshacer.id_expediente);
+      setModalDeshacer(null);
+    } catch (err) {
+      alert("Error al deshacer el pase.");
+    }
+  };
+
   const usuarioActual = (() => {
     try { return JSON.parse(localStorage.getItem("usuarioLogueado")); } catch { return null; }
   })();
 
   const recargarExpedientes = () => {
-    const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
+    const u = usuarioLogueado;
     if (!u?.id_usuario) return;
     setLoadingExpedientes(true);
-    axios.get(`${URL_EXPEDIENTES_PASES}/${u.id_usuario}`)
-      .then(async res => {
-        const expedientes = res.data || [];
+    Promise.all([
+      axios.get(`${URL_EXPEDIENTES_PASES}/${u.id_usuario}`),
+      axios.get(URL_EXPEDIENTES, { params: { estado: 'asignado' } })
+    ]).then(async ([resAsignados, resAsignadosGral]) => {
+        const listA = resAsignados.data || [];
+        const listG = resAsignadosGral.data || [];
+        
+        const mapU = new Map();
+        listA.forEach(e => mapU.set(e.id_expediente, e));
+        listG.forEach(e => mapU.set(e.id_expediente, e));
+
+        const expedientes = Array.from(mapU.values());
+        const mapaP = {};
+
         const expedientesConEstado = await Promise.all(
           expedientes.map(async exp => {
             try {
               const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-              const recepcionPorUsuario = historial.data.find(h =>
+              const hD = historial.data || [];
+
+              const pReversibles = hD.filter(h => 
+                (h.tipo_accion ?? "").toLowerCase() === "asignación" ||
+                (h.accion ?? "").toLowerCase().includes("pase")
+              );
+              const ultimoPase = pReversibles[0];
+              const penultimoPase = pReversibles[1];
+
+              // Es reversible si yo lo tenía antes y ahora lo tiene otro
+              const esReversible = ultimoPase && 
+                                  ultimoPase.id_usuario_responsable !== u.id_usuario && 
+                                  penultimoPase && penultimoPase.id_usuario_responsable === u.id_usuario;
+
+              mapaP[exp.id_expediente] = !!esReversible;
+
+              const recepcionPorUsuario = hD.find(h =>
                 h.id_usuario_responsable === u.id_usuario && h.accion?.toLowerCase().includes('recepción')
               );
-              const ultimaRecepcion = historial.data
+              const ultimaRecepcion = hD
                 .filter(h => h.accion?.toLowerCase().includes('recepción'))
                 .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
               const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === u.id_usuario;
@@ -307,6 +351,7 @@ export default function UsuarioJuridico() {
             } catch { return { ...exp, recepcionado: false, puedeHacerPase: false }; }
           })
         );
+        setPasesPorExp(mapaP);
         setExpedientesPendientes(expedientesConEstado);
       })
       .catch(err => console.error("Error al recargar expedientes:", err))
@@ -314,7 +359,6 @@ export default function UsuarioJuridico() {
   };
 
   const renderContenido = () => {
-    const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
     switch (seccionActiva) {
       case "consultar-expediente": {
         const expedientesFiltrados = expedientesTodos.filter(exp => {
@@ -373,7 +417,11 @@ export default function UsuarioJuridico() {
       case "realizar-pase": {
         const expedientesMap = new Map();
         for (const exp of expedientesPendientes) {
+          const reversible = !!pasesPorExp[exp.id_expediente];
           if (exp.recepcionado && exp.puedeHacerPase && exp.id_profesional_asignado === usuarioLogueado.id_usuario) {
+            expedientesMap.set(exp.id_expediente, exp);
+          }
+          if (reversible && (exp.estado_actual === 'asignado' || exp.estado_actual === 'en revisión')) {
             expedientesMap.set(exp.id_expediente, exp);
           }
         }
@@ -418,16 +466,34 @@ export default function UsuarioJuridico() {
                         <td>{exp.ubicacion || 'N/A'}</td>
                         <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
                         <td>
-                          <Button variant="primary" size="sm" onClick={async () => {
-                            setExpedienteVer(exp);
-                            try {
-                              const resp = await axios.get('http://localhost:8000/usuarios');
-                              setUsuariosPase(resp.data || []);
-                            } catch { setUsuariosPase([]); }
-                            setShowModalVer(true);
-                          }}>
-                            Realizar Pase
-                          </Button>
+                          <div className="d-flex gap-2">
+                            {!!pasesPorExp[exp.id_expediente] ? (
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                onClick={() => setModalDeshacer(exp)}
+                              >
+                                ↩️ Deshacer Pase
+                              </Button>
+                            ) : (
+                              exp.id_profesional_asignado === usuarioLogueado?.id_usuario && (
+                                <Button variant="primary" size="sm" onClick={async () => {
+                                  setExpedienteVer(exp);
+                                  try {
+                                    const resp = await axios.get('http://localhost:8000/usuarios');
+                                    const soloDirector = (resp.data || []).filter(u => 
+                                      u.tipo_usuario?.toLowerCase() === 'director' || 
+                                      u.rol?.toLowerCase() === 'director'
+                                    );
+                                    setUsuariosPase(soloDirector);
+                                  } catch { setUsuariosPase([]); }
+                                  setShowModalVer(true);
+                                }}>
+                                  Realizar Pase
+                                </Button>
+                              )
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -568,10 +634,7 @@ export default function UsuarioJuridico() {
         <Modal.Body>
           {mensajeRecepcion.tipo && <Alert variant={mensajeRecepcion.tipo}>{mensajeRecepcion.texto}</Alert>}
           <p><strong>Expedientes seleccionados:</strong> {expedientesSeleccionados.length}</p>
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Observaciones</strong></Form.Label>
-            <Form.Control as="textarea" rows={3} placeholder="Observaciones jurídicas sobre la recepción..." value={observacionesRecepcion} onChange={e => setObservacionesRecepcion(e.target.value)} disabled={procesandoRecepcion} />
-          </Form.Group>
+          
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarModalRecepcion} disabled={procesandoRecepcion}>Cancelar</Button>
@@ -641,11 +704,48 @@ export default function UsuarioJuridico() {
             <Form.Label><strong>Seleccionar archivos</strong></Form.Label>
             <Form.Control type="file" multiple onChange={e => setArchivosStaged(Array.from(e.target.files))} disabled={subiendoDoc} />
             <Form.Text>Archivos seleccionados: {archivosStaged.length}</Form.Text>
+            <Button 
+              className="mt-2"
+              size="sm"
+              variant="primary"
+              disabled={archivosStaged.length === 0 || subiendoDoc}
+              onClick={async () => {
+                try {
+                  if (!archivosStaged.length) return;
+                  setSubiendoDoc(true);
+                  setMensajeDoc({ tipo: "", texto: "" });
+                  const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                  let ok = 0, fail = 0;
+                  for (const f of archivosStaged) {
+                    try {
+                      const fd = new FormData();
+                      fd.append('archivo', f);
+                      fd.append('id_expediente', expedienteDoc.id_expediente);
+                      fd.append('subido_por', user?.id_usuario);
+                      if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
+                      await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                      ok++;
+                    } catch { fail++; }
+                  }
+                  setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: `Subidos ${ok}${fail > 0 ? `, fallidos ${fail}` : ''}` });
+                  const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                  setDocumentosDoc(resp.data || []);
+                  setArchivosStaged([]);
+                } catch (err) {
+                  setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
+                } finally {
+                  setSubiendoDoc(false);
+                }
+              }}
+            >
+              {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
+            </Button>
           </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Comentario</strong></Form.Label>
-            <Form.Control as="textarea" rows={2} placeholder="Descripción de los documentos..." value={comentarioDoc} onChange={e => setComentarioDoc(e.target.value)} disabled={subiendoDoc} />
-          </Form.Group>
+          <br />
+          <br />
+          <hr />
+          <br />
+          <br />
           <Form.Group className="mb-3">
             <Form.Label><strong>Observaciones generales:</strong></Form.Label>
             <Form.Control type="text" placeholder="Escriba observaciones del expediente..." value={observacionJuridico} onChange={e => { setObservacionJuridico(e.target.value); setErrorObs(""); }} isInvalid={!!errorObs} disabled={subiendoDoc} />
@@ -659,11 +759,25 @@ export default function UsuarioJuridico() {
                 alert("Observación guardada ✅");
                 setObservacionJuridico("");
                 setErrorObs("");
+                cargarObservaciones(expedienteDoc.id_expediente);
               } catch { alert("No se pudo guardar la observación."); }
             }}>
               Guardar Observación
             </Button>
+            {/* Lista de observaciones enviadas */}
+            <div className="mt-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
+              {observacionesExps.length > 0 && observacionesExps.map((obs, idx) => (
+                <div key={idx} className="mb-1 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#555' }}>
+                  <span className="me-2" style={{ color: '#000' }}>•</span>
+                  <span>{obs.observacion}</span>
+                </div>
+              ))}
+            </div>
           </Form.Group>
+          <br />
+          <br />
+          <hr />
+          <br />
           <br />
           {loadingDocs ? <p>Cargando documentos existentes...</p> : documentosDoc.length > 0 && (
             <div className="mt-4">
@@ -678,14 +792,24 @@ export default function UsuarioJuridico() {
                       <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
                       <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString("es-AR") : '-'}</td>
                       <td>
-                        <button className="btn btn-outline-danger btn-sm" onClick={async () => {
-                          if (!window.confirm('¿Eliminar este documento?')) return;
-                          try {
-                            await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                            const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                            setDocumentosDoc(resp.data || []);
-                          } catch (err) { setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' }); }
-                        }}>Eliminar</button>
+                        <div className="d-flex gap-2">
+                          <a
+                            href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-outline-primary btn-sm"
+                          >
+                            Ver
+                          </a>
+                          <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                            if (!window.confirm('¿Eliminar este documento?')) return;
+                            try {
+                              await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                              const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                              setDocumentosDoc(resp.data || []);
+                            } catch (err) { setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' }); }
+                          }}>Eliminar</button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -695,32 +819,7 @@ export default function UsuarioJuridico() {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>Cancelar</Button>
-          <Button variant="primary" disabled={archivosStaged.length === 0 || subiendoDoc} onClick={async () => {
-            if (!archivosStaged.length) return;
-            setSubiendoDoc(true);
-            setMensajeDoc({ tipo: "", texto: "" });
-            const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-            let ok = 0, fail = 0;
-            for (const f of archivosStaged) {
-              try {
-                const fd = new FormData();
-                fd.append('archivo', f);
-                fd.append('id_expediente', expedienteDoc.id_expediente);
-                fd.append('subido_por', user?.id_usuario);
-                if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
-                await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                ok++;
-              } catch { fail++; }
-            }
-            setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: `Subidos ${ok}${fail > 0 ? `, fallidos ${fail}` : ''}` });
-            const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-            setDocumentosDoc(resp.data || []);
-            setArchivosStaged([]);
-            setSubiendoDoc(false);
-          }}>
-            {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
-          </Button>
+          <Button variant="secondary" className="w-100" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>Cancelar</Button>
         </Modal.Footer>
       </Modal>
 
@@ -734,14 +833,9 @@ export default function UsuarioJuridico() {
               <p><strong>Estado:</strong> {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}</p>
               <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleString("es-AR")}</p>
               <hr />
-              <Form.Group>
-                <Form.Label>Adjuntar Documentos</Form.Label>
-                <Form.Control type="file" multiple onChange={handleArchivosVer} />
-              </Form.Group>
+              
               <hr />
-              <h5>Observaciones</h5>
-              <Form.Control as="textarea" rows={3} value={observacionVer} onChange={e => setObservacionVer(e.target.value)} placeholder="Escriba una observación..." />
-              <hr />
+             
               <h5>Realizar Pase</h5>
               <Form.Group>
                 <Form.Label>Destinatario</Form.Label>
@@ -761,6 +855,23 @@ export default function UsuarioJuridico() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarModalVer}>Cerrar</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal Deshacer Pase */}
+      <Modal show={!!modalDeshacer} onHide={() => setModalDeshacer(null)} centered>
+        <Modal.Header closeButton className="bg-warning">
+          <Modal.Title>⚠️ Deshacer Pase</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>¿Estás seguro de que deseas deshacer el último pase del expediente <strong>{modalDeshacer?.numero_expediente}</strong>?</p>
+          <p className="text-muted small">
+            El expediente volverá a tu bandeja y se quitará la asignación actual.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setModalDeshacer(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={confirmarDeshacerPase}>Sí, deshacer pase</Button>
         </Modal.Footer>
       </Modal>
     </div>

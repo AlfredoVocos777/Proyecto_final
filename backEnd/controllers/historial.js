@@ -39,7 +39,7 @@ export const crearAsignacion = (req, res) => {
     // Actualizar el campo id_profesional_asignado y estado_actual en la tabla expedientes
     if (tipo_accion === "asignación") {
       connection.query(
-        "UPDATE expedientes SET id_profesional_asignado = ?, estado_actual = 'en revisión' WHERE id_expediente = ?",
+        "UPDATE expedientes SET id_profesional_asignado = ?, estado_actual = 'asignado' WHERE id_expediente = ?",
         [id_usuario_responsable, id_expediente],
         (err2) => {
           if (err2) {
@@ -148,44 +148,48 @@ export const recepcionarExpediente = (req, res) => {
 export const deshacerPase = (req, res) => {
   const { id_expediente } = req.params;
 
-  // 1. Encontrar el último pase en historial
+  // 1. Encontrar los últimos registros en historial para restaurar el estado anterior
   const sqlBuscar = `
-    SELECT id_historial FROM historial_expediente
+    SELECT id_historial, id_usuario_responsable, accion, tipo_accion
+    FROM historial_expediente
     WHERE id_expediente = ?
-      AND (
-        LOWER(tipo_accion) = 'asignación'
-        OR LOWER(accion) LIKE '%pase%'
-        OR LOWER(accion) LIKE '%asignaci%'
-      )
     ORDER BY fecha DESC
-    LIMIT 1
+    LIMIT 2
   `;
 
   connection.query(sqlBuscar, [id_expediente], (err, results) => {
     if (err) {
-      console.error("❌ Error al buscar el pase:", err);
-      return res.status(500).json({ error: "Error al buscar el pase" });
+      console.error("❌ Error al buscar el historial:", err);
+      return res.status(500).json({ error: "Error al buscar el historial para deshacer" });
     }
     if (results.length === 0) {
-      return res.status(404).json({ error: "No se encontró un pase para deshacer" });
+      return res.status(404).json({ error: "No se encontró historial para este expediente" });
     }
 
-    const id_historial = results[0].id_historial;
+    const ultimoPase = results[0];
+    const registroAnterior = results.length > 1 ? results[1] : null;
 
     // 2. Eliminar el registro del pase
     connection.query(
       "DELETE FROM historial_expediente WHERE id_historial = ?",
-      [id_historial],
+      [ultimoPase.id_historial],
       (err2) => {
         if (err2) {
           console.error("❌ Error al eliminar el pase:", err2);
           return res.status(500).json({ error: "Error al eliminar el pase" });
         }
 
-        // 3. Revertir el estado del expediente a 'en revisión'
+        // 3. Revertir el estado del expediente
+        // El nuevo responsable es el del registro previo al que borramos
+        const id_nuevo_responsable = registroAnterior ? registroAnterior.id_usuario_responsable : null;
+        
+        // Si el anterior registro era una recepción, el estado vuelve a 'en revisión'
+        // De lo contrario, queda en 'asignado'
+        const nuevo_estado = (registroAnterior?.accion?.toLowerCase().includes('recep')) ? 'en revisión' : 'asignado';
+
         connection.query(
-          "UPDATE expedientes SET estado_actual = 'en revisión', id_profesional_asignado = NULL, updated_at = NOW() WHERE id_expediente = ?",
-          [id_expediente],
+          "UPDATE expedientes SET estado_actual = ?, id_profesional_asignado = ?, updated_at = NOW() WHERE id_expediente = ?",
+          [nuevo_estado, id_nuevo_responsable, id_expediente],
           (err3) => {
             if (err3) {
               console.error("❌ Error al revertir expediente:", err3);
@@ -195,7 +199,7 @@ export const deshacerPase = (req, res) => {
             // 4. Registrar la anulación en historial
             connection.query(
               `INSERT INTO historial_expediente (id_expediente, fecha, accion, comentario, tipo_accion)
-               VALUES (?, NOW(), 'Pase anulado', 'El pase fue revertido por el administrador', 'revisión')`,
+               VALUES (?, NOW(), 'Pase anulado', 'El pase fue revertido', 'revisión')`,
               [id_expediente],
               () => {
                 res.json({ mensaje: "Pase deshecho correctamente" });

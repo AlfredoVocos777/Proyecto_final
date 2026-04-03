@@ -146,13 +146,8 @@ export const eliminarDocumento = (req, res) => {
 // Subir múltiples documentos (solo archivos físicos, sin registrar en BD)
 export const subirMultiplesDocumentos = async (req, res) => {
     try {
-        // Aceptamos tanto expedienteId como id_expediente para compatibilidad
-        const expedienteId = req.body.expedienteId || req.body.id_expediente;
+        const expedienteId = req.body.expedienteId || req.body.id_expediente || 0;
         const subido_por = req.body.subido_por || null;
-
-        if (!expedienteId) {
-            return res.status(400).json({ error: 'Falta el ID del expediente' });
-        }
 
         const files = req.files || [];
         if (!files.length) {

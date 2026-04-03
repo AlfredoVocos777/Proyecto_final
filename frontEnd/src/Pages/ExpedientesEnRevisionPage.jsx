@@ -9,7 +9,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Header_1 from "../Components/Header_1";
 import Footer from "../Components/Footer";
-import { URL_EXPEDIENTES, URL_HISTORIAL, URL_USUARIOS } from "../Constants/endpoints";
+import { URL_EXPEDIENTES, URL_HISTORIAL, URL_USUARIOS, URL_OBSERVACIONES } from "../Constants/endpoints";
 
 const API_DOCS    = "http://localhost:8000/api/documentos";
 const API_NOTIFICAR = "http://localhost:8000/api/notificar-pase";
@@ -63,7 +63,7 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
 
   const handlePase = useCallback(async () => {
     if (!tecnicoId) { setFeedback({ tipo: "warning", msg: "Seleccioná un técnico." }); return; }
-    if (!observacion.trim()) { setFeedback({ tipo: "warning", msg: "Ingresá una observación." }); return; }
+    
     setEnviando(true);
     setFeedback(null);
     try {
@@ -115,22 +115,7 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
           </div>
         </div>
 
-        <h6 className="fw-bold">Documentos adjuntos</h6>
-        {loadingDocs ? (
-          <div className="text-center py-2"><Spinner size="sm" /> Cargando…</div>
-        ) : documentos.length === 0 ? (
-          <Alert variant="secondary" className="py-2">Sin documentos.</Alert>
-        ) : (
-          <ul className="list-group mb-3">
-            {documentos.map((doc) => (
-              <li key={doc.id_documento} className="list-group-item d-flex justify-content-between align-items-center">
-                <span>📎 {doc.nombre_archivo}</span>
-                <Button size="sm" variant="outline-primary"
-                  href={`${API_DOCS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer">Ver</Button>
-              </li>
-            ))}
-          </ul>
-        )}
+        
 
         <hr />
         <Form.Group className="mb-3">
@@ -142,19 +127,15 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
             ))}
           </Form.Select>
         </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Observaciones <span className="text-danger">*</span></Form.Label>
-          <Form.Control as="textarea" rows={3} value={observacion}
-            onChange={(e) => setObservacion(e.target.value)}
-            placeholder="Motivo del pase o indicaciones…" />
-        </Form.Group>
+       
         {feedback && <Alert variant={feedback.tipo} className="mb-0">{feedback.msg}</Alert>}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onClose} disabled={enviando}>Cancelar</Button>
-        <Button variant="primary" onClick={handlePase} disabled={enviando || !tecnicoId || !observacion.trim()}>
+        
+        <Button variant="primary" onClick={handlePase} disabled={enviando || !tecnicoId }>
           {enviando ? <><Spinner size="sm" className="me-2" />Procesando…</> : "Confirmar Pase"}
         </Button>
+        <Button variant="secondary" onClick={onClose} disabled={enviando}>Cancelar</Button>
       </Modal.Footer>
     </Modal>
   );
@@ -217,6 +198,27 @@ function ModalDetalle({ expediente, onClose }) {
   const [historial, setHistorial]   = useState([]);
   const [documentos, setDocumentos] = useState([]);
   const [loading, setLoading]       = useState(true);
+  const [observacionAdmin, setObservacionAdmin] = useState("");
+  const [errorObs, setErrorObs]     = useState("");
+  const [subiendoObs, setSubiendoObs] = useState(false);
+  const [observacionesExps, setObservacionesExps] = useState([]);
+
+  const cargarObservaciones = async () => {
+    if (!expediente) return;
+    try {
+      const res = await axios.get(`${URL_OBSERVACIONES}/${expediente.id_expediente}`);
+      const data = res.data || {};
+      const todas = [
+        ...(data.Administrativo || []),
+        ...(data.Técnico || []),
+        ...(data.Jurídico || []),
+        ...(data.Director || [])
+      ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
+      setObservacionesExps(todas);
+    } catch (err) {
+      console.error("Error al cargar observaciones:", err);
+    }
+  };
 
   useEffect(() => {
     if (!expediente) return;
@@ -227,6 +229,7 @@ function ModalDetalle({ expediente, onClose }) {
     ]).then(([resHist, resDocs]) => {
       setHistorial(Array.isArray(resHist.data) ? resHist.data : []);
       setDocumentos(Array.isArray(resDocs.data) ? resDocs.data : []);
+      cargarObservaciones();
     }).finally(() => setLoading(false));
   }, [expediente]);
 
@@ -285,6 +288,61 @@ function ModalDetalle({ expediente, onClose }) {
             ))}
           </ul>
         )}
+
+        <hr />
+        <Form.Group className="mb-3">
+          <Form.Label><strong>Observaciones generales:</strong></Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            placeholder="Escriba una observación para el PRESENTANTE del expediente..."
+            value={observacionAdmin}
+            onChange={(e) => { setObservacionAdmin(e.target.value); setErrorObs(""); }}
+            isInvalid={!!errorObs}
+            disabled={subiendoObs}
+          />
+          <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
+          <Button
+            className="mt-2"
+            size="sm"
+            variant="primary"
+            disabled={subiendoObs}
+            onClick={async () => {
+              if (!observacionAdmin.trim()) {
+                setErrorObs("Debe escribir una observación antes de guardar.");
+                return;
+              }
+              const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+              setSubiendoObs(true);
+              try {
+                await axios.post(URL_OBSERVACIONES, {
+                  id_expediente: expediente.id_expediente,
+                  id_usuario: user.id_usuario,
+                  observacion: observacionAdmin
+                });
+                alert("Observación guardada ✅");
+                setObservacionAdmin("");
+                cargarObservaciones();
+              } catch (err) {
+                console.error(err);
+                alert("No se pudo guardar la observación.");
+              } finally {
+                setSubiendoObs(false);
+              }
+            }}
+          >
+            {subiendoObs ? "Guardando..." : "Guardar Observación"}
+          </Button>
+          {/* Lista de observaciones enviadas */}
+          <div className="mt-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
+            {observacionesExps.length > 0 && observacionesExps.map((obs, idx) => (
+              <div key={idx} className="mb-1 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#555' }}>
+                <span className="me-2" style={{ color: '#000' }}>•</span>
+                <span>{obs.observacion}</span>
+              </div>
+            ))}
+          </div>
+        </Form.Group>
 
         {/* Historial */}
         <h6 className="fw-bold">Historial de acciones</h6>
@@ -622,6 +680,8 @@ export default function ExpedientesEnRevisionPage() {
               <p className="mt-2 text-muted">Cargando expedientes…</p>
             </div>
           )}
+
+          <hr />
 
           {error && !loading && <Alert variant="danger">{error}</Alert>}
 
