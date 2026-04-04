@@ -792,6 +792,10 @@ export default function UsuarioTecnico() {
                                   try {
                                     setCargandoDestinatarios(exp.id_expediente);
                                     setExpedienteVer(exp);
+                                    setArchivosVer([]);
+                                    setInformeTecnico("");
+                                    setDestinatarioPase("");
+                                    setMensajeVer({ tipo: "", texto: "" });
                                     const resp = await axios.get('http://localhost:8000/usuarios/juridicos');
                                     setUsuariosPase(resp.data || []);
                                     setShowModalVer(true);
@@ -1390,9 +1394,12 @@ export default function UsuarioTecnico() {
                 <Form.Select value={destinatarioPase} onChange={e => setDestinatarioPase(e.target.value)}>
                   <option value="">Seleccione destinatario</option>
                   {usuariosPase.map(u => (
-                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.tipo_usuario})</option>
+                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.rol || u.tipo_usuario})</option>
                   ))}
                 </Form.Select>
+                {usuariosPase.length === 0 && (
+                  <Form.Text className="text-danger">No hay usuarios jurídicos disponibles.</Form.Text>
+                )}
               </Form.Group>
               <Button variant="primary" className="mt-2" onClick={realizarPaseModal} disabled={!destinatarioPase || subiendoVer}>
                 {subiendoVer ? "Procesando..." : "Realizar Pase"}

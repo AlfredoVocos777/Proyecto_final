@@ -261,6 +261,18 @@ export default function UsuarioJuridico() {
         setSubiendoVer(false); return;
       }
       await axios.put(`http://localhost:8000/expedientes/${expedienteVer.id_expediente}`, { id_profesional_asignado: destinatarioPase });
+      // Guardar observación del pase visible para el presentante
+      if (observacionVer.trim()) {
+        try {
+          await axios.post(URL_OBSERVACIONES, {
+            id_expediente: expedienteVer.id_expediente,
+            id_usuario: usuarioActual.id_usuario,
+            observacion: observacionVer.trim()
+          });
+        } catch (errObs) {
+          console.error('Error al guardar observación del pase:', errObs);
+        }
+      }
       // Guardar informe jurídico como observación
       if (informeJuridico.trim()) {
         try {
@@ -536,6 +548,7 @@ export default function UsuarioJuridico() {
         );
       }
       case "inicio":
+      case "resolver":
       case "bandeja":
       default: {
         const expedientesMap = new Map();
@@ -613,7 +626,7 @@ export default function UsuarioJuridico() {
       <div className="user-nav-bar user-nav-juridico">
         <Nav variant="pills" className="flex-wrap gap-1 align-items-center">
           <Nav.Item>
-            <Nav.Link active={["inicio","bandeja"].includes(seccionActiva)} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
+            <Nav.Link active={["inicio","bandeja","resolver"].includes(seccionActiva)} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
           </Nav.Item>
           <Nav.Item>
             <Nav.Link active={seccionActiva === "realizar-pase"} onClick={() => setSeccionActiva("realizar-pase")}>📤 Realizar Pase</Nav.Link>
@@ -978,14 +991,28 @@ export default function UsuarioJuridico() {
               </Form.Group>
               <hr />
               <h5>Realizar Pase</h5>
-              <Form.Group>
+              <Form.Group className="mb-3">
                 <Form.Label>Destinatario</Form.Label>
                 <Form.Select value={destinatarioPase} onChange={e => setDestinatarioPase(e.target.value)}>
                   <option value="">Seleccione destinatario</option>
                   {usuariosPase.map(u => (
-                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.tipo_usuario})</option>
+                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.rol || u.tipo_usuario})</option>
                   ))}
                 </Form.Select>
+                {usuariosPase.length === 0 && (
+                  <Form.Text className="text-danger">No hay usuarios jurídicos disponibles.</Form.Text>
+                )}
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Observaciones <span className="text-muted" style={{ fontSize: '0.82rem' }}>(serán visibles para el presentante)</span></Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="Escriba las observaciones del pase..."
+                  value={observacionVer}
+                  onChange={e => setObservacionVer(e.target.value)}
+                  disabled={subiendoVer}
+                />
               </Form.Group>
               <Button variant="primary" className="mt-2" onClick={realizarPaseModal} disabled={!destinatarioPase || subiendoVer}>
                 {subiendoVer ? "Procesando..." : "Realizar Pase"}

@@ -122,6 +122,8 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
         docs.map((d) => ({
           id_documento: d.id_documento,
           nombre: d.nombre_archivo,
+          subido_por_nombre: d.subido_por_nombre || null,
+          rol_nombre: d.rol_nombre || null,
         }))
       );
 
@@ -389,9 +391,14 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     <Container fluid className="consulta-expedientes-container">
       <div className="consulta-header">
         <h2>Consulta de Expedientes</h2>
-        <Button variant="secondary" onClick={() => navigate(rutaVolver)}>
-          Volver a Portada
-        </Button>
+        <div className="d-flex gap-2">
+          <Button variant="outline-primary" onClick={obtenerExpedientes} disabled={loading}>
+            {loading ? "Cargando..." : "Actualizar"}
+          </Button>
+          <Button variant="secondary" onClick={() => navigate(rutaVolver)}>
+            Volver a Portada
+          </Button>
+        </div>
       </div>
 
       {/* Subtítulo contextual para presentante */}
@@ -920,7 +927,14 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                         key={i}
                         className="d-flex align-items-center justify-content-between mb-2"
                       >
-                        <span>✓ {f.nombre}</span>
+                        <span>
+                          {f.nombre}
+                          {(f.rol_nombre || f.subido_por_nombre) && (
+                            <span className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
+                              — {f.rol_nombre || ''}{f.subido_por_nombre ? ` (${f.subido_por_nombre})` : ''}
+                            </span>
+                          )}
+                        </span>
 
                         <Button
                           variant="outline-primary"

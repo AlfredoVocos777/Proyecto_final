@@ -271,7 +271,7 @@ export const obtenerExpedientesFinalizados = (req, res) => {
       u.apellido AS usuario_apellido
     FROM expedientes e
     LEFT JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
-    WHERE e.estado_actual = 'aprobado'
+    WHERE e.estado_actual IN ('aprobado', 'rechazado')
     ORDER BY e.fecha_creacion DESC
   `;
   connection.query(sql, (err, results) => {

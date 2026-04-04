@@ -54,7 +54,7 @@ const ExpedientesFinalizados = () => {
   const [view, setView] = useState("info"); // info | finalizados
 
   useEffect(() => {
-    fetch("http://localhost:3001/expediente/finalizados")
+    fetch("http://localhost:8000/expedientes/finalizados")
       .then((res) => {
         if (!res.ok) throw new Error("Error al obtener expedientes");
         return res.json();
@@ -149,7 +149,7 @@ const ExpedientesFinalizados = () => {
                           estado_actual: "aprobado"
                         }
                       ]
-                    : expedientes.filter(e => e.estado_actual === "aprobado")
+                    : expedientes.filter(e => e.estado_actual === "aprobado" || e.estado_actual === "rechazado")
                   ).map((exp) => (
                     <tr key={exp.id_expediente}>
                       <td>{exp.numero_expediente}</td>
@@ -157,7 +157,7 @@ const ExpedientesFinalizados = () => {
                       <td>{exp.descripcion}</td>
                       <td>{exp.usuario_nombre} {exp.usuario_apellido}</td>
                       <td>{new Date(exp.fecha_creacion).toLocaleDateString()}</td>
-                      <td style={{ color: "green" }}>
+                      <td style={{ color: exp.estado_actual === 'aprobado' ? 'green' : 'red' }}>
                         {exp.estado_actual.charAt(0).toUpperCase() + exp.estado_actual.slice(1)}
                       </td>
                       <td>{exp.observaciones || "Sin observaciones"}</td>

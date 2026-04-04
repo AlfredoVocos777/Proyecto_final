@@ -3,8 +3,13 @@ import bcrypt from "bcryptjs";
 
 // Obtener usuarios jurídicos para pase
 export const obtenerUsuariosJuridicos = (req, res) => {
-  // Puedes filtrar por departamento, expediente, etc. si lo necesitas
-  const sql = `SELECT id_usuario, nombre, apellido, tipo_usuario FROM usuario WHERE tipo_usuario = 'jurídico'`;
+  const sql = `
+    SELECT u.id_usuario, u.nombre, u.apellido, u.tipo_usuario, r.nombre AS rol
+    FROM usuario u
+    LEFT JOIN roles r ON r.id_rol = u.id_rol
+    WHERE r.nombre = 'Jurídico'
+       OR LOWER(u.tipo_usuario) = 'jurídico'
+  `;
   connection.query(sql, (err, results) => {
     if (err) {
       return res.status(500).json({ error: "Error al obtener usuarios jurídicos" });

@@ -131,8 +131,8 @@ export default function UsuarioDirector() {
                 try {
                   const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
                   const recepcionado = historial.data.some(h => 
-                    h.id_usuario_responsable === idUsuario && 
-                    h.accion?.toLowerCase().includes('recepción')
+                    Number(h.id_usuario_responsable) === Number(idUsuario) && 
+                    h.accion?.toLowerCase().includes('recepci')
                   );
                   return { ...exp, recepcionado };
                 } catch {
@@ -246,6 +246,19 @@ export default function UsuarioDirector() {
 
       await Promise.all(promesas);
 
+      // Guardar observaciones visibles para el presentante (si hay texto)
+      if (observacionesRecepcion?.trim()) {
+        await Promise.all(
+          expedientesSeleccionados.map(idExpediente =>
+            axios.post(URL_OBSERVACIONES, {
+              id_expediente: idExpediente,
+              id_usuario: usuarioLogueado.id_usuario,
+              observacion: observacionesRecepcion.trim()
+            })
+          )
+        );
+      }
+
       setMensajeRecepcion({
         tipo: "success",
         texto: `${expedientesSeleccionados.length} expediente(s) recepcionado(s) exitosamente`
@@ -265,8 +278,8 @@ export default function UsuarioDirector() {
                   try {
                     const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
                     const recepcionado = historial.data.some(h => 
-                      h.id_usuario_responsable === usuarioLogueado.id_usuario && 
-                      h.accion?.toLowerCase().includes('recepción')
+                      Number(h.id_usuario_responsable) === Number(usuarioLogueado.id_usuario) && 
+                      h.accion?.toLowerCase().includes('recepci')
                     );
                     return { ...exp, recepcionado };
                   } catch {
@@ -454,6 +467,12 @@ export default function UsuarioDirector() {
       
       // Enviamos al backend
       await axios.put(`${URL_EXPEDIENTES}/${expedienteRevision.id_expediente}`, payloadUpdate);
+
+      // Actualización optimista: sacar inmediatamente del panel Resolver sin esperar el reload
+      setExpedientesPendientes(prev =>
+        prev.filter(e => e.id_expediente !== expedienteRevision.id_expediente)
+      );
+
       // Construccion mensaje automático + comentario del director
         const mensajeObservacion =
           decisionTipo === "aprobar"
@@ -487,7 +506,11 @@ export default function UsuarioDirector() {
 
       setTimeout(() => {
         cerrarModalRevision();
-        // Recargar expedientes
+        // Recargar expedientes de consulta (todos)
+        axios.get(URL_EXPEDIENTES)
+          .then(res => setExpedientesTodos(res.data || []))
+          .catch(() => {});
+        // Recargar expedientes de bandeja/resolver
         if (usuarioLogueado?.id_usuario) {
           setLoadingExpedientes(true);
           axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`)
@@ -498,8 +521,8 @@ export default function UsuarioDirector() {
                   try {
                     const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
                     const recepcionado = historial.data.some(h => 
-                      h.id_usuario_responsable === usuarioLogueado.id_usuario && 
-                      (h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepción'))
+                      Number(h.id_usuario_responsable) === Number(usuarioLogueado.id_usuario) && 
+                      (h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepci'))
                     );
                     return { ...exp, recepcionado };
                   } catch {
@@ -682,8 +705,69 @@ export default function UsuarioDirector() {
 
   const renderContenido = () => {
     switch (seccionActiva) {
-      case "bandeja":
-      case "inicio":
+      case "bandeja": {
+        const expBandeja = expedientesPendientes.filter(exp =>
+          !['aprobado', 'rechazado'].includes((exp.estado || exp.estado_actual || '').toLowerCase())
+        );
+        const totalPagBandeja = Math.max(1, Math.ceil(expBandeja.length / 6));
+        const expPagBand = expBandeja.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
+        return (
+          <div className="seccion-contenido seccion-inicio">
+            <h1>Portal del Director</h1>
+            <p>Bienvenido al sistema de gestión de expedientes - Dirección Provincial del Agua</p>
+            {loadingExpedientes ? <p>Cargando expedientes...</p> : expBandeja.length > 0 ? (
+              <div className="expedientes-pendientes">
+                <h2>Bandeja de Entrada - Expedientes asignados</h2>
+                <div className="acciones-seleccion">
+                  <Button variant="primary" onClick={abrirModalRecepcion} disabled={expedientesSeleccionados.length === 0}>
+                    Recepcionar Seleccionados ({expedientesSeleccionados.length})
+                  </Button>
+                  <Button variant="outline-secondary" onClick={toggleSeleccionTodos} disabled={expBandeja.filter(e => !e.recepcionado).length === 0}>
+                    {expedientesSeleccionados.length === expBandeja.filter(e => !e.recepcionado).length && expBandeja.filter(e => !e.recepcionado).length > 0 ? "Deseleccionar Todos" : "Seleccionar Todos"}
+                  </Button>
+                </div>
+                <div className="paginacion mb-2">
+                  <button className="cpag-btn" disabled={paginaBandeja === 1} onClick={() => setPaginaBandeja(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPagBandeja}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaBandeja === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaBandeja(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaBandeja === totalPagBandeja} onClick={() => setPaginaBandeja(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expBandeja.length} expediente(s)</span>
+                </div>
+                <div className="tabla-container">
+                  <table className="tabla-expedientes">
+                    <thead>
+                      <tr>
+                        <th><input type="checkbox" checked={expBandeja.filter(e => !e.recepcionado).length > 0 && expedientesSeleccionados.length === expBandeja.filter(e => !e.recepcionado).length} onChange={toggleSeleccionTodos} disabled={expBandeja.filter(e => !e.recepcionado).length === 0} /></th>
+                        <th>Nº Expediente</th><th>Tipo</th><th>Descripción</th><th>Prioridad</th><th>Fecha Creación</th><th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expPagBand.map(exp => (
+                        <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
+                          <td><input type="checkbox" checked={expedientesSeleccionados.includes(exp.id_expediente)} onChange={() => toggleSeleccion(exp.id_expediente)} disabled={exp.recepcionado} /></td>
+                          <td>
+                            <strong>{exp.numero_expediente}</strong>
+                            {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
+                          </td>
+                          <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
+                          <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                          <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
+                          <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
+                          <td><button className="btn btn-sm btn-info" onClick={() => abrirModalDoc(exp, true)}>📄 Ver Documentos</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="sin-expedientes"><p>No hay expedientes pendientes de recepción</p></div>
+            )}
+          </div>
+        );
+      }
+      case "resolver":
         return (
           <div className="seccion-contenido seccion-inicio">
             <h1>Portal del Director</h1>
@@ -734,10 +818,9 @@ export default function UsuarioDirector() {
                     </thead>
                     <tbody>
                       {expPagBandeja.map(exp => (
-                        <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
+                        <tr key={exp.id_expediente}>
                           <td>
                             <strong>{exp.numero_expediente}</strong>
-                            {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
                           </td>
                           <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
                           <td className="descripcion-cell">{exp.descripcion || '-'}</td>
@@ -837,7 +920,7 @@ export default function UsuarioDirector() {
                         <th>Descripción</th>
                         <th>Prioridad</th>
                         <th>Ubicación</th>
-                        <th>Fecha</th>
+                        <th>Estado</th>
                         <th>Asignado a</th>
                       </tr>
                     </thead>
@@ -858,7 +941,15 @@ export default function UsuarioDirector() {
                             <td>{exp.descripcion || 'N/A'}</td>
                             <td>{exp.prioridad || 'N/A'}</td>
                             <td>{exp.ubicacion || 'N/A'}</td>
-                            <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
+                            <td>
+                              {(() => {
+                                const estado = (exp.estado_actual || exp.estado || '').toLowerCase();
+                                if (estado === 'aprobado') return <span className="badge bg-success">Aprobado</span>;
+                                if (estado === 'rechazado') return <span className="badge bg-danger">Rechazado</span>;
+                                if (estado.includes('revisi')) return <span className="badge bg-warning text-dark">En revisión</span>;
+                                return <span className="badge bg-secondary">{exp.estado_actual || exp.estado || 'Sin estado'}</span>;
+                              })()}
+                            </td>
                             <td>{usuarioAsignado}</td>
                           </tr>
                         );
@@ -937,7 +1028,10 @@ export default function UsuarioDirector() {
       <div className="user-nav-bar user-nav-director">
         <Nav variant="pills" className="flex-wrap gap-1 align-items-center">
           <Nav.Item>
-            <Nav.Link active={["inicio","bandeja"].includes(seccionActiva)} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
+            <Nav.Link active={seccionActiva === "bandeja"} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={["inicio","resolver"].includes(seccionActiva)} onClick={() => setSeccionActiva("resolver")}>⚖️ Resolver</Nav.Link>
           </Nav.Item>
           <Nav.Item>
             <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>�️ Consulta</Nav.Link>
@@ -1066,7 +1160,7 @@ export default function UsuarioDirector() {
                       <tbody>
                         {historialExpediente.map((h, idx) => (
                           <tr key={idx}>
-                            <td>{new Date(h.fecha_accion).toLocaleString()}</td>
+                            <td>{h.fecha ? new Date(h.fecha).toLocaleString('es-AR') : '-'}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>
                             <td>{h.comentario}</td>
@@ -1254,7 +1348,7 @@ export default function UsuarioDirector() {
       <Modal show={showModalRevision} onHide={cerrarModalRevision} size="xl" centered>
         <Modal.Header closeButton>
           <Modal.Title>
-            📋 Revisión Completa - Expediente {expedienteRevision?.numero_expediente}
+            Revisión Completa - Expediente {expedienteRevision?.numero_expediente}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
@@ -1268,12 +1362,20 @@ export default function UsuarioDirector() {
             <>
               {/* Información del Expediente */}
               <div className="mb-4">
-                <h5 className="text-primary">📄 Información del Expediente</h5>
+                <h5 className="text-primary">Información del Expediente</h5>
                 <table className="table table-bordered table-sm">
                   <tbody>
                     <tr>
                       <th width="30%">Número de Expediente:</th>
                       <td><strong>{expedienteRevision.numero_expediente}</strong></td>
+                    </tr>
+                    <tr>
+                      <th>Presentante:</th>
+                      <td>{expedienteRevision.usuario_presentante_apellido || ''}{expedienteRevision.usuario_presentante_apellido && expedienteRevision.usuario_presentante_nombre ? ', ' : ''}{expedienteRevision.usuario_presentante_nombre || 'Sin datos'}</td>
+                    </tr>
+                    <tr>
+                      <th>Teléfono:</th>
+                      <td>{expedienteRevision.usuario_presentante_telefono || 'Sin especificar'}</td>
                     </tr>
                     <tr>
                       <th>Tipo:</th>
@@ -1301,7 +1403,7 @@ export default function UsuarioDirector() {
 
               {/* Documentos Existentes */}
               <div className="mb-4">
-                <h5 className="text-primary">📎 Documentos del Expediente</h5>
+                <h5 className="text-primary">Documentos del Expediente</h5>
                 {loadingDocsRevision ? (
                   <p>Cargando documentos...</p>
                 ) : documentosRevision.length > 0 ? (
@@ -1327,10 +1429,11 @@ export default function UsuarioDirector() {
                           const docs = grupos[rol] || [];
                           // Presentante: solo mostrar si tiene docs
                           if (rol === 'Presentante' && docs.length === 0) return null;
+                          const obsRol = observacionesExps.filter(o => o.rol === rol);
                           return (
                             <div key={rol} className="mb-3">
                               <h6 className="fw-bold" style={{ color: '#495057' }}>
-                                {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
+                                {rol}
                                 {nombresPorRol[rol] && (
                                   <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>
                                     — {nombresPorRol[rol]}
@@ -1343,6 +1446,7 @@ export default function UsuarioDirector() {
                                     <thead>
                                       <tr>
                                         <th>Nombre</th>
+                                        <th>Subido por</th>
                                         <th>Tipo</th>
                                         <th>Tamaño</th>
                                         <th>Fecha</th>
@@ -1353,6 +1457,7 @@ export default function UsuarioDirector() {
                                       {docs.map(doc => (
                                         <tr key={doc.id_documento}>
                                           <td>{doc.nombre_archivo}</td>
+                                          <td>{doc.subido_por_nombre || '—'}</td>
                                           <td>{doc.tipo}</td>
                                           <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
                                           <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString() : '-'}</td>
@@ -1372,6 +1477,14 @@ export default function UsuarioDirector() {
                               ) : (
                                 <p className="text-muted small ms-2">Sin documentos adjuntos</p>
                               )}
+                              {obsRol.length > 0 && (
+                                <div className="ms-2 mt-1 p-2" style={{ background: '#f8f9fa', borderLeft: '3px solid #6c757d', borderRadius: '4px' }}>
+                                  <span className="fw-semibold" style={{ fontSize: '0.8rem', color: '#555' }}>Observaciones:</span>
+                                  {obsRol.map((obs, i) => (
+                                    <div key={i} style={{ fontSize: '0.85rem', color: '#333', marginTop: '2px' }}>{obs.observacion}</div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1385,7 +1498,7 @@ export default function UsuarioDirector() {
 
               {/* Historial de Movimientos */}
               <div className="mb-4">
-                <h5 className="text-primary">📜 Historial de Movimientos</h5>
+                <h5 className="text-primary">Historial de Movimientos</h5>
                 {historialRevision.length > 0 ? (
                   <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                     <table className="table table-sm table-striped">
@@ -1400,7 +1513,7 @@ export default function UsuarioDirector() {
                       <tbody>
                         {historialRevision.map((h, idx) => (
                           <tr key={idx}>
-                            <td>{new Date(h.fecha_accion).toLocaleString()}</td>
+                            <td>{h.fecha ? new Date(h.fecha).toLocaleString('es-AR') : '-'}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>
                             <td>{h.comentario}</td>
@@ -1414,27 +1527,9 @@ export default function UsuarioDirector() {
                 )}
               </div>
 
-              <hr />
-
-              {/* Informe Técnico */}
-              {(() => {
-                const informes = observacionesExps.filter(o => o.rol === 'Técnico');
-                if (!informes.length) return null;
-                return (
-                  <div className="mb-4 p-3" style={{ background: '#fff8e1', borderRadius: '8px', border: '1px solid #ffe082' }}>
-                    <h5 style={{ color: '#795548' }}>📋 Informe Técnico</h5>
-                    {informes.map((obs, idx) => (
-                      <div key={idx} className="mb-1" style={{ fontSize: '0.9rem', color: '#444' }}>
-                        <span className="me-2 text-secondary">•</span>{obs.observacion}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-
               {/* Subir Nuevos Documentos */}
               <div className="mb-4">
-                <h5 className="text-success">📤 Subir Documentos Oficiales (Opcional)</h5>
+                <h5 className="text-success">Subir Documentos Oficiales (Opcional)</h5>
                 <Form.Group className="mb-3">
                   <Form.Label><strong>Seleccionar archivos</strong></Form.Label>
                   <Form.Control
@@ -1456,7 +1551,7 @@ export default function UsuarioDirector() {
                   disabled={archivosRevision.length === 0 || subiendoDoc || procesandoDecision}
                   className="me-2"
                 >
-                  {subiendoDoc ? 'Subiendo...' : '📤 Subir Documentos'}
+                  {subiendoDoc ? 'Subiendo...' : 'Subir Documentos'}
                 </Button>
               </div>
 
@@ -1464,7 +1559,7 @@ export default function UsuarioDirector() {
 
               {/* Decisión Final */}
               <div className="mb-3">
-                <h5 className="text-danger">⚖️ Decisión Final del Director</h5>
+                <h5 className="text-danger">Decisión Final del Director</h5>
                 <Alert variant="warning">
                   <strong>Importante:</strong> Esta decisión es definitiva y se notificará al usuario presentante del trámite.
                 </Alert>
@@ -1475,7 +1570,7 @@ export default function UsuarioDirector() {
                     <Form.Check
                       type="radio"
                       id="radio-aprobar"
-                      label="✅ APROBAR"
+                      label="APROBAR"
                       name="decision"
                       checked={decisionTipo === 'aprobar'}
                       onChange={() => setDecisionTipo('aprobar')}
@@ -1484,7 +1579,7 @@ export default function UsuarioDirector() {
                     <Form.Check
                       type="radio"
                       id="radio-rechazar"
-                      label="❌ RECHAZAR"
+                      label="RECHAZAR"
                       name="decision"
                       checked={decisionTipo === 'rechazar'}
                       onChange={() => setDecisionTipo('rechazar')}
@@ -1517,17 +1612,6 @@ export default function UsuarioDirector() {
                     onChange={(e) => setComentarioDecision(e.target.value)}
                     disabled={procesandoDecision || !decisionTipo}
                   />
-                  {/* Historial de observaciones enviadas (reubicado) */}
-                  <div className="mt-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
-                    {observacionesExps.length > 0 && observacionesExps.map((obs, idx) => (
-                      <div key={idx} className="mb-1 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#555' }}>
-                        <span className="me-2" style={{ color: '#000' }}>•</span>
-                        <span>
-                          <strong style={{ fontSize: '0.75rem', color: '#333' }}>[{obs.rol}]</strong> {obs.observacion}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
                 </Form.Group>
               </div>
             </>
@@ -1549,9 +1633,9 @@ export default function UsuarioDirector() {
             {procesandoDecision 
               ? 'Procesando...' 
               : decisionTipo === 'aprobar' 
-                ? '✅ Confirmar Aprobación' 
+                ? 'Confirmar Aprobación' 
                 : decisionTipo === 'rechazar'
-                ? '❌ Confirmar Rechazo'
+                ? 'Confirmar Rechazo'
                 : 'Confirmar Decisión'}
           </Button>
         </Modal.Footer>

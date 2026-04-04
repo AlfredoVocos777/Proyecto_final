@@ -1,4 +1,4 @@
-import connection from "../configDB/dataBase.js";
+﻿import connection from "../configDB/dataBase.js";
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -46,6 +46,14 @@ export const upload = multer({
     fileFilter: fileFilter,
     limits: {
         fileSize: 100 * 1024 * 1024 // Límite de 100MB
+    }
+});
+
+// Upload sin restricción de tipo para subidas internas (técnico, jurídico, director)
+export const uploadInterno = multer({
+    storage: storage,
+    limits: {
+        fileSize: 100 * 1024 * 1024
     }
 });
 
@@ -265,8 +273,9 @@ export const subirYRegistrar = async (req, res) => {
         res.status(201).json({ resultados });
 
     } catch (error) {
-        console.error("Error al subir y registrar documentos:", error);
-        res.status(500).json({ error: "Error al registrar los documentos en BD" });
+        console.error("Error al subir y registrar documentos:", error?.message || error);
+        if (error?.code) console.error("SQL error code:", error.code, error?.sqlMessage);
+        res.status(500).json({ error: error?.sqlMessage || error?.message || "Error al registrar los documentos en BD" });
     }
 };
 

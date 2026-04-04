@@ -79,10 +79,21 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
         id_profesional_asignado: tecnicoId,
         estado_actual: "asignado",
       });
+      // Guardar observación visible para el presentante
+      if (observacion.trim()) {
+        try {
+          const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+          await axios.post(URL_OBSERVACIONES, {
+            id_expediente: expediente.id_expediente,
+            id_usuario: user?.id_usuario,
+            observacion: observacion.trim()
+          });
+        } catch (_) { /* no crítico */ }
+      }
       try {
         await axios.post(API_NOTIFICAR, {
           id_usuario: expediente.id_usuario_presentante,
-          email: expediente.email_presentante ?? "",
+          email: expediente.usuario_presentante_email ?? "",
           nombre: expediente.usuario_presentante_nombre ?? "",
           apellido: expediente.usuario_presentante_apellido ?? "",
           numero_expediente: expediente.numero_expediente,
@@ -126,6 +137,17 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
               <option key={t.id_usuario} value={t.id_usuario}>{t.nombre} {t.apellido}</option>
             ))}
           </Form.Select>
+        </Form.Group>
+        <Form.Group className="mb-3">
+          <Form.Label>Observaciones <span className="text-muted" style={{ fontSize: '0.82rem' }}>(serán visibles para el presentante)</span></Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            placeholder="Escriba las observaciones del pase..."
+            value={observacion}
+            onChange={(e) => setObservacion(e.target.value)}
+            disabled={enviando}
+          />
         </Form.Group>
        
         {feedback && <Alert variant={feedback.tipo} className="mb-0">{feedback.msg}</Alert>}

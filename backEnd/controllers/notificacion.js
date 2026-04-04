@@ -1,64 +1,58 @@
 import nodemailer from "nodemailer";
 import connection from "../configDB/dataBase.js";
 
-// Helper reutilizable: envia mail + registra en BD
-const _enviarNotificacion = ({ res, email, asunto, texto, id_usuario, mensaje_db, tipo_db }) => {
-  let mailSent = false;
-  let mailError = null;
-
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-  });
-
-  transporter.sendMail({ from: process.env.MAIL_USER, to: email, subject: asunto, text: texto })
-    .then(() => { mailSent = true; })
-    .catch(err => { mailError = err.message; console.error("Error enviando mail:", err); })
-    .finally(() => {
-      connection.query(
-        `INSERT INTO notificaciones (id_usuario, mensaje, tipo, fecha_envio, leida, canal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id_usuario, mensaje_db, tipo_db, new Date(), 0, "email", new Date()],
-        (err) => {
-          if (err) {
-            console.error("Error guardando notificacion en BD:", err);
-            return res.status(500).json({ message: "Error guardando notificacion en BD", error: err.message, mailError });
-          }
-          if (mailSent) {
-            res.status(200).json({ message: "Notificacion enviada y registrada" });
-          } else {
-            res.status(207).json({ message: "Notificacion registrada en BD pero error enviando mail", mailError });
-          }
-        }
-      );
-    });
-};
-
-export const notificarCreacion = (req, res) => {
-  const { email, nombre, apellido, numero_expediente, tipo_expediente, id_usuario } = req.body;
-  if (!email || !numero_expediente) {
-    return res.status(400).json({ message: "Faltan datos obligatorios: email y numero_expediente" });
-  }
-  _enviarNotificacion({
-    res, email, id_usuario,
-    asunto: `Expediente ${numero_expediente} creado exitosamente`,
-    texto: `Hola ${nombre} ${apellido},\n\nSu expediente N ${numero_expediente} (${tipo_expediente || "sin tipo"}) fue creado con exito y esta siendo procesado.\n\nAnte cualquier consulta comuniquese con la mesa de entradas.\n\nSaludos.`,
-    mensaje_db: `Su expediente N ${numero_expediente} fue creado exitosamente y esta siendo procesado.`,
-    tipo_db: "creacion_expediente",
-  });
-};
-
-export const notificarPase = (req, res) => {
+export const notificarPase = async (req, res) => {
   const { email, nombre, apellido, numero_expediente, observacion, id_usuario } = req.body;
-  if (!email || !numero_expediente) {
-    return res.status(400).json({ message: "Faltan datos obligatorios: email y numero_expediente" });
+  let mailError = null;
+  let mailSent = false;
+  // 1. Intentar enviar el mail
+  try {
+    let transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to: email,
+      subject: `Expediente ${numero_expediente} - Nuevo pase realizado`,
+      text: `Hola ${nombre} ${apellido},\n\nSu expediente N° ${numero_expediente} ha sido derivado.\nObservación: ${observacion || "Sin observaciones"}.\n\nSaludos.`,
+    };
+    await transporter.sendMail(mailOptions);
+    mailSent = true;
+  } catch (error) {
+    mailError = error.message;
+    console.error("Error enviando mail:", error);
   }
-  _enviarNotificacion({
-    res, email, id_usuario,
-    asunto: `Expediente ${numero_expediente} - Nuevo pase realizado`,
-    texto: `Hola ${nombre} ${apellido},\n\nSu expediente N ${numero_expediente} ha sido derivado.\nObservacion: ${observacion || "Sin observaciones"}.\n\nSaludos.`,
-    mensaje_db: `Su expediente N ${numero_expediente} fue derivado a un tecnico para su revision. Observacion: ${observacion || "Sin observaciones"}`,
-    tipo_db: "pase_expediente",
-  });
+  // 2. Registrar la notificación en la base de datos (canal: 'email')
+  try {
+    const mensaje = `Su expediente N° ${numero_expediente} fue derivado a un técnico para su revisión. Observación: ${observacion || "Sin observaciones"}`;
+    const tipo = "pase_expediente";
+    const canal = "email";
+    const fecha_envio = new Date();
+    const leida = 0;
+    const created_at = new Date();
+    connection.query(
+      `INSERT INTO notificaciones (id_usuario, mensaje, tipo, fecha_envio, leida, canal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id_usuario, mensaje, tipo, fecha_envio, leida, canal, created_at],
+      (err, result) => {
+        if (err) {
+          console.error("Error guardando notificación en la base de datos:", err);
+          return res.status(500).json({ message: "Error guardando notificación en la base de datos", error: err.message, mailError });
+        }
+        if (mailSent) {
+          res.status(200).json({ message: "Notificación enviada por email y registrada en la base de datos" });
+        } else {
+          res.status(500).json({ message: "Notificación registrada pero error enviando mail", mailError });
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error general en notificación:", error);
+    res.status(500).json({ message: "Error general en notificación", error: error.message, mailError });
+  }
 };
