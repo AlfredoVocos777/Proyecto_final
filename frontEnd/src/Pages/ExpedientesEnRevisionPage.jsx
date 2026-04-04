@@ -259,6 +259,10 @@ function ModalDetalle({ expediente, onClose }) {
               </td>
             </tr>
             <tr>
+              <th>Teléfono presentante</th>
+              <td>{expediente.usuario_presentante_telefono ?? <span className="text-muted fst-italic">Sin datos</span>}</td>
+            </tr>
+            <tr>
               <th>Asignado a</th>
               <td>
                 {expediente.usuario_asignado_nombre

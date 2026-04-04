@@ -19,3 +19,4 @@ export const URL_CREAR_EXPEDIENTE = "http://localhost:8000/expedientes";
 export const URL_SUBIR_DOCUMENTO = "http://localhost:8000/api/documentos/upload";
 export const URL_REALIZAR_PAGO = "http://localhost:8000/api/pagos";
 export const URL_OBSERVACIONES = "http://localhost:8000/observaciones";
+export const URL_NOTIFICACIONES = "http://localhost:8000/api";
