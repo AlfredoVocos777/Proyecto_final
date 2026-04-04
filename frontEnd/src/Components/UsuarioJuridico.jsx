@@ -49,6 +49,7 @@ export default function UsuarioJuridico() {
   const [mensajeDoc, setMensajeDoc] = useState({ tipo: "", texto: "" });
   const [documentosDoc, setDocumentosDoc] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [modalSoloVer, setModalSoloVer] = useState(false);
 
   // Estados para modal Ver / Pase
   const [showModalVer, setShowModalVer] = useState(false);
@@ -218,9 +219,10 @@ export default function UsuarioJuridico() {
     } finally { setLoadingConsulta(false); }
   };
 
-  const abrirModalDoc = (expediente) => {
+  const abrirModalDoc = (expediente, soloVer = false) => {
     setExpedienteDoc(expediente);
     setShowModalDoc(true);
+    setModalSoloVer(soloVer);
     setArchivosStaged([]);
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
@@ -545,7 +547,7 @@ export default function UsuarioJuridico() {
                     <thead>
                       <tr>
                         <th><input type="checkbox" checked={expedientesUnicos.filter(e => !e.recepcionado).length > 0 && expedientesSeleccionados.length === expedientesUnicos.filter(e => !e.recepcionado).length} onChange={toggleSeleccionTodos} disabled={expedientesUnicos.filter(e => !e.recepcionado).length === 0} /></th>
-                        <th>Nº Expediente</th><th>Tipo</th><th>Descripción</th><th>Estado</th><th>Prioridad</th><th>Fecha Creación</th><th>Acciones</th>
+                        <th>Nº Expediente</th><th>Tipo</th><th>Descripción</th><th>Prioridad</th><th>Fecha Creación</th><th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -559,10 +561,9 @@ export default function UsuarioJuridico() {
                           </td>
                           <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
                           <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                          <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
                           <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
                           <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
-                          <td><button className="btn btn-sm btn-info" onClick={() => abrirModalDoc(exp)}>📄 Docs</button></td>
+                          <td><button className="btn btn-sm btn-info" onClick={() => abrirModalDoc(exp, true)}>📄 Ver Documentos</button></td>
                         </tr>
                       ))}
                     </tbody>
@@ -697,118 +698,132 @@ export default function UsuarioJuridico() {
 
       {/* Modal de Documentos */}
       <Modal show={showModalDoc} onHide={() => setShowModalDoc(false)} size="lg" centered>
-        <Modal.Header closeButton><Modal.Title>Documentos del Expediente {expedienteDoc?.numero_expediente}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          {mensajeDoc.tipo && <Alert variant={mensajeDoc.tipo}>{mensajeDoc.texto}</Alert>}
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Seleccionar archivos</strong></Form.Label>
-            <Form.Control type="file" multiple onChange={e => setArchivosStaged(Array.from(e.target.files))} disabled={subiendoDoc} />
-            <Form.Text>Archivos seleccionados: {archivosStaged.length}</Form.Text>
-            <Button 
-              className="mt-2"
-              size="sm"
-              variant="primary"
-              disabled={archivosStaged.length === 0 || subiendoDoc}
-              onClick={async () => {
-                try {
-                  if (!archivosStaged.length) return;
-                  setSubiendoDoc(true);
-                  setMensajeDoc({ tipo: "", texto: "" });
-                  const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-                  let ok = 0, fail = 0;
-                  for (const f of archivosStaged) {
-                    try {
-                      const fd = new FormData();
-                      fd.append('archivo', f);
-                      fd.append('id_expediente', expedienteDoc.id_expediente);
-                      fd.append('subido_por', user?.id_usuario);
-                      if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
-                      await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                      ok++;
-                    } catch { fail++; }
-                  }
-                  setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: `Subidos ${ok}${fail > 0 ? `, fallidos ${fail}` : ''}` });
-                  const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                  setDocumentosDoc(resp.data || []);
-                  setArchivosStaged([]);
-                } catch (err) {
-                  setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
-                } finally {
-                  setSubiendoDoc(false);
-                }
-              }}
-            >
-              {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
-            </Button>
-          </Form.Group>
-          <br />
-          <br />
-          <hr />
-          <br />
-          <br />
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Observaciones generales:</strong></Form.Label>
-            <Form.Control type="text" placeholder="Escriba observaciones del expediente..." value={observacionJuridico} onChange={e => { setObservacionJuridico(e.target.value); setErrorObs(""); }} isInvalid={!!errorObs} disabled={subiendoDoc} />
-            <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
-            <Button className="mt-2" size="sm" variant="primary" onClick={async () => {
-              if (!observacionJuridico.trim()) { setErrorObs("Debe escribir una observación antes de guardar."); return; }
-              if (!expedienteDoc) return;
-              const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
-              try {
-                await axios.post(URL_OBSERVACIONES, { id_expediente: expedienteDoc.id_expediente, id_usuario: usuario.id_usuario, observacion: observacionJuridico });
-                alert("Observación guardada ✅");
-                setObservacionJuridico("");
-                setErrorObs("");
-                cargarObservaciones(expedienteDoc.id_expediente);
-              } catch { alert("No se pudo guardar la observación."); }
-            }}>
-              Guardar Observación
-            </Button>
-            {/* Lista de observaciones enviadas */}
-            <div className="mt-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
-              {observacionesExps.length > 0 && observacionesExps.map((obs, idx) => (
-                <div key={idx} className="mb-1 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#555' }}>
-                  <span className="me-2" style={{ color: '#000' }}>•</span>
-                  <span>{obs.observacion}</span>
-                </div>
-              ))}
+        <Modal.Header closeButton style={{ borderBottom: '2px solid #dee2e6' }}>
+          <Modal.Title style={{ fontWeight: 600, fontSize: '1.1rem' }}>
+            📁 Expediente {expedienteDoc?.numero_expediente}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ padding: '1.5rem' }}>
+
+          {/* Datos del presentante */}
+          {expedienteDoc && (
+            <div className="mb-4 p-3" style={{ background: '#f0f4ff', borderRadius: '8px', border: '1px solid #c7d4f0' }}>
+              <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Datos del presentante</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', fontSize: '0.9rem', color: '#333' }}>
+                <span><span className="text-muted">Nombre:</span> <strong>{expedienteDoc.usuario_presentante_nombre} {expedienteDoc.usuario_presentante_apellido}</strong></span>
+                <span><span className="text-muted">Teléfono:</span> <strong>{expedienteDoc.usuario_presentante_telefono || '—'}</strong></span>
+                <span><span className="text-muted">Email:</span> <strong>{expedienteDoc.usuario_presentante_email || '—'}</strong></span>
+              </div>
             </div>
-          </Form.Group>
-          <br />
-          <br />
-          <hr />
-          <br />
-          <br />
-          {loadingDocs ? <p>Cargando documentos existentes...</p> : documentosDoc.length > 0 && (
-            <div className="mt-4">
-              <h6>Documentos existentes</h6>
-              <table className="table table-sm">
-                <thead><tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th>Acciones</th></tr></thead>
+          )}
+
+          {/* Alerta de resultado */}
+          {mensajeDoc.tipo && <Alert variant={mensajeDoc.tipo} className="py-2">{mensajeDoc.texto}</Alert>}
+
+          {/* Sección: subir archivos (solo modo completo) */}
+          {!modalSoloVer && (
+            <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Subir documentación</p>
+              <Form.Control type="file" multiple onChange={e => setArchivosStaged(Array.from(e.target.files))} disabled={subiendoDoc} className="mb-2" />
+              {archivosStaged.length > 0 && <Form.Text className="text-muted d-block mb-2">{archivosStaged.length} archivo(s) seleccionado(s)</Form.Text>}
+              <Button size="sm" variant="primary" disabled={archivosStaged.length === 0 || subiendoDoc}
+                onClick={async () => {
+                  try {
+                    if (!archivosStaged.length) return;
+                    setSubiendoDoc(true);
+                    setMensajeDoc({ tipo: "", texto: "" });
+                    const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                    let ok = 0, fail = 0;
+                    for (const f of archivosStaged) {
+                      try {
+                        const fd = new FormData();
+                        fd.append('archivo', f);
+                        fd.append('id_expediente', expedienteDoc.id_expediente);
+                        fd.append('subido_por', user?.id_usuario);
+                        if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
+                        await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                        ok++;
+                      } catch { fail++; }
+                    }
+                    setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: `Subidos ${ok}${fail > 0 ? `, fallidos ${fail}` : ''}` });
+                    const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                    setDocumentosDoc(resp.data || []);
+                    setArchivosStaged([]);
+                  } catch (err) {
+                    setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
+                  } finally {
+                    setSubiendoDoc(false);
+                  }
+                }}
+              >
+                {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
+              </Button>
+            </div>
+          )}
+
+          {/* Sección: observaciones (solo modo completo) */}
+          {!modalSoloVer && (
+            <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones</p>
+              <Form.Control type="text" placeholder="Escriba observaciones del expediente..." value={observacionJuridico} onChange={e => { setObservacionJuridico(e.target.value); setErrorObs(""); }} isInvalid={!!errorObs} disabled={subiendoDoc} className="mb-2" />
+              <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
+              <Button size="sm" variant="outline-primary" onClick={async () => {
+                if (!observacionJuridico.trim()) { setErrorObs("Debe escribir una observación antes de guardar."); return; }
+                if (!expedienteDoc) return;
+                const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                try {
+                  await axios.post(URL_OBSERVACIONES, { id_expediente: expedienteDoc.id_expediente, id_usuario: usuario.id_usuario, observacion: observacionJuridico });
+                  alert("Observación guardada ✅");
+                  setObservacionJuridico("");
+                  setErrorObs("");
+                  cargarObservaciones(expedienteDoc.id_expediente);
+                } catch { alert("No se pudo guardar la observación."); }
+              }}>
+                Guardar observación
+              </Button>
+              {observacionesExps.length > 0 && (
+                <div className="mt-3" style={{ maxHeight: '130px', overflowY: 'auto' }}>
+                  {observacionesExps.map((obs, idx) => (
+                    <div key={idx} className="d-flex align-items-start mb-1" style={{ fontSize: '0.85rem', color: '#444' }}>
+                      <span className="me-2 text-secondary">•</span>
+                      <span>{obs.observacion}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sección: documentos existentes */}
+          {loadingDocs ? (
+            <p className="text-muted text-center py-3">Cargando documentos…</p>
+          ) : documentosDoc.length > 0 ? (
+            <div>
+              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
+              <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                <thead className="table-light">
+                  <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
+                </thead>
                 <tbody>
                   {documentosDoc.map(doc => (
                     <tr key={doc.id_documento}>
-                      <td>{doc.nombre_archivo}</td>
+                      <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
                       <td>{doc.tipo}</td>
                       <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString("es-AR") : '-'}</td>
+                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
                       <td>
                         <div className="d-flex gap-2">
-                          <a
-                            href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-outline-primary btn-sm"
-                          >
-                            Ver
-                          </a>
-                          <button className="btn btn-outline-danger btn-sm" onClick={async () => {
-                            if (!window.confirm('¿Eliminar este documento?')) return;
-                            try {
-                              await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                              const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                              setDocumentosDoc(resp.data || []);
-                            } catch (err) { setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' }); }
-                          }}>Eliminar</button>
+                          <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                          {!modalSoloVer && (
+                            <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                              if (!window.confirm('¿Eliminar este documento?')) return;
+                              try {
+                                await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                setDocumentosDoc(resp.data || []);
+                              } catch (err) { setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' }); }
+                            }}>Eliminar</button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -816,11 +831,11 @@ export default function UsuarioJuridico() {
                 </tbody>
               </table>
             </div>
+          ) : (
+            <p className="text-muted text-center py-3" style={{ fontSize: '0.9rem' }}>No hay documentos adjuntos para este expediente.</p>
           )}
+
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" className="w-100" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>Cancelar</Button>
-        </Modal.Footer>
       </Modal>
 
       {/* Modal Ver / Realizar Pase */}

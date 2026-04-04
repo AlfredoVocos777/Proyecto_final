@@ -44,6 +44,7 @@ export default function UsuarioDirector() {
   const [mensajeDoc, setMensajeDoc] = useState({ tipo: "", texto: "" });
   const [documentosDoc, setDocumentosDoc] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [modalSoloVer, setModalSoloVer] = useState(false);
 
   // Estados para Observaciones (Director) - Sincronizado con Decisión Final
   const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
@@ -85,7 +86,18 @@ export default function UsuarioDirector() {
   const [procesandoFirma, setProcesandoFirma] = useState(false);
   const [mensajeFirma, setMensajeFirma] = useState({ tipo: "", texto: "" });
 
+  // Estados para consulta general
+  const [expedientesTodos, setExpedientesTodos] = useState([]);
+  const [loadingTodos, setLoadingTodos] = useState(false);
+  const [filtroConsulta, setFiltroConsulta] = useState("");
+
   useEffect(() => {
+    // Cargar todos los expedientes para la consulta general
+    setLoadingTodos(true);
+    axios.get(URL_EXPEDIENTES)
+      .then(res => setExpedientesTodos(res.data || []))
+      .catch(() => setExpedientesTodos([]))
+      .finally(() => setLoadingTodos(false));
     try {
       const raw = localStorage.getItem("usuarioLogueado");
       const user = raw ? JSON.parse(raw) : null;
@@ -512,9 +524,10 @@ export default function UsuarioDirector() {
     }
   };
 
-  const abrirModalDoc = (expediente) => {
+  const abrirModalDoc = (expediente, soloVer = false) => {
     setExpedienteDoc(expediente);
     setShowModalDoc(true);
+    setModalSoloVer(soloVer);
     setArchivosStaged([]);
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
@@ -706,11 +719,9 @@ export default function UsuarioDirector() {
                       <tr>
                         <th>Nº Expediente</th>
                         <th>Tipo</th>
-                        <th>Estado</th>
                         <th>Prioridad</th>
                         <th>Profesional Asignado</th>
                         <th>Fecha Creación</th>
-                        <th>Última Actualización</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
@@ -722,11 +733,6 @@ export default function UsuarioDirector() {
                             {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
                           </td>
                           <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
-                          <td>
-                            <span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>
-                              {exp.estado || exp.estado_actual}
-                            </span>
-                          </td>
                           <td>
                             <span className={`badge badge-${exp.prioridad}`}>
                               {exp.prioridad || 'normal'}
@@ -740,15 +746,23 @@ export default function UsuarioDirector() {
                                 : 'Sin asignar'}
                           </td>
                           <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
-                          <td>{exp.updated_at ? new Date(exp.updated_at).toLocaleDateString('es-AR') : '-'}</td>
                           <td>
-                            <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => abrirModalRevisionCompleto(exp)}
-                              title="Revisar expediente completo"
-                            >
-                              📋 Revisar
-                            </button>
+                            <div className="d-flex gap-2">
+                              <button
+                                className="btn btn-sm btn-info"
+                                onClick={() => abrirModalDoc(exp, true)}
+                                title="Ver documentación del expediente"
+                              >
+                                📄 Ver Documentos
+                              </button>
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => abrirModalRevisionCompleto(exp)}
+                                title="Revisar expediente completo"
+                              >
+                                📋 Revisar
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -766,15 +780,88 @@ export default function UsuarioDirector() {
           </div>
         );
 
-      case "consultar-expediente":
+      case "consultar-expediente": {
+        const expedientesFiltrados = expedientesTodos.filter(exp => {
+          const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+          return texto.includes(filtroConsulta.toLowerCase());
+        });
+        const totalPaginasConsulta = Math.max(1, Math.ceil(expedientesFiltrados.length / 6));
+        const expPagConsulta = expedientesFiltrados.slice((paginaConsulta - 1) * 6, paginaConsulta * 6);
         return (
-          <div className="seccion-contenido">
-            <h2>Consultar Expediente</h2>
-            <Button variant="primary" onClick={abrirModalConsulta}>
-              🔍 Buscar Expediente
-            </Button>
+          <div className="seccion-contenido seccion-consulta">
+            <h2>Consulta de Expedientes</h2>
+            <div className="consulta-toolbar mb-3">
+              <div className="consulta-search-wrap">
+                <span className="consulta-search-icon">🔍</span>
+                <input
+                  className="consulta-search-input"
+                  type="text"
+                  placeholder="Buscar por número, estado o usuario…"
+                  value={filtroConsulta}
+                  onChange={e => { setFiltroConsulta(e.target.value); setPaginaConsulta(1); }}
+                  disabled={loadingTodos}
+                />
+              </div>
+              {!loadingTodos && (
+                <div className="consulta-pag">
+                  <button className="cpag-btn" disabled={paginaConsulta === 1} onClick={() => setPaginaConsulta(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasConsulta}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaConsulta === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaConsulta(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaConsulta === totalPaginasConsulta} onClick={() => setPaginaConsulta(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expedientesFiltrados.length} resultados</span>
+                </div>
+              )}
+            </div>
+            {loadingTodos ? (
+              <p>Cargando expedientes...</p>
+            ) : (
+              <>
+                <div className="tabla-container">
+                  <table className="table table-sm table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Nº Expediente</th>
+                        <th>Presentante</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Prioridad</th>
+                        <th>Ubicación</th>
+                        <th>Fecha</th>
+                        <th>Asignado a</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expPagConsulta.map(exp => {
+                        let usuarioAsignado = 'Sin asignar';
+                        if (exp.usuario_asignado_nombre) {
+                          usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
+                        }
+                        if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
+                          usuarioAsignado = 'Pendiente de recepción';
+                        }
+                        return (
+                          <tr key={exp.id_expediente}>
+                            <td>{exp.numero_expediente}</td>
+                            <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                            <td>{exp.tipo_expediente || 'N/A'}</td>
+                            <td>{exp.descripcion || 'N/A'}</td>
+                            <td>{exp.prioridad || 'N/A'}</td>
+                            <td>{exp.ubicacion || 'N/A'}</td>
+                            <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
+                            <td>{usuarioAsignado}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {expedientesFiltrados.length === 0 && <p>No se encontraron expedientes.</p>}
+                </div>
+              </>
+            )}
           </div>
         );
+      }
 
       case "recepcion-pase":
         return (
@@ -843,16 +930,7 @@ export default function UsuarioDirector() {
             <Nav.Link active={["inicio","bandeja"].includes(seccionActiva)} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
           </Nav.Item>
           <Nav.Item>
-            <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <button
-              className="nav-reporte-btn"
-              onClick={() => { const url = exportarPDF(); if (url) setNavPreviewUrl(url); }}
-              disabled={generandoPDF}
-            >
-              {generandoPDF ? "⏳ Generando..." : "🖨️ Reporte"}
-            </button>
+            <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>�️ Consulta</Nav.Link>
           </Nav.Item>
           <Nav.Item>
             <button
@@ -999,95 +1077,113 @@ export default function UsuarioDirector() {
 
       {/* Modal de Documentos */}
       <Modal show={showModalDoc} onHide={() => setShowModalDoc(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Documentos del Expediente {expedienteDoc?.numero_expediente}</Modal.Title>
+        <Modal.Header closeButton style={{ borderBottom: '2px solid #dee2e6' }}>
+          <Modal.Title style={{ fontWeight: 600, fontSize: '1.1rem' }}>
+            📁 Expediente {expedienteDoc?.numero_expediente}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          {mensajeDoc.tipo && mensajeDoc.texto && (
-            <Alert variant={mensajeDoc.tipo}>{mensajeDoc.texto}</Alert>
+        <Modal.Body style={{ padding: '1.5rem' }}>
+
+          {/* Datos del presentante */}
+          {expedienteDoc && (
+            <div className="mb-4 p-3" style={{ background: '#f0f4ff', borderRadius: '8px', border: '1px solid #c7d4f0' }}>
+              <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Datos del presentante</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', fontSize: '0.9rem', color: '#333' }}>
+                <span><span className="text-muted">Nombre:</span> <strong>{expedienteDoc.usuario_presentante_nombre} {expedienteDoc.usuario_presentante_apellido}</strong></span>
+                <span><span className="text-muted">Teléfono:</span> <strong>{expedienteDoc.usuario_presentante_telefono || '—'}</strong></span>
+                <span><span className="text-muted">Email:</span> <strong>{expedienteDoc.usuario_presentante_email || '—'}</strong></span>
+              </div>
+            </div>
           )}
 
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Seleccionar archivos oficiales</strong></Form.Label>
-            <Form.Control
-              type="file"
-              multiple
-              onChange={(e) => setArchivosStaged(Array.from(e.target.files))}
-              disabled={subiendoDoc}
-            />
-            <Form.Text>Archivos seleccionados: {archivosStaged.length}</Form.Text>
-          </Form.Group>
+          {/* Alerta de resultado */}
+          {mensajeDoc.tipo && mensajeDoc.texto && (
+            <Alert variant={mensajeDoc.tipo} className="py-2">{mensajeDoc.texto}</Alert>
+          )}
 
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Comentario de Dirección</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              placeholder="Descripción de los documentos desde Dirección..."
-              value={comentarioDoc}
-              onChange={(e) => setComentarioDoc(e.target.value)}
-              disabled={subiendoDoc}
-            />
-          </Form.Group>
+          {/* Sección: subir archivos (solo modo completo) */}
+          {!modalSoloVer && (
+            <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Subir documentación oficial</p>
+              <Form.Control type="file" multiple onChange={(e) => setArchivosStaged(Array.from(e.target.files))} disabled={subiendoDoc} className="mb-2" />
+              {archivosStaged.length > 0 && <Form.Text className="text-muted d-block mb-2">{archivosStaged.length} archivo(s) seleccionado(s)</Form.Text>}
+              <Form.Control as="textarea" rows={2} placeholder="Comentario de Dirección (opcional)..." value={comentarioDoc} onChange={(e) => setComentarioDoc(e.target.value)} disabled={subiendoDoc} className="mb-2" />
+              <Button size="sm" variant="primary" disabled={archivosStaged.length === 0 || subiendoDoc}
+                onClick={async () => {
+                  try {
+                    if (!archivosStaged.length) return;
+                    setSubiendoDoc(true);
+                    setMensajeDoc({ tipo: "", texto: "" });
+                    const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                    let ok = 0, fail = 0;
+                    for (const f of archivosStaged) {
+                      try {
+                        const fd = new FormData();
+                        fd.append('archivo', f);
+                        fd.append('id_expediente', expedienteDoc.id_expediente);
+                        fd.append('subido_por', user?.id_usuario);
+                        if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
+                        await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                        ok++;
+                      } catch (e) {
+                        console.error('Falló subida de', f.name, e);
+                        fail++;
+                      }
+                    }
+                    const msg = fail === 0 ? `Se subieron ${ok} archivo(s)` : `Subidos ${ok}, fallidos ${fail}`;
+                    setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
+                    const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                    setDocumentosDoc(resp.data || []);
+                    setArchivosStaged([]);
+                  } catch (err) {
+                    console.error('Error en guardado de documentos:', err);
+                    setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
+                  } finally {
+                    setSubiendoDoc(false);
+                  }
+                }}
+              >
+                {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
+              </Button>
+            </div>
+          )}
 
+          {/* Sección: documentos existentes */}
           {loadingDocs ? (
-            <p>Cargando documentos existentes...</p>
-          ) : documentosDoc.length > 0 && (
-            <div className="documentos-existentes mt-4">
-              <h6>Documentos existentes</h6>
-              <table className="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Tipo</th>
-                    <th>Tamaño</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th>
-                  </tr>
+            <p className="text-muted text-center py-3">Cargando documentos…</p>
+          ) : documentosDoc.length > 0 ? (
+            <div>
+              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
+              <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                <thead className="table-light">
+                  <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
                 </thead>
                 <tbody>
                   {documentosDoc.map(doc => (
                     <tr key={doc.id_documento}>
-                      <td title={doc.nombre_archivo}>{doc.nombre_archivo}</td>
+                      <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
                       <td>{doc.tipo}</td>
                       <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString() : '-'}</td>
+                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
                       <td>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => {
-                              const url = `${URL_UPLOADS}/${doc.ruta_archivo}`;
-                              window.open(url, '_blank');
-                            }}
-                            title="Ver documento"
-                          >
-                            👁️
-                          </button>
-                          <button
-                            className="btn btn-outline-success btn-sm"
-                            onClick={() => abrirModalFirma(doc)}
-                            title="Firmar documento"
-                          >
-                            ✍️
-                          </button>
-                          <button
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={async () => {
-                              if (!window.confirm('¿Eliminar este documento?')) return;
-                              try {
-                                await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                setDocumentosDoc(resp.data || []);
-                              } catch (err) {
-                                console.error('Error al eliminar documento:', err);
-                                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                              }
-                            }}
-                            title="Eliminar documento"
-                          >
-                            🗑️
-                          </button>
+                        <div className="d-flex gap-2">
+                          <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                          {!modalSoloVer && (
+                            <>
+                              <button className="btn btn-outline-success btn-sm" onClick={() => abrirModalFirma(doc)} title="Firmar documento">✍️</button>
+                              <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                                if (!window.confirm('¿Eliminar este documento?')) return;
+                                try {
+                                  await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                  const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                  setDocumentosDoc(resp.data || []);
+                                } catch (err) {
+                                  console.error('Error al eliminar documento:', err);
+                                  setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
+                                }
+                              }} title="Eliminar documento">🗑️</button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1095,54 +1191,11 @@ export default function UsuarioDirector() {
                 </tbody>
               </table>
             </div>
+          ) : (
+            <p className="text-muted text-center py-3" style={{ fontSize: '0.9rem' }}>No hay documentos adjuntos para este expediente.</p>
           )}
+
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary"
-            disabled={archivosStaged.length === 0 || subiendoDoc}
-            onClick={async () => {
-              try {
-                if (!archivosStaged.length) return;
-                setSubiendoDoc(true);
-                setMensajeDoc({ tipo: "", texto: "" });
-                const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-                let ok = 0, fail = 0;
-                for (const f of archivosStaged) {
-                  try {
-                    const fd = new FormData();
-                    fd.append('archivo', f);
-                    fd.append('id_expediente', expedienteDoc.id_expediente);
-                    fd.append('subido_por', user?.id_usuario);
-                    if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
-                    await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                    ok++;
-                  } catch (e) {
-                    console.error('Falló subida de', f.name, e);
-                    fail++;
-                  }
-                }
-                const msg = fail === 0
-                  ? `Se subieron ${ok} archivo(s)`
-                  : `Subidos ${ok}, fallidos ${fail}`;
-                setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
-                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                setDocumentosDoc(resp.data || []);
-                setArchivosStaged([]);
-              } catch (err) {
-                console.error('Error en guardado de documentos:', err);
-                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
-              } finally {
-                setSubiendoDoc(false);
-              }
-            }}
-          >
-            {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
-          </Button>
-        </Modal.Footer>
       </Modal>    
 
       {/* Modal de Revisión Completo (Nuevo) */}

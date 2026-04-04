@@ -13,6 +13,8 @@ export const obtenerExpediente = (req, res) => {
       e.*,
       u.nombre AS usuario_presentante_nombre,
       u.apellido AS usuario_presentante_apellido,
+      u.telefono AS usuario_presentante_telefono,
+      u.email AS usuario_presentante_email,
       COALESCE(ur.id_usuario, ut.id_usuario) AS usuario_asignado_id,
       COALESCE(ur.nombre, ut.nombre) AS usuario_asignado_nombre,
       COALESCE(ur.apellido, ut.apellido) AS usuario_asignado_apellido
@@ -296,7 +298,9 @@ export const obtenerPasesPorUsuario = (req, res) => {
            u.nombre AS nombre_asignado,
            u.apellido AS apellido_asignado,
            up.nombre AS usuario_presentante_nombre,
-           up.apellido AS usuario_presentante_apellido
+           up.apellido AS usuario_presentante_apellido,
+           up.telefono AS usuario_presentante_telefono,
+           up.email AS usuario_presentante_email
     FROM expedientes e
     LEFT JOIN usuario u ON e.id_profesional_asignado = u.id_usuario
     LEFT JOIN usuario up ON e.id_usuario_presentante = up.id_usuario
