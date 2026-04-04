@@ -93,7 +93,13 @@ export const subirDocumento = async (req, res) => {
 export const obtenerDocumentosExpediente = (req, res) => {
     const { id_expediente } = req.params;
 
-    const sql = 'SELECT * FROM documentos WHERE id_expediente = ?';
+    const sql = `
+      SELECT d.*, u.nombre AS subido_por_nombre, r.nombre AS rol_nombre
+      FROM documentos d
+      LEFT JOIN usuario u ON d.subido_por = u.id_usuario
+      LEFT JOIN roles r ON u.id_rol = r.id_rol
+      WHERE d.id_expediente = ?
+    `;
     connection.query(sql, [id_expediente], (err, results) => {
         if (err) {
             console.error('Error al obtener documentos:', err);

@@ -45,6 +45,7 @@ export default function UsuarioDirector() {
   const [documentosDoc, setDocumentosDoc] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [modalSoloVer, setModalSoloVer] = useState(false);
+  const [historialDoc, setHistorialDoc] = useState([]);
 
   // Estados para Observaciones (Director) - Sincronizado con Decisión Final
   const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
@@ -532,6 +533,7 @@ export default function UsuarioDirector() {
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
+    setHistorialDoc([]);
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
       .catch(err => console.error('Error al cargar documentos:', err))
@@ -539,6 +541,9 @@ export default function UsuarioDirector() {
         setLoadingDocs(false);
         cargarObservaciones(expediente.id_expediente);
       });
+    axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`)
+      .then(res => setHistorialDoc(res.data || []))
+      .catch(err => console.error('Error al cargar historial para docs:', err));
   };
 
   const cerrarModalDoc = () => {
@@ -548,6 +553,7 @@ export default function UsuarioDirector() {
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setDocumentosDoc([]);
+    setHistorialDoc([]);
   };
 
   const handleArchivosChange = (e) => {
@@ -719,6 +725,7 @@ export default function UsuarioDirector() {
                       <tr>
                         <th>Nº Expediente</th>
                         <th>Tipo</th>
+                        <th>Descripción</th>
                         <th>Prioridad</th>
                         <th>Profesional Asignado</th>
                         <th>Fecha Creación</th>
@@ -733,6 +740,7 @@ export default function UsuarioDirector() {
                             {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
                           </td>
                           <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
+                          <td className="descripcion-cell">{exp.descripcion || '-'}</td>
                           <td>
                             <span className={`badge badge-${exp.prioridad}`}>
                               {exp.prioridad || 'normal'}
@@ -747,20 +755,22 @@ export default function UsuarioDirector() {
                           </td>
                           <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
                           <td>
-                            <div className="d-flex gap-2">
+                            <div className="d-flex gap-1 justify-content-center">
                               <button
-                                className="btn btn-sm btn-info"
+                                className="btn btn-sm"
+                                style={{ background: '#f1f3f5', border: '1px solid #ced4da', color: '#495057', fontWeight: 500, fontSize: '0.78rem', borderRadius: '6px', padding: '3px 10px' }}
                                 onClick={() => abrirModalDoc(exp, true)}
                                 title="Ver documentación del expediente"
                               >
-                                📄 Ver Documentos
+                                Ver docs
                               </button>
                               <button
-                                className="btn btn-sm btn-primary"
+                                className="btn btn-sm"
+                                style={{ background: '#0d6efd', border: 'none', color: '#fff', fontWeight: 500, fontSize: '0.875rem', borderRadius: '6px', padding: '3px 10px' }}
                                 onClick={() => abrirModalRevisionCompleto(exp)}
                                 title="Revisar expediente completo"
                               >
-                                📋 Revisar
+                                Resolución
                               </button>
                             </div>
                           </td>
@@ -1082,12 +1092,12 @@ export default function UsuarioDirector() {
             📁 Expediente {expedienteDoc?.numero_expediente}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ padding: '1.5rem' }}>
+        <Modal.Body style={{ padding: '1rem 1.5rem' }}>
 
           {/* Datos del presentante */}
           {expedienteDoc && (
-            <div className="mb-4 p-3" style={{ background: '#f0f4ff', borderRadius: '8px', border: '1px solid #c7d4f0' }}>
-              <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Datos del presentante</p>
+            <div className="mb-2 p-2" style={{ background: '#f0f4ff', borderRadius: '8px', border: '1px solid #c7d4f0' }}>
+              <p className="mb-1 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Datos del presentante</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', fontSize: '0.9rem', color: '#333' }}>
                 <span><span className="text-muted">Nombre:</span> <strong>{expedienteDoc.usuario_presentante_nombre} {expedienteDoc.usuario_presentante_apellido}</strong></span>
                 <span><span className="text-muted">Teléfono:</span> <strong>{expedienteDoc.usuario_presentante_telefono || '—'}</strong></span>
@@ -1103,7 +1113,7 @@ export default function UsuarioDirector() {
 
           {/* Sección: subir archivos (solo modo completo) */}
           {!modalSoloVer && (
-            <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+            <div className="mb-2 p-2" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
               <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Subir documentación oficial</p>
               <Form.Control type="file" multiple onChange={(e) => setArchivosStaged(Array.from(e.target.files))} disabled={subiendoDoc} className="mb-2" />
               {archivosStaged.length > 0 && <Form.Text className="text-muted d-block mb-2">{archivosStaged.length} archivo(s) seleccionado(s)</Form.Text>}
@@ -1148,52 +1158,94 @@ export default function UsuarioDirector() {
             </div>
           )}
 
-          {/* Sección: documentos existentes */}
+          {/* Sección: documentos existentes agrupados por rol */}
           {loadingDocs ? (
             <p className="text-muted text-center py-3">Cargando documentos…</p>
-          ) : documentosDoc.length > 0 ? (
-            <div>
-              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
-              <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
-                <thead className="table-light">
-                  <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
-                </thead>
-                <tbody>
-                  {documentosDoc.map(doc => (
-                    <tr key={doc.id_documento}>
-                      <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
-                      <td>{doc.tipo}</td>
-                      <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
-                          {!modalSoloVer && (
-                            <>
-                              <button className="btn btn-outline-success btn-sm" onClick={() => abrirModalFirma(doc)} title="Firmar documento">✍️</button>
-                              <button className="btn btn-outline-danger btn-sm" onClick={async () => {
-                                if (!window.confirm('¿Eliminar este documento?')) return;
-                                try {
-                                  await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                  const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                  setDocumentosDoc(resp.data || []);
-                                } catch (err) {
-                                  console.error('Error al eliminar documento:', err);
-                                  setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                                }
-                              }} title="Eliminar documento">🗑️</button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-muted text-center py-3" style={{ fontSize: '0.9rem' }}>No hay documentos adjuntos para este expediente.</p>
-          )}
+          ) : (() => {
+            const rolOrder = ['Presentante', 'Técnico', 'Jurídico'];
+            const grupos = {};
+            rolOrder.forEach(r => { grupos[r] = []; });
+            documentosDoc.forEach(doc => {
+              const rol = doc.rol_nombre || 'Otro';
+              if (grupos[rol]) grupos[rol].push(doc);
+              else { grupos[rol] = [doc]; }
+            });
+            const nombresPorRol = {};
+            historialDoc.forEach(h => {
+              if ((h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
+                nombresPorRol[h.rol_nombre] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
+              }
+            });
+            // También obtener nombres desde los propios documentos
+            documentosDoc.forEach(doc => {
+              if ((doc.rol_nombre === 'Técnico' || doc.rol_nombre === 'Jurídico') && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
+                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
+              }
+            });
+            const hayAlgun = rolOrder.some(r => grupos[r].length > 0);
+            if (!hayAlgun && !modalSoloVer) return (
+              <p className="text-muted text-center py-3" style={{ fontSize: '0.9rem' }}>No hay documentos adjuntos para este expediente.</p>
+            );
+            return (
+              <div>
+                <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
+                {rolOrder.map(rol => {
+                  const docs = grupos[rol] || [];
+                  if (rol === 'Presentante' && docs.length === 0) return null;
+                  return (
+                    <div key={rol} className="mb-2">
+                      <h6 className="fw-bold" style={{ color: '#495057' }}>
+                        {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
+                        {nombresPorRol[rol] && (
+                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
+                        )}
+                      </h6>
+                      {docs.length > 0 ? (
+                        <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                          <thead className="table-light">
+                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
+                          </thead>
+                          <tbody>
+                            {docs.map(doc => (
+                              <tr key={doc.id_documento}>
+                                <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
+                                <td>{doc.tipo}</td>
+                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
+                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
+                                <td>
+                                  <div className="d-flex gap-2">
+                                    <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                                    {!modalSoloVer && (
+                                      <>
+                                        <button className="btn btn-outline-success btn-sm" onClick={() => abrirModalFirma(doc)} title="Firmar documento">✍️</button>
+                                        <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                                          if (!window.confirm('¿Eliminar este documento?')) return;
+                                          try {
+                                            await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                            const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                            setDocumentosDoc(resp.data || []);
+                                          } catch (err) {
+                                            console.error('Error al eliminar documento:', err);
+                                            setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
+                                          }
+                                        }} title="Eliminar documento">🗑️</button>
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-muted small ms-2">Sin documentos adjuntos</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
         </Modal.Body>
       </Modal>    
@@ -1232,14 +1284,6 @@ export default function UsuarioDirector() {
                       <td>{expedienteRevision.descripcion || 'Sin descripción'}</td>
                     </tr>
                     <tr>
-                      <th>Estado Actual:</th>
-                      <td>
-                        <span className={`badge badge-${expedienteRevision.estado || expedienteRevision.estado_actual}`}>
-                          {expedienteRevision.estado || expedienteRevision.estado_actual}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
                       <th>Prioridad:</th>
                       <td>
                         <span className={`badge badge-${expedienteRevision.prioridad}`}>
@@ -1261,37 +1305,79 @@ export default function UsuarioDirector() {
                 {loadingDocsRevision ? (
                   <p>Cargando documentos...</p>
                 ) : documentosRevision.length > 0 ? (
-                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    <table className="table table-sm table-striped">
-                      <thead>
-                        <tr>
-                          <th>Nombre</th>
-                          <th>Tipo</th>
-                          <th>Tamaño</th>
-                          <th>Fecha</th>
-                          <th>Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {documentosRevision.map(doc => (
-                          <tr key={doc.id_documento}>
-                            <td>{doc.nombre_archivo}</td>
-                            <td>{doc.tipo}</td>
-                            <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                            <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString() : '-'}</td>
-                            <td>
-                              <button
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() => window.open(`${URL_UPLOADS}/${doc.ruta_archivo}`, '_blank')}
-                              >
-                                👁️ Ver
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  (() => {
+                    const rolOrder = ['Presentante', 'Técnico', 'Jurídico'];
+                    const grupos = {};
+                    rolOrder.forEach(r => { grupos[r] = []; });
+                    documentosRevision.forEach(doc => {
+                      const rol = doc.rol_nombre || 'Otro';
+                      if (grupos[rol]) grupos[rol].push(doc);
+                      else { grupos[rol] = grupos[rol] || []; grupos[rol].push(doc); }
+                    });
+                    // Buscar nombres de Técnico y Jurídico en el historial
+                    const nombresPorRol = {};
+                    historialRevision.forEach(h => {
+                      if ((h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
+                        nombresPorRol[h.rol_nombre] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
+                      }
+                    });
+                    return (
+                      <div>
+                        {rolOrder.map(rol => {
+                          const docs = grupos[rol] || [];
+                          // Presentante: solo mostrar si tiene docs
+                          if (rol === 'Presentante' && docs.length === 0) return null;
+                          return (
+                            <div key={rol} className="mb-3">
+                              <h6 className="fw-bold" style={{ color: '#495057' }}>
+                                {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
+                                {nombresPorRol[rol] && (
+                                  <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>
+                                    — {nombresPorRol[rol]}
+                                  </span>
+                                )}
+                              </h6>
+                              {docs.length > 0 ? (
+                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                  <table className="table table-sm table-striped">
+                                    <thead>
+                                      <tr>
+                                        <th>Nombre</th>
+                                        <th>Tipo</th>
+                                        <th>Tamaño</th>
+                                        <th>Fecha</th>
+                                        <th>Acción</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {docs.map(doc => (
+                                        <tr key={doc.id_documento}>
+                                          <td>{doc.nombre_archivo}</td>
+                                          <td>{doc.tipo}</td>
+                                          <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
+                                          <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString() : '-'}</td>
+                                          <td>
+                                            <button
+                                              className="btn btn-sm btn-outline-primary"
+                                              onClick={() => window.open(`${URL_UPLOADS}/${doc.ruta_archivo}`, '_blank')}
+                                            >
+                                              👁️ Ver
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-muted small ms-2">Sin documentos adjuntos</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
                 ) : (
                   <Alert variant="info">No hay documentos adjuntos en este expediente</Alert>
                 )}
@@ -1347,7 +1433,6 @@ export default function UsuarioDirector() {
                       : 'Puede adjuntar resoluciones, dictámenes u otros documentos oficiales'}
                   </Form.Text>
                 </Form.Group>
-                <br />
 
                 <Button 
                   variant="outline-success"
@@ -1358,9 +1443,8 @@ export default function UsuarioDirector() {
                   {subiendoDoc ? 'Subiendo...' : '📤 Subir Documentos'}
                 </Button>
               </div>
-              <br />
+
               <hr />
-              <br />
 
               {/* Decisión Final */}
               <div className="mb-3">

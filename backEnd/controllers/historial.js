@@ -73,9 +73,11 @@ export const obtenerHistorialExpediente = (req, res) => {
       h.tipo_accion,
       u.nombre AS usuario_nombre,
       u.apellido AS usuario_apellido,
+      r.nombre AS rol_nombre,
       d.nombre AS departamento_nombre
     FROM historial_expediente h
     LEFT JOIN usuario u ON h.id_usuario_responsable = u.id_usuario
+    LEFT JOIN roles r ON u.id_rol = r.id_rol
     LEFT JOIN departamentos d ON h.id_departamento = d.id_departamento
     WHERE h.id_expediente = ?
     ORDER BY h.fecha DESC
