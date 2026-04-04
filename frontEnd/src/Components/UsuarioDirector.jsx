@@ -1416,6 +1416,22 @@ export default function UsuarioDirector() {
 
               <hr />
 
+              {/* Informe Técnico */}
+              {(() => {
+                const informes = observacionesExps.filter(o => o.rol === 'Técnico');
+                if (!informes.length) return null;
+                return (
+                  <div className="mb-4 p-3" style={{ background: '#fff8e1', borderRadius: '8px', border: '1px solid #ffe082' }}>
+                    <h5 style={{ color: '#795548' }}>📋 Informe Técnico</h5>
+                    {informes.map((obs, idx) => (
+                      <div key={idx} className="mb-1" style={{ fontSize: '0.9rem', color: '#444' }}>
+                        <span className="me-2 text-secondary">•</span>{obs.observacion}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {/* Subir Nuevos Documentos */}
               <div className="mb-4">
                 <h5 className="text-success">📤 Subir Documentos Oficiales (Opcional)</h5>

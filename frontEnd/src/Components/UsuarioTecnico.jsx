@@ -59,6 +59,7 @@ export default function UsuarioTecnico() {
   const [cargandoDestinatarios, setCargandoDestinatarios] = useState(null); 
   const [pasesPorExp, setPasesPorExp] = useState({}); // id_expediente -> true/false
   const [modalDeshacer, setModalDeshacer] = useState(null); // expediente para deshacer
+  const [informeTecnico, setInformeTecnico] = useState("");
 
   //observaciones generales modal ver
   const [observacionTecnico, setObservacionTecnico] = useState("");
@@ -575,7 +576,20 @@ export default function UsuarioTecnico() {
         id_profesional_asignado: destinatarioPase
       });
 
-      // 3. Subir documentos si corresponde
+      // 3. Guardar Informe Técnico como observación si fue completado
+      if (informeTecnico.trim()) {
+        try {
+          await axios.post(URL_OBSERVACIONES, {
+            id_expediente: expedienteVer.id_expediente,
+            id_usuario: usuarioActual.id_usuario,
+            observacion: informeTecnico.trim()
+          });
+        } catch (errObs) {
+          console.error('Error al guardar informe técnico:', errObs);
+        }
+      }
+
+      // 4. Subir documentos si corresponde
       if (archivosVer.length > 0) {
         const formData = new FormData();
         archivosVer.forEach((file) => {
@@ -592,6 +606,7 @@ export default function UsuarioTecnico() {
       }
       setMensajeVer({ tipo: 'success', texto: 'Pase realizado y documentos guardados.' });
       setArchivosVer([]);
+      setInformeTecnico("");
       setTimeout(() => {
         cerrarModalVer();
         recargarExpedientes();
@@ -1341,12 +1356,33 @@ export default function UsuarioTecnico() {
           {expedienteVer && (
             <>
               <p><strong>Tipo:</strong> {expedienteVer.tipo_expediente || expedienteVer.tipo_tramite || 'N/A'}</p>
-              <p><strong>Estado:</strong> {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}</p>
+              <p><strong>Descripción:</strong> {expedienteVer.descripcion || 'Sin descripción'}</p>
               <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleString("es-AR")}</p>
               <hr />
-              
-              <hr />
-             
+              <h5>Informe Técnico</h5>
+              <Form.Group className="mb-2">
+                <Form.Label>Adjuntar archivo</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={e => setArchivosVer(Array.from(e.target.files))}
+                  disabled={subiendoVer}
+                />
+                {archivosVer.length > 0 && (
+                  <Form.Text className="text-muted">{archivosVer.length} archivo(s) seleccionado(s)</Form.Text>
+                )}
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Observaciones <span className="text-muted" style={{ fontSize: '0.82rem' }}>(serán visibles para el presentante)</span></Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  placeholder="Escriba las observaciones del informe técnico..."
+                  value={informeTecnico}
+                  onChange={e => setInformeTecnico(e.target.value)}
+                  disabled={subiendoVer}
+                />
+              </Form.Group>
               <hr />
               <h5>Realizar Pase</h5>
               <Form.Group controlId="formDestinatarioPase">

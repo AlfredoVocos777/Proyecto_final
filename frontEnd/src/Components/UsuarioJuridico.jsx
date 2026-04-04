@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_OBSERVACIONES } from "../Constants/endpoints";
+import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_OBSERVACIONES, URL_UPLOADS } from "../Constants/endpoints";
 import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
 import "../CSS/UsuarioJuridico.css";
 import BotonesReporte from "./BotonesReporte";
@@ -55,6 +55,9 @@ export default function UsuarioJuridico() {
   const [showModalVer, setShowModalVer] = useState(false);
   const [expedienteVer, setExpedienteVer] = useState(null);
   const [observacionVer, setObservacionVer] = useState("");
+  const [informeJuridico, setInformeJuridico] = useState("");
+  const [documentosVer, setDocumentosVer] = useState([]);
+  const [historialDoc, setHistorialDoc] = useState([]);
   const [archivosVer, setArchivosVer] = useState([]);
   const [subiendoVer, setSubiendoVer] = useState(false);
   const [mensajeVer, setMensajeVer] = useState({ tipo: "", texto: "" });
@@ -227,11 +230,15 @@ export default function UsuarioJuridico() {
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
+    setHistorialDoc([]);
     cargarObservaciones(expediente.id_expediente);
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
       .catch(err => console.error('Error al cargar documentos:', err))
       .finally(() => setLoadingDocs(false));
+    axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`)
+      .then(res => setHistorialDoc(res.data || []))
+      .catch(() => {});
   };
 
   const handleArchivosVer = (e) => setArchivosVer(Array.from(e.target.files));
@@ -254,6 +261,18 @@ export default function UsuarioJuridico() {
         setSubiendoVer(false); return;
       }
       await axios.put(`http://localhost:8000/expedientes/${expedienteVer.id_expediente}`, { id_profesional_asignado: destinatarioPase });
+      // Guardar informe jurídico como observación
+      if (informeJuridico.trim()) {
+        try {
+          await axios.post(URL_OBSERVACIONES, {
+            id_expediente: expedienteVer.id_expediente,
+            id_usuario: usuarioActual.id_usuario,
+            observacion: informeJuridico.trim()
+          });
+        } catch (errObs) {
+          console.error('Error al guardar informe jurídico:', errObs);
+        }
+      }
       if (archivosVer.length > 0) {
         const formData = new FormData();
         archivosVer.forEach(f => formData.append('files', f));
@@ -263,6 +282,7 @@ export default function UsuarioJuridico() {
       }
       setMensajeVer({ tipo: 'success', texto: 'Pase realizado y documentos guardados.' });
       setArchivosVer([]);
+      setInformeJuridico("");
       setTimeout(() => { cerrarModalVer(); recargarExpedientes(); }, 1200);
     } catch (err) {
       setMensajeVer({ tipo: 'danger', texto: err.response?.data?.error || 'Error al realizar el pase.' });
@@ -274,6 +294,9 @@ export default function UsuarioJuridico() {
     setShowModalVer(false);
     setExpedienteVer(null);
     setObservacionVer("");
+    setInformeJuridico("");
+    setDocumentosVer([]);
+    setHistorialDoc([]);
     setArchivosVer([]);
     setMensajeVer({ tipo: "", texto: "" });
   };
@@ -481,6 +504,11 @@ export default function UsuarioJuridico() {
                               exp.id_profesional_asignado === usuarioLogueado?.id_usuario && (
                                 <Button variant="primary" size="sm" onClick={async () => {
                                   setExpedienteVer(exp);
+                                  // Cargar documentos y observaciones del técnico
+                                  axios.get(`${URL_DOCUMENTOS}/expediente/${exp.id_expediente}`)
+                                    .then(r => setDocumentosVer(r.data || []))
+                                    .catch(() => setDocumentosVer([]));
+                                  cargarObservaciones(exp.id_expediente);
                                   try {
                                     const resp = await axios.get('http://localhost:8000/usuarios');
                                     const soloDirector = (resp.data || []).filter(u => 
@@ -794,46 +822,98 @@ export default function UsuarioJuridico() {
             </div>
           )}
 
-          {/* Sección: documentos existentes */}
+          {/* Informe Técnico - visible siempre */}
+          {(() => {
+            const informes = observacionesExps.filter(o => o.rol === 'Técnico');
+            if (!informes.length) return null;
+            return (
+              <div className="mb-3 p-2" style={{ background: '#fff8e1', borderRadius: '8px', border: '1px solid #ffe082' }}>
+                <p className="mb-1 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#795548' }}>📋 Informe Técnico</p>
+                {informes.map((obs, idx) => (
+                  <div key={idx} className="mb-1" style={{ fontSize: '0.9rem', color: '#444' }}>
+                    <span className="me-2 text-secondary">•</span>{obs.observacion}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Sección: documentos agrupados por rol (siempre solo lectura) */}
           {loadingDocs ? (
             <p className="text-muted text-center py-3">Cargando documentos…</p>
-          ) : documentosDoc.length > 0 ? (
-            <div>
-              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
-              <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
-                <thead className="table-light">
-                  <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
-                </thead>
-                <tbody>
-                  {documentosDoc.map(doc => (
-                    <tr key={doc.id_documento}>
-                      <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
-                      <td>{doc.tipo}</td>
-                      <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
-                          {!modalSoloVer && (
-                            <button className="btn btn-outline-danger btn-sm" onClick={async () => {
-                              if (!window.confirm('¿Eliminar este documento?')) return;
-                              try {
-                                await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                setDocumentosDoc(resp.data || []);
-                              } catch (err) { setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' }); }
-                            }}>Eliminar</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-muted text-center py-3" style={{ fontSize: '0.9rem' }}>No hay documentos adjuntos para este expediente.</p>
-          )}
+          ) : (() => {
+            const rolOrder = ['Presentante', 'Técnico'];
+            const grupos = {};
+            rolOrder.forEach(r => { grupos[r] = []; });
+            documentosDoc.forEach(doc => {
+              const rol = doc.rol_nombre || 'Otro';
+              if (grupos[rol]) grupos[rol].push(doc);
+              else { grupos[rol] = [doc]; }
+            });
+            const nombresPorRol = {};
+            historialDoc.forEach(h => {
+              if (h.rol_nombre === 'Técnico' && !nombresPorRol['Técnico']) {
+                nombresPorRol['Técnico'] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
+              }
+            });
+            documentosDoc.forEach(doc => {
+              if (doc.rol_nombre === 'Técnico' && !nombresPorRol['Técnico'] && doc.subido_por_nombre) {
+                nombresPorRol['Técnico'] = doc.subido_por_nombre;
+              }
+            });
+            return (
+              <div>
+                <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
+                {rolOrder.map(rol => {
+                  const docs = grupos[rol] || [];
+                  return (
+                    <div key={rol} className="mb-3">
+                      <h6 className="fw-bold" style={{ color: '#495057' }}>
+                        {rol === 'Presentante' ? '👤' : '🔧'} {rol}
+                        {nombresPorRol[rol] && (
+                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
+                        )}
+                      </h6>
+                      {docs.length === 0 ? (
+                        <p className="text-muted small ms-2">Sin archivos adjuntos</p>
+                      ) : (
+                        <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                          <thead className="table-light">
+                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
+                          </thead>
+                          <tbody>
+                            {docs.map(doc => (
+                              <tr key={doc.id_documento}>
+                                <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
+                                <td>{doc.tipo}</td>
+                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
+                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
+                                <td>
+                                  <div className="d-flex gap-2">
+                                    <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                                    {!modalSoloVer && (
+                                      <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                                        if (!window.confirm('¿Eliminar este documento?')) return;
+                                        try {
+                                          await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                          const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                          setDocumentosDoc(resp.data || []);
+                                        } catch (err) { setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' }); }
+                                      }}>Eliminar</button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
         </Modal.Body>
       </Modal>
@@ -845,12 +925,58 @@ export default function UsuarioJuridico() {
           {expedienteVer && (
             <>
               <p><strong>Tipo:</strong> {expedienteVer.tipo_expediente || expedienteVer.tipo_tramite || 'N/A'}</p>
-              <p><strong>Estado:</strong> {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}</p>
+              <p><strong>Descripción:</strong> {expedienteVer.descripcion || 'Sin descripción'}</p>
               <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleString("es-AR")}</p>
               <hr />
-              
+              {/* Informe Técnico - texto y archivos */}
+              <div className="mb-3 p-2" style={{ background: '#fff8e1', borderRadius: '8px', border: '1px solid #ffe082' }}>
+                <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: '#795548' }}>📋 Informe Técnico</p>
+                {(() => {
+                  const obsT = observacionesExps.filter(o => o.rol === 'Técnico');
+                  const docsT = documentosVer.filter(d => d.rol_nombre === 'Técnico');
+                  if (!obsT.length && !docsT.length) return <p className="text-muted small mb-0">Sin informe técnico registrado.</p>;
+                  return (
+                    <>
+                      {obsT.map((obs, idx) => (
+                        <p key={idx} className="mb-1" style={{ fontSize: '0.9rem', color: '#444' }}>
+                          <span className="me-1 text-secondary">•</span>{obs.observacion}
+                        </p>
+                      ))}
+                      {docsT.map(doc => (
+                        <div key={doc.id_documento} className="d-flex align-items-center gap-2 mb-1" style={{ fontSize: '0.88rem' }}>
+                          <span>📄 {doc.nombre_archivo}</span>
+                          <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm py-0">Ver</a>
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
+              <h5>Informe Jurídico</h5>
+              <Form.Group className="mb-2">
+                <Form.Label>Adjuntar archivo</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={e => setArchivosVer(Array.from(e.target.files))}
+                  disabled={subiendoVer}
+                />
+                {archivosVer.length > 0 && (
+                  <Form.Text className="text-muted">{archivosVer.length} archivo(s) seleccionado(s)</Form.Text>
+                )}
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Observaciones <span className="text-muted" style={{ fontSize: '0.82rem' }}>(serán visibles para el presentante)</span></Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  placeholder="Escriba las observaciones del informe jurídico..."
+                  value={informeJuridico}
+                  onChange={e => setInformeJuridico(e.target.value)}
+                  disabled={subiendoVer}
+                />
+              </Form.Group>
               <hr />
-             
               <h5>Realizar Pase</h5>
               <Form.Group>
                 <Form.Label>Destinatario</Form.Label>
