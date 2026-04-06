@@ -22,12 +22,12 @@ export const solicitarRecuperacion = async (req, res) => {
         pass: 'aedn bkio pgnl tkql'
       }
     });
-    const resetUrl = `http://localhost:5174/reset-password/${token}`;
+    const resetUrl = `http://localhost:5173/reset-password/${token}`;
     await transporter.sendMail({
       from: 'juanmanuelgonz@gmail.com',
       to: email,
       subject: 'Recuperación de contraseña SIGEDEX',
-      html: `<p>Haz clic <a href="${resetUrl}">aquí</a> para restablecer tu contraseña.</p>`
+      html: `<p>Haz clic <a href="${resetUrl}">aquí</a> para restablecer tu contraseña.</p><p>Si el enlace no funciona, copia y pega esta URL en tu navegador:</p><p>${resetUrl}</p>`
     });
     res.json({ mensaje: 'Correo de recuperación enviado' });
   });
