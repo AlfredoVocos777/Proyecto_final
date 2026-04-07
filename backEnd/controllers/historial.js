@@ -39,7 +39,7 @@ export const crearAsignacion = (req, res) => {
     // Actualizar el campo id_profesional_asignado y estado_actual en la tabla expedientes
     if (tipo_accion === "asignación") {
       connection.query(
-        "UPDATE expedientes SET id_profesional_asignado = ?, estado_actual = 'asignado' WHERE id_expediente = ?",
+        "UPDATE expedientes SET id_profesional_asignado = ?, estado_actual = 'en revisión' WHERE id_expediente = ?",
         [id_usuario_responsable, id_expediente],
         (err2) => {
           if (err2) {
@@ -186,8 +186,8 @@ export const deshacerPase = (req, res) => {
         const id_nuevo_responsable = registroAnterior ? registroAnterior.id_usuario_responsable : null;
         
         // Si el anterior registro era una recepción, el estado vuelve a 'en revisión'
-        // De lo contrario, queda en 'asignado'
-        const nuevo_estado = (registroAnterior?.accion?.toLowerCase().includes('recep')) ? 'en revisión' : 'asignado';
+        // De lo contrario, también queda en 'en revisión' (asignado === en revisión)
+        const nuevo_estado = 'en revisión';
 
         connection.query(
           "UPDATE expedientes SET estado_actual = ?, id_profesional_asignado = ?, updated_at = NOW() WHERE id_expediente = ?",

@@ -41,6 +41,12 @@
   max-width: 1400px;
 }
 
+.tabla-container--compacto {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
 .tabla-container table {
   margin-bottom: 0;
 }

@@ -10,7 +10,10 @@ export default function ExpedientesLista({ estado }) {
     <ConsultaExpedientes
       soloEstado={estado || ""}
       ocultarAsignado={(estado || "").toLowerCase() === "en revisión"}
+      ocultarPrioridad={["aprobado", "rechazado"].includes((estado || "").toLowerCase())}
+      compacto={["aprobado", "rechazado"].includes((estado || "").toLowerCase())}
       rutaVolver="/PortadaAdministrativo"
     />
   );
+
 }

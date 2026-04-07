@@ -77,7 +77,7 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
       });
       await axios.put(`${URL_EXPEDIENTES}/${expediente.id_expediente}`, {
         id_profesional_asignado: tecnicoId,
-        estado_actual: "asignado",
+        estado_actual: "en revisión",
       });
       // Guardar observación visible para el presentante
       if (observacion.trim()) {
@@ -476,7 +476,7 @@ export default function ExpedientesEnRevisionPage() {
         e.id_expediente === id_expediente
           ? {
               ...e,
-              estado_actual: "asignado",
+              estado_actual: "en revisión",
               usuario_asignado_nombre: tecnico?.nombre ?? "",
               usuario_asignado_apellido: tecnico?.apellido ?? "",
               id_profesional_asignado: tecnico?.id_usuario ?? null,

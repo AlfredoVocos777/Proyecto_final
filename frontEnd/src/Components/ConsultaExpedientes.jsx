@@ -19,7 +19,7 @@ import {
 } from "react-bootstrap";
 import "../CSS/Consulta.css";
 
-function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada" }) {
+function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada", ocultarPrioridad = false, compacto = false }) {
   const [expedientes, setExpedientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -417,7 +417,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
           No hay expedientes registrados en el sistema.
         </Alert>
       ) : (
-        <div className="tabla-container">
+        <div className={`tabla-container${compacto ? " tabla-container--compacto" : ""}`}>
           {/* Barra de filtros */}
           <div className="row g-2 mb-3">
             <div className="col-md-4">
@@ -534,7 +534,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 <th>Tipo</th>
                 <th>Descripción</th>
                 <th>Estado</th>
-                <th>Prioridad</th>
+                {!ocultarPrioridad && <th>Prioridad</th>}
                 <th>Fecha Creación</th>
                 <th>Acciones</th>
               </tr>
@@ -551,11 +551,13 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       {expediente.estado_actual || "N/A"}
                     </Badge>
                   </td>
+                  {!ocultarPrioridad && (
                   <td>
                     <Badge bg={getPrioridadBadge(expediente.prioridad)}>
                       {expediente.prioridad || "N/A"}
                     </Badge>
                   </td>
+                  )}
                   <td>{formatearFecha(expediente.fecha_creacion)}</td>
                   <td className="acciones-cell">
                     {/*boton ver*/}
@@ -568,7 +570,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       Ver
                     </Button>
 
-                    {usuarioLog?.tipo_usuario?.toLowerCase() !==
+                    {!ocultarPrioridad && usuarioLog?.tipo_usuario?.toLowerCase() !==
                       "presentante" && (
                       <>
                         <Button

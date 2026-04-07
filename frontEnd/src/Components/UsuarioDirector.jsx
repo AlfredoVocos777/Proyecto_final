@@ -491,7 +491,8 @@ export default function UsuarioDirector() {
         id_expediente: expedienteRevision.id_expediente,
         id_usuario_responsable: usuarioLogueado.id_usuario,
         accion: decisionTipo === "aprobar" ? "Aprobado por Dirección" : "Rechazado por Dirección",
-        comentario: comentarioDecision
+        comentario: comentarioDecision,
+        tipo_accion: "decision_director"
       };
       
 
