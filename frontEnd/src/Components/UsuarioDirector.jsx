@@ -460,7 +460,7 @@ export default function UsuarioDirector() {
       const payloadUpdate = {
         tipo_expediente: expedienteRevision.tipo_tramite || expedienteRevision.tipo_expediente,
         descripcion: expedienteRevision.descripcion,
-        prioridad: expedienteRevision.prioridad || "normal",
+        prioridad: expedienteRevision.prioridad || "media",
         estado_actual: nuevoEstado,
         comentario_director: comentarioDecision
       };
@@ -498,7 +498,22 @@ export default function UsuarioDirector() {
 
       await axios.post(URL_HISTORIAL, historialData);
 
-      // TODO: Aquí se debe disparar notificación al usuario presentante
+      // Notificar al presentante por email
+      try {
+        await axios.post("http://localhost:8000/api/notificar-pase", {
+          id_usuario: expedienteRevision.id_usuario_presentante,
+          email: expedienteRevision.usuario_presentante_email || "",
+          nombre: expedienteRevision.usuario_presentante_nombre || "",
+          apellido: expedienteRevision.usuario_presentante_apellido || "",
+          numero_expediente: expedienteRevision.numero_expediente,
+          observacion: decisionTipo === "aprobar"
+            ? `Su expediente fue APROBADO por la Dirección. ${comentarioDecision}`
+            : `Su expediente fue RECHAZADO por la Dirección. ${comentarioDecision}`
+        });
+      } catch (notifErr) {
+        console.warn("No se pudo enviar notificación al presentante:", notifErr.message);
+        // No cortamos el flujo si falla la notificación
+      }
       
       setMensajeRevision({
         tipo: "success",
