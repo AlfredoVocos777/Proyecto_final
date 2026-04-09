@@ -666,14 +666,18 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 <Form.Group>
                   <Form.Label>Fecha</Form.Label>
                   <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.fecha_creacion}
+                    {expedienteSeleccionado.fecha_creacion
+                      ? new Date(expedienteSeleccionado.fecha_creacion).toLocaleString("es-AR")
+                      : "—"}
                   </Form.Label>
                 </Form.Group>
 
                 <Form.Group>
                   <Form.Label>Usuario Presentante</Form.Label>
                   <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.id_usuario_presentante}
+                    {expedienteSeleccionado.usuario_presentante_apellido && expedienteSeleccionado.usuario_presentante_nombre
+                      ? `${expedienteSeleccionado.usuario_presentante_nombre} ${expedienteSeleccionado.usuario_presentante_apellido}`
+                      : expedienteSeleccionado.usuario_presentante_nombre || expedienteSeleccionado.id_usuario_presentante}
                   </Form.Label>
                 </Form.Group>
 
