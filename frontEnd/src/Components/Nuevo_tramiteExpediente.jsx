@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_EXPEDIENTES, URL_SUBIR_DOCUMENTO, URL_NOTIFICACIONES } from "../Constants/endpoints";
+import { URL_EXPEDIENTES, URL_SUBIR_DOCUMENTO } from "../Constants/endpoints";
 import { NUEVO_TRAMITE_PAGO } from "../Routers/router";
 import "../CSS/Nuevo_tramiteExpediente.css";
 
@@ -9,7 +9,7 @@ const NuevoTramiteExpediente = () => {
   const navigate = useNavigate();
   const [expediente, setExpediente] = useState(null);
   const [usuario, setUsuario] = useState(null);
-  const notificacionEnviada = useRef(false);
+
 
   useEffect(() => {
     try {
@@ -35,18 +35,6 @@ const NuevoTramiteExpediente = () => {
         console.log("Usuario cargado:", userData);
         setUsuario(userData);
 
-        // Notificar al presentante por mail (solo una vez)
-        if (!notificacionEnviada.current) {
-          notificacionEnviada.current = true;
-          axios.post(`${URL_NOTIFICACIONES}/notificar-creacion`, {
-            email: userData.email,
-            nombre: userData.nombre,
-            apellido: userData.apellido,
-            numero_expediente: expedienteData.numero_expediente,
-            tipo_expediente: expedienteData.tipo_expediente,
-            id_usuario: userData.id_usuario,
-          }).catch(err => console.warn("No se pudo enviar notificación de creación:", err));
-        }
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);

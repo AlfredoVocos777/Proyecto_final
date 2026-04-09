@@ -1357,6 +1357,25 @@ export default function UsuarioDirector() {
             );
           })()}
 
+          {/* Sección: historial de observaciones (visible siempre si hay registros) */}
+          {observacionesExps.length > 0 && (
+            <div className="mt-3 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones registradas</p>
+              <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
+                {observacionesExps.map((obs, idx) => (
+                  <div key={idx} className="d-flex align-items-start mb-2" style={{ fontSize: '0.85rem', color: '#444' }}>
+                    <span className="me-2 text-secondary">•</span>
+                    <span>
+                      {obs.rol && <strong className="me-1">[{obs.rol}]</strong>}
+                      {obs.observacion}
+                      {obs.fecha_hora && <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>{new Date(obs.fecha_hora).toLocaleString("es-AR")}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </Modal.Body>
       </Modal>    
 

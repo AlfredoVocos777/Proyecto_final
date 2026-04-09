@@ -72,10 +72,10 @@ export default function UsuarioTecnico() {
       const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
       const data = res.data || {};
       const todas = [
-        ...(data.Administrativo || []),
-        ...(data.Técnico || []),
-        ...(data.Jurídico || []),
-        ...(data.Director || [])
+        ...(data.Administrativo || []).map(o => ({ ...o, rol: 'Administrativo' })),
+        ...(data.Técnico || []).map(o => ({ ...o, rol: 'Técnico' })),
+        ...(data.Jurídico || []).map(o => ({ ...o, rol: 'Jurídico' })),
+        ...(data.Director || []).map(o => ({ ...o, rol: 'Director' }))
       ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
       setObservacionesExps(todas);
     } catch (err) {
@@ -1246,54 +1246,64 @@ export default function UsuarioTecnico() {
             </div>
           )}
 
-          {/* Sección: observaciones (solo modo completo) */}
-          {!modalSoloVer && (
+          {/* Sección: observaciones (formulario solo en modo completo, historial siempre visible) */}
+          {(!modalSoloVer || observacionesExps.length > 0) && (
             <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
               <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones</p>
-              <Form.Control
-                type="text"
-                placeholder="Escriba una observación para el presentante del expediente..."
-                value={observacionTecnico || ""}
-                onChange={(e) => { setObservacionTecnico(e.target.value); setErrorObs(""); }}
-                isInvalid={!!errorObs}
-                disabled={subiendoDoc}
-                className="mb-2"
-              />
-              <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
-              <Button
-                size="sm"
-                variant="outline-primary"
-                onClick={async () => {
-                  if (!observacionTecnico.trim()) { setErrorObs("Debe escribir una observación antes de guardar."); return; }
-                  if (!expedienteDoc) return;
-                  const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
-                  try {
-                    await axios.post(URL_OBSERVACIONES, {
-                      id_expediente: expedienteDoc.id_expediente,
-                      id_usuario: usuario.id_usuario,
-                      observacion: observacionTecnico,
-                    });
-                    alert("Observación guardada ✅");
-                    setObservacionTecnico("");
-                    setErrorObs("");
-                    cargarObservaciones(expedienteDoc.id_expediente);
-                  } catch (err) {
-                    console.error(err);
-                    alert("No se pudo guardar la observación.");
-                  }
-                }}
-              >
-                Guardar observación
-              </Button>
-              {observacionesExps.length > 0 && (
-                <div className="mt-3" style={{ maxHeight: '130px', overflowY: 'auto' }}>
+              {!modalSoloVer && (
+                <>
+                  <Form.Control
+                    type="text"
+                    placeholder="Escriba una observación para el presentante del expediente..."
+                    value={observacionTecnico || ""}
+                    onChange={(e) => { setObservacionTecnico(e.target.value); setErrorObs(""); }}
+                    isInvalid={!!errorObs}
+                    disabled={subiendoDoc}
+                    className="mb-2"
+                  />
+                  <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    onClick={async () => {
+                      if (!observacionTecnico.trim()) { setErrorObs("Debe escribir una observación antes de guardar."); return; }
+                      if (!expedienteDoc) return;
+                      const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                      try {
+                        await axios.post(URL_OBSERVACIONES, {
+                          id_expediente: expedienteDoc.id_expediente,
+                          id_usuario: usuario.id_usuario,
+                          observacion: observacionTecnico,
+                        });
+                        alert("Observación guardada ✅");
+                        setObservacionTecnico("");
+                        setErrorObs("");
+                        cargarObservaciones(expedienteDoc.id_expediente);
+                      } catch (err) {
+                        console.error(err);
+                        alert("No se pudo guardar la observación.");
+                      }
+                    }}
+                  >
+                    Guardar observación
+                  </Button>
+                </>
+              )}
+              {observacionesExps.length > 0 ? (
+                <div className="mt-3" style={{ maxHeight: '160px', overflowY: 'auto' }}>
                   {observacionesExps.map((obs, idx) => (
-                    <div key={idx} className="d-flex align-items-start mb-1" style={{ fontSize: '0.85rem', color: '#444' }}>
+                    <div key={idx} className="d-flex align-items-start mb-2" style={{ fontSize: '0.85rem', color: '#444' }}>
                       <span className="me-2 text-secondary">•</span>
-                      <span>{obs.observacion}</span>
+                      <span>
+                        {obs.rol && <strong className="me-1">[{obs.rol}]</strong>}
+                        {obs.observacion}
+                        {obs.fecha_hora && <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>{new Date(obs.fecha_hora).toLocaleString("es-AR")}</span>}
+                      </span>
                     </div>
                   ))}
                 </div>
+              ) : (
+                !modalSoloVer && <p className="text-muted small mt-2 mb-0">Sin observaciones registradas.</p>
               )}
             </div>
           )}

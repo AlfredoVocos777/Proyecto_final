@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -967,6 +967,17 @@ export default function UsuarioJuridico() {
               </div>
               <h5>Informe Jurídico</h5>
               <Form.Group className="mb-2">
+                <Form.Label>Dictamen / Observaciones jurídicas</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  placeholder="Escriba el informe jurídico o las observaciones..."
+                  value={informeJuridico}
+                  onChange={e => setInformeJuridico(e.target.value)}
+                  disabled={subiendoVer}
+                />
+              </Form.Group>
+              <Form.Group className="mb-2">
                 <Form.Label>Adjuntar archivo</Form.Label>
                 <Form.Control
                   type="file"
@@ -979,40 +990,19 @@ export default function UsuarioJuridico() {
                 )}
               </Form.Group>
               <Form.Group className="mb-3">
-                <Form.Label>Observaciones <span className="text-muted" style={{ fontSize: '0.82rem' }}>(serán visibles para el presentante)</span></Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="Escriba las observaciones del informe jurídico..."
-                  value={informeJuridico}
-                  onChange={e => setInformeJuridico(e.target.value)}
+                <Form.Label>Enviar a</Form.Label>
+                <Form.Select
+                  value={destinatarioPase}
+                  onChange={e => setDestinatarioPase(e.target.value)}
                   disabled={subiendoVer}
-                />
-              </Form.Group>
-              <hr />
-              <h5>Realizar Pase</h5>
-              <Form.Group className="mb-3">
-                <Form.Label>Destinatario</Form.Label>
-                <Form.Select value={destinatarioPase} onChange={e => setDestinatarioPase(e.target.value)}>
-                  <option value="">Seleccione destinatario</option>
+                >
+                  <option value="">-- Seleccionar destinatario --</option>
                   {usuariosPase.map(u => (
-                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.rol || u.tipo_usuario})</option>
+                    <option key={u.id_usuario} value={u.id_usuario}>
+                      {u.nombre} {u.apellido} ({u.tipo_usuario || u.rol})
+                    </option>
                   ))}
                 </Form.Select>
-                {usuariosPase.length === 0 && (
-                  <Form.Text className="text-danger">No hay usuarios jurídicos disponibles.</Form.Text>
-                )}
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Observaciones <span className="text-muted" style={{ fontSize: '0.82rem' }}>(serán visibles para el presentante)</span></Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  placeholder="Escriba las observaciones del pase..."
-                  value={observacionVer}
-                  onChange={e => setObservacionVer(e.target.value)}
-                  disabled={subiendoVer}
-                />
               </Form.Group>
               <Button variant="primary" className="mt-2" onClick={realizarPaseModal} disabled={!destinatarioPase || subiendoVer}>
                 {subiendoVer ? "Procesando..." : "Realizar Pase"}
@@ -1044,4 +1034,4 @@ export default function UsuarioJuridico() {
       </Modal>
     </div>
   );
-}
+}

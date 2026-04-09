@@ -420,7 +420,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
         <div className={`tabla-container${compacto ? " tabla-container--compacto" : ""}`}>
           {/* Barra de filtros */}
           <div className="row g-2 mb-3">
-            <div className="col-md-4">
+            <div className="col-md-3">
               <input
                 type="text"
                 className="form-control"
@@ -483,17 +483,18 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 ))}
               </select>
             </div>
-            <div className="col-md-1 d-grid">
+            <div className="col-md-2 d-grid">
               <Button
-                variant="outline-secondary"
+                variant="outline-primary"
                 onClick={() => {
                   setBusqueda("");
                   setFiltroEstado(soloEstado || "");
                   setFiltroPrioridad("");
                   setFiltroTipo("");
                 }}
+                style={{ whiteSpace: "nowrap", backgroundColor: "#f8f6f0" }}
               >
-                Limpiar
+                Limpiar filtros
               </Button>
             </div>
           </div>
