@@ -32,58 +32,18 @@ const PagoExitoso = () => {
           return;
         }
 
-        // Procesar pago exitoso (sin Mercado Pago), creando y registrando si hizo deep-link
-        console.log('Procesando pago como exitoso (creación on-load)...');
-
-        // Obtener datos del expediente pendiente
-        const expedientePendiente = localStorage.getItem('expedientePendiente');
-        console.log('Expediente pendiente en localStorage:', expedientePendiente);
-        
-        if (!expedientePendiente) {
-          console.error('No se encontró expedientePendiente en localStorage');
-          setError('No se encontraron datos del expediente. Por favor, inicie el trámite nuevamente.');
+        // El pago ya se formalizó en Nuevo_tramitePago.jsx
+        // Si llegamos sin expedienteCreado, es un error de flujo.
+        const expedienteCreado = localStorage.getItem("expedienteCreado");
+        if (!expedienteCreado) {
+          console.error('No se encontró expediente creado en localStorage');
+          setError('No se pudo verificar el expediente. Por favor, consulte en Mis Trámites.');
           setLoading(false);
           return;
         }
 
-        const datosExpediente = JSON.parse(expedientePendiente);
-
-        // 1. CREAR EL EXPEDIENTE EN LA BASE DE DATOS
-        console.log('Creando expediente después del pago exitoso:', datosExpediente);
-        
-        const responseExpediente = await axios.post(URL_EXPEDIENTES, datosExpediente);
-        console.log('Expediente creado:', responseExpediente.data);
-        
-        const expedienteCreado = {
-          ...datosExpediente,
-          id: responseExpediente.data.id_expediente,
-          numero_expediente: responseExpediente.data.numero_expediente
-        };
-
-        // 2. REGISTRAR EL PAGO EN LA BASE DE DATOS
-        const pagoData = {
-          id_expediente: expedienteCreado.id,
-          id_usuario: datosExpediente.id_usuario_presentante,
-          monto: 5000,
-          metodo_pago: 'otros',
-          estado_pago: 'confirmado',
-          fecha_pago: new Date().toISOString(),
-          referencia_pasarela: `SIMULADO-${Date.now()}`
-        };
-
-        console.log('Registrando pago:', pagoData);
-        
-        const responsePago = await axios.post('http://localhost:8000/api/pagos', pagoData);
-        console.log('Pago registrado:', responsePago.data);
-
-        // 3. LIMPIAR LOCALSTORAGE
-        localStorage.removeItem('expedienteCreado');
-        localStorage.removeItem('expedientePendiente');
-        localStorage.removeItem('archivosSeleccionados');
-        localStorage.removeItem('preference_id');
-
-        // 4. GUARDAR NÚMERO DE EXPEDIENTE PARA MOSTRAR
-        setNumeroExpediente(expedienteCreado.numero_expediente);
+        const expedienteFormalizado = JSON.parse(expedienteCreado);
+        setNumeroExpediente(expedienteFormalizado.numero_expediente);
         setLoading(false);
 
       } catch (error) {
