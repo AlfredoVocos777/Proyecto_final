@@ -8,7 +8,7 @@ function ConsultaExpedientesPage() {
     <>
       <Header_1 />
       <BackButton />
-      <ConsultaExpedientes />
+      <ConsultaExpedientes ocultarPrioridad={true} />
       <Footer />
     </>
   );

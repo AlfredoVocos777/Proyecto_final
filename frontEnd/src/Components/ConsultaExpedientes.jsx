@@ -540,6 +540,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
               </select>
             </div>
             )}
+            {!ocultarPrioridad && (
             <div className="col-md-2">
               <select
                 className="form-select"
@@ -554,6 +555,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 ))}
               </select>
             </div>
+            )}
             <div className="col-md-2 d-grid">
               <Button
                 variant="outline-primary"
@@ -606,8 +608,8 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 <th>Tipo</th>
                 <th>Descripción</th>
                 <th>Estado</th>
-                {!ocultarPrioridad && <th>Prioridad</th>}
                 <th>Fecha Creación</th>
+                {ocultarPrioridad ? <th>Asignado a</th> : <th>Prioridad</th>}
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -623,14 +625,20 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       {expediente.estado_actual || "N/A"}
                     </Badge>
                   </td>
-                  {!ocultarPrioridad && (
+                  <td>{formatearFecha(expediente.fecha_creacion)}</td>
+                  {ocultarPrioridad ? (
+                  <td>
+                    {expediente.usuario_asignado_nombre
+                      ? `${expediente.usuario_asignado_nombre} ${expediente.usuario_asignado_apellido || ''}`.trim()
+                      : <span className="text-muted">Sin asignar</span>}
+                  </td>
+                  ) : (
                   <td>
                     <Badge bg={getPrioridadBadge(expediente.prioridad)}>
                       {expediente.prioridad || "N/A"}
                     </Badge>
                   </td>
                   )}
-                  <td>{formatearFecha(expediente.fecha_creacion)}</td>
                   <td className="acciones-cell">
                     {/*boton ver*/}
                     <Button
