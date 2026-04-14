@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -70,17 +70,14 @@ export default function UsuarioJuridico() {
   const [observacionJuridico, setObservacionJuridico] = useState("");
   const [errorObs, setErrorObs] = useState("");
   const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
+  const [subiendoObs, setSubiendoObs] = useState(false); // Nuevo estado
   
   const cargarObservaciones = async (idExp) => {
     try {
       const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
-      // El backend devuelve { Administrativo: [], Técnico: [], Jurídico: [], Director: [] }
       const data = res.data || {};
       const todas = [
-        ...(data.Administrativo || []),
-        ...(data.Técnico || []),
-        ...(data.Jurídico || []),
-        ...(data.Director || [])
+        ...(data.Jurídico || []).map(o => ({ ...o, rol: 'Jurídico' }))
       ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
       setObservacionesExps(todas);
     } catch (err) {
@@ -231,6 +228,7 @@ export default function UsuarioJuridico() {
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
     setHistorialDoc([]);
+    setObservacionJuridico(""); // Reset de observación para el nuevo expediente
     cargarObservaciones(expediente.id_expediente);
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
@@ -261,30 +259,9 @@ export default function UsuarioJuridico() {
         setSubiendoVer(false); return;
       }
       await axios.put(`http://localhost:8000/expedientes/${expedienteVer.id_expediente}`, { id_profesional_asignado: destinatarioPase });
-      // Guardar observación del pase visible para el presentante
-      if (observacionVer.trim()) {
-        try {
-          await axios.post(URL_OBSERVACIONES, {
-            id_expediente: expedienteVer.id_expediente,
-            id_usuario: usuarioActual.id_usuario,
-            observacion: observacionVer.trim()
-          });
-        } catch (errObs) {
-          console.error('Error al guardar observación del pase:', errObs);
-        }
-      }
-      // Guardar informe jurídico como observación
-      if (informeJuridico.trim()) {
-        try {
-          await axios.post(URL_OBSERVACIONES, {
-            id_expediente: expedienteVer.id_expediente,
-            id_usuario: usuarioActual.id_usuario,
-            observacion: informeJuridico.trim()
-          });
-        } catch (errObs) {
-          console.error('Error al guardar informe jurídico:', errObs);
-        }
-      }
+      setMensajeVer({ tipo: 'success', texto: 'Pase realizado con éxito.' });
+
+      // Subir documentos si corresponde (Restaurado)
       if (archivosVer.length > 0) {
         const formData = new FormData();
         archivosVer.forEach(f => formData.append('files', f));
@@ -292,9 +269,8 @@ export default function UsuarioJuridico() {
         formData.append('subido_por', usuarioActual.id_usuario);
         await axios.post('http://localhost:8000/api/documentos/subirYRegistrar', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       }
-      setMensajeVer({ tipo: 'success', texto: 'Pase realizado y documentos guardados.' });
+
       setArchivosVer([]);
-      setInformeJuridico("");
       setTimeout(() => { cerrarModalVer(); recargarExpedientes(); }, 1200);
     } catch (err) {
       setMensajeVer({ tipo: 'danger', texto: err.response?.data?.error || 'Error al realizar el pase.' });
@@ -802,38 +778,66 @@ export default function UsuarioJuridico() {
             </div>
           )}
 
-          {/* Sección: observaciones (solo modo completo) */}
-          {!modalSoloVer && (
-            <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones</p>
-              <Form.Control type="text" placeholder="Escriba observaciones del expediente..." value={observacionJuridico} onChange={e => { setObservacionJuridico(e.target.value); setErrorObs(""); }} isInvalid={!!errorObs} disabled={subiendoDoc} className="mb-2" />
-              <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
-              <Button size="sm" variant="outline-primary" onClick={async () => {
+          {/* Sección: observaciones (disponible siempre) */}
+          <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+            <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones generales</p>
+            <Form.Control 
+              type="text" 
+              placeholder="Escriba una observación para el presentante del expediente..." 
+              value={observacionJuridico} 
+              onChange={e => { setObservacionJuridico(e.target.value); setErrorObs(""); }} 
+              isInvalid={!!errorObs} 
+              disabled={subiendoDoc || subiendoObs} 
+              className="mb-2" 
+            />
+            <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
+            <Button 
+              size="sm" 
+              variant="outline-primary" 
+              disabled={subiendoDoc || subiendoObs}
+              onClick={async () => {
                 if (!observacionJuridico.trim()) { setErrorObs("Debe escribir una observación antes de guardar."); return; }
                 if (!expedienteDoc) return;
                 const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
                 try {
+                  setSubiendoObs(true);
                   await axios.post(URL_OBSERVACIONES, { id_expediente: expedienteDoc.id_expediente, id_usuario: usuario.id_usuario, observacion: observacionJuridico });
+                  // Registrar en el historial para que sea visible en la línea de tiempo
+                  await axios.post(URL_HISTORIAL, {
+                    id_expediente: expedienteDoc.id_expediente,
+                    id_usuario_responsable: usuario.id_usuario,
+                    accion: "Observación Jurídica",
+                    comentario: observacionJuridico,
+                    tipo_accion: "observación"
+                  });
                   alert("Observación guardada ✅");
                   setObservacionJuridico("");
                   setErrorObs("");
                   cargarObservaciones(expedienteDoc.id_expediente);
-                } catch { alert("No se pudo guardar la observación."); }
-              }}>
-                Guardar observación
-              </Button>
-              {observacionesExps.length > 0 && (
-                <div className="mt-3" style={{ maxHeight: '130px', overflowY: 'auto' }}>
-                  {observacionesExps.map((obs, idx) => (
-                    <div key={idx} className="d-flex align-items-start mb-1" style={{ fontSize: '0.85rem', color: '#444' }}>
-                      <span className="me-2 text-secondary">•</span>
-                      <span>{obs.observacion}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                } catch { 
+                  alert("No se pudo guardar la observación."); 
+                } finally {
+                  setSubiendoObs(false);
+                }
+              }}
+            >
+              {subiendoObs ? 'Guardando...' : 'Guardar observación'}
+            </Button>
+            {observacionesExps.length > 0 && (
+              <div className="mt-3" style={{ maxHeight: '130px', overflowY: 'auto' }}>
+                {observacionesExps.map((obs, idx) => (
+                  <div key={idx} className="d-flex align-items-start mb-1" style={{ fontSize: '0.85rem', color: '#444' }}>
+                    <span className="me-2 text-secondary">•</span>
+                    <span>
+                      {obs.rol && <strong className="me-1">[{obs.rol}]</strong>}
+                      {obs.observacion}
+                      {obs.fecha_hora && <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>{new Date(obs.fecha_hora).toLocaleString("es-AR")}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Informe Técnico - visible siempre */}
           {(() => {
@@ -965,18 +969,8 @@ export default function UsuarioJuridico() {
                   );
                 })()}
               </div>
+              <hr />
               <h5>Informe Jurídico</h5>
-              <Form.Group className="mb-2">
-                <Form.Label>Dictamen / Observaciones jurídicas</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="Escriba el informe jurídico o las observaciones..."
-                  value={informeJuridico}
-                  onChange={e => setInformeJuridico(e.target.value)}
-                  disabled={subiendoVer}
-                />
-              </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Label>Adjuntar archivo</Form.Label>
                 <Form.Control
@@ -989,6 +983,7 @@ export default function UsuarioJuridico() {
                   <Form.Text className="text-muted">{archivosVer.length} archivo(s) seleccionado(s)</Form.Text>
                 )}
               </Form.Group>
+              <hr />
               <Form.Group className="mb-3">
                 <Form.Label>Enviar a</Form.Label>
                 <Form.Select
@@ -1034,4 +1029,4 @@ export default function UsuarioJuridico() {
       </Modal>
     </div>
   );
-}
+}

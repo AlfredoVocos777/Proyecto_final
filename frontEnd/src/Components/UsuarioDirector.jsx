@@ -47,17 +47,17 @@ export default function UsuarioDirector() {
   const [modalSoloVer, setModalSoloVer] = useState(false);
   const [historialDoc, setHistorialDoc] = useState([]);
 
-  // Estados para Observaciones (Director) - Sincronizado con Decisión Final
+  // Estados para Observaciones (Director)
   const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
+  const [observacionDirector, setObservacionDirector] = useState("");
+  const [errorObs, setErrorObs] = useState("");
+  const [subiendoObs, setSubiendoObs] = useState(false);
 
   const cargarObservaciones = async (idExp) => {
     try {
       const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
       const data = res.data || {};
       const todas = [
-        ...(data.Administrativo || []).map(o => ({ ...o, rol: 'Administrativo' })),
-        ...(data.Técnico || []).map(o => ({ ...o, rol: 'Técnico' })),
-        ...(data.Jurídico || []).map(o => ({ ...o, rol: 'Jurídico' })),
         ...(data.Director || []).map(o => ({ ...o, rol: 'Director' }))
       ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
       setObservacionesExps(todas);
@@ -245,19 +245,6 @@ export default function UsuarioDirector() {
       });
 
       await Promise.all(promesas);
-
-      // Guardar observaciones visibles para el presentante (si hay texto)
-      if (observacionesRecepcion?.trim()) {
-        await Promise.all(
-          expedientesSeleccionados.map(idExpediente =>
-            axios.post(URL_OBSERVACIONES, {
-              id_expediente: idExpediente,
-              id_usuario: usuarioLogueado.id_usuario,
-              observacion: observacionesRecepcion.trim()
-            })
-          )
-        );
-      }
 
       setMensajeRecepcion({
         tipo: "success",
@@ -573,6 +560,7 @@ export default function UsuarioDirector() {
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
     setHistorialDoc([]);
+    setObservacionDirector(""); // Reset de observación para el nuevo expediente
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
       .catch(err => console.error('Error al cargar documentos:', err))
@@ -1100,17 +1088,6 @@ export default function UsuarioDirector() {
             </Alert>
           )}
           <p><strong>Expedientes seleccionados:</strong> {expedientesSeleccionados.length}</p>
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Observaciones de Dirección</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              placeholder="Agregue observaciones desde la Dirección..."
-              value={observacionesRecepcion}
-              onChange={(e) => setObservacionesRecepcion(e.target.value)}
-              disabled={procesandoRecepcion}
-            />
-          </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarModalRecepcion} disabled={procesandoRecepcion}>
@@ -1357,24 +1334,6 @@ export default function UsuarioDirector() {
             );
           })()}
 
-          {/* Sección: historial de observaciones (visible siempre si hay registros) */}
-          {observacionesExps.length > 0 && (
-            <div className="mt-3 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones registradas</p>
-              <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
-                {observacionesExps.map((obs, idx) => (
-                  <div key={idx} className="d-flex align-items-start mb-2" style={{ fontSize: '0.85rem', color: '#444' }}>
-                    <span className="me-2 text-secondary">•</span>
-                    <span>
-                      {obs.rol && <strong className="me-1">[{obs.rol}]</strong>}
-                      {obs.observacion}
-                      {obs.fecha_hora && <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>{new Date(obs.fecha_hora).toLocaleString("es-AR")}</span>}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
         </Modal.Body>
       </Modal>    

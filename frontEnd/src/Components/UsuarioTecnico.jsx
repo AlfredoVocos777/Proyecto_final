@@ -66,16 +66,14 @@ export default function UsuarioTecnico() {
   const [errorObs, setErrorObs] = useState("");
   const [modalSoloVer, setModalSoloVer] = useState(false);
   const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
+  const [subiendoObs, setSubiendoObs] = useState(false); // Nuevo estado para bloqueo de botón
 
   const cargarObservaciones = async (idExp) => {
     try {
       const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
       const data = res.data || {};
       const todas = [
-        ...(data.Administrativo || []).map(o => ({ ...o, rol: 'Administrativo' })),
-        ...(data.Técnico || []).map(o => ({ ...o, rol: 'Técnico' })),
-        ...(data.Jurídico || []).map(o => ({ ...o, rol: 'Jurídico' })),
-        ...(data.Director || []).map(o => ({ ...o, rol: 'Director' }))
+        ...(data.Técnico || []).map(o => ({ ...o, rol: 'Técnico' }))
       ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
       setObservacionesExps(todas);
     } catch (err) {
@@ -539,6 +537,7 @@ export default function UsuarioTecnico() {
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
+    setObservacionTecnico(""); // Reset de observación para el nuevo expediente
     cargarObservaciones(expediente.id_expediente);
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
@@ -576,27 +575,16 @@ export default function UsuarioTecnico() {
         id_profesional_asignado: destinatarioPase
       });
 
-      // 3. Guardar Informe Técnico como observación si fue completado
-      if (informeTecnico.trim()) {
-        try {
-          await axios.post(URL_OBSERVACIONES, {
-            id_expediente: expedienteVer.id_expediente,
-            id_usuario: usuarioActual.id_usuario,
-            observacion: informeTecnico.trim()
-          });
-        } catch (errObs) {
-          console.error('Error al guardar informe técnico:', errObs);
-        }
-      }
+      setMensajeVer({ tipo: 'success', texto: 'Pase realizado con éxito.' });
 
-      // 4. Subir documentos si corresponde
+      // 4. Subir documentos si corresponde (Restaurado)
       if (archivosVer.length > 0) {
         const formData = new FormData();
         archivosVer.forEach((file) => {
           formData.append('files', file);
         });
         formData.append('id_expediente', expedienteVer.id_expediente);
-        formData.append('subido_por', usuarioActual.id_usuario);
+        formData.append('subido_por', usuarioLogueado.id_usuario);
         const respDoc = await axios.post('http://localhost:8000/api/documentos/subirYRegistrar', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -604,9 +592,8 @@ export default function UsuarioTecnico() {
           setMensajeVer({ tipo: 'warning', texto: respDoc.data?.error || 'Pase realizado pero algunos documentos no se guardaron.' });
         }
       }
-      setMensajeVer({ tipo: 'success', texto: 'Pase realizado y documentos guardados.' });
+
       setArchivosVer([]);
-      setInformeTecnico("");
       setTimeout(() => {
         cerrarModalVer();
         recargarExpedientes();
@@ -1246,67 +1233,73 @@ export default function UsuarioTecnico() {
             </div>
           )}
 
-          {/* Sección: observaciones (formulario solo en modo completo, historial siempre visible) */}
-          {(!modalSoloVer || observacionesExps.length > 0) && (
-            <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones</p>
-              {!modalSoloVer && (
-                <>
-                  <Form.Control
-                    type="text"
-                    placeholder="Escriba una observación para el presentante del expediente..."
-                    value={observacionTecnico || ""}
-                    onChange={(e) => { setObservacionTecnico(e.target.value); setErrorObs(""); }}
-                    isInvalid={!!errorObs}
-                    disabled={subiendoDoc}
-                    className="mb-2"
-                  />
-                  <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
-                  <Button
-                    size="sm"
-                    variant="outline-primary"
-                    onClick={async () => {
-                      if (!observacionTecnico.trim()) { setErrorObs("Debe escribir una observación antes de guardar."); return; }
-                      if (!expedienteDoc) return;
-                      const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
-                      try {
-                        await axios.post(URL_OBSERVACIONES, {
-                          id_expediente: expedienteDoc.id_expediente,
-                          id_usuario: usuario.id_usuario,
-                          observacion: observacionTecnico,
-                        });
-                        alert("Observación guardada ✅");
-                        setObservacionTecnico("");
-                        setErrorObs("");
-                        cargarObservaciones(expedienteDoc.id_expediente);
-                      } catch (err) {
-                        console.error(err);
-                        alert("No se pudo guardar la observación.");
-                      }
-                    }}
-                  >
-                    Guardar observación
-                  </Button>
-                </>
-              )}
-              {observacionesExps.length > 0 ? (
-                <div className="mt-3" style={{ maxHeight: '160px', overflowY: 'auto' }}>
-                  {observacionesExps.map((obs, idx) => (
-                    <div key={idx} className="d-flex align-items-start mb-2" style={{ fontSize: '0.85rem', color: '#444' }}>
-                      <span className="me-2 text-secondary">•</span>
-                      <span>
-                        {obs.rol && <strong className="me-1">[{obs.rol}]</strong>}
-                        {obs.observacion}
-                        {obs.fecha_hora && <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>{new Date(obs.fecha_hora).toLocaleString("es-AR")}</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                !modalSoloVer && <p className="text-muted small mt-2 mb-0">Sin observaciones registradas.</p>
-              )}
-            </div>
-          )}
+          {/* Sección: observaciones (disponible siempre) */}
+          <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+            <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones generales</p>
+            <Form.Control
+              type="text"
+              placeholder="Escriba una observación para el presentante del expediente..."
+              value={observacionTecnico || ""}
+              onChange={(e) => { setObservacionTecnico(e.target.value); setErrorObs(""); }}
+              isInvalid={!!errorObs}
+              disabled={subiendoDoc || subiendoObs}
+              className="mb-2"
+            />
+            <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
+            <Button
+              size="sm"
+              variant="outline-primary"
+              disabled={subiendoDoc || subiendoObs}
+              onClick={async () => {
+                if (!observacionTecnico.trim()) { setErrorObs("Debe escribir una observación antes de guardar."); return; }
+                if (!expedienteDoc) return;
+                const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                try {
+                  setSubiendoObs(true);
+                  await axios.post(URL_OBSERVACIONES, {
+                    id_expediente: expedienteDoc.id_expediente,
+                    id_usuario: usuario.id_usuario,
+                    observacion: observacionTecnico,
+                  });
+                  // Registrar en el historial para que sea visible en la línea de tiempo
+                  await axios.post(URL_HISTORIAL, {
+                    id_expediente: expedienteDoc.id_expediente,
+                    id_usuario_responsable: usuario.id_usuario,
+                    accion: "Observación Técnica",
+                    comentario: observacionTecnico,
+                    tipo_accion: "observación"
+                  });
+                  alert("Observación guardada ✅");
+                  setObservacionTecnico("");
+                  setErrorObs("");
+                  cargarObservaciones(expedienteDoc.id_expediente);
+                } catch (err) {
+                  console.error(err);
+                  alert("No se pudo guardar la observación.");
+                } finally {
+                  setSubiendoObs(false);
+                }
+              }}
+            >
+              {subiendoObs ? 'Guardando...' : 'Guardar observación'}
+            </Button>
+            {observacionesExps.length > 0 ? (
+              <div className="mt-3" style={{ maxHeight: '160px', overflowY: 'auto' }}>
+                {observacionesExps.map((obs, idx) => (
+                  <div key={idx} className="d-flex align-items-start mb-2" style={{ fontSize: '0.85rem', color: '#444' }}>
+                    <span className="me-2 text-secondary">•</span>
+                    <span>
+                      {obs.rol && <strong className="me-1">[{obs.rol}]</strong>}
+                      {obs.observacion}
+                      {obs.fecha_hora && <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>{new Date(obs.fecha_hora).toLocaleString("es-AR")}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted small mt-2 mb-0">Sin observaciones registradas.</p>
+            )}
+          </div>
 
           {/* Sección: documentos existentes */}
           {loadingDocs ? (
@@ -1385,17 +1378,6 @@ export default function UsuarioTecnico() {
                 {archivosVer.length > 0 && (
                   <Form.Text className="text-muted">{archivosVer.length} archivo(s) seleccionado(s)</Form.Text>
                 )}
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Observaciones <span className="text-muted" style={{ fontSize: '0.82rem' }}>(serán visibles para el presentante)</span></Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="Escriba las observaciones del informe técnico..."
-                  value={informeTecnico}
-                  onChange={e => setInformeTecnico(e.target.value)}
-                  disabled={subiendoVer}
-                />
               </Form.Group>
               <hr />
               <h5>Realizar Pase</h5>

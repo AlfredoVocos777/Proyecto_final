@@ -14,24 +14,13 @@ export const crearObservacion = (req, res) => {
 
   const sqlInsert = `
     INSERT INTO observaciones 
-      (id_expediente, id_usuario, observacion, rol, fecha_hora, estado, created_at, updated_at)
-    SELECT ?, ?, ?,
-      CASE r.nombre
-        WHEN 'Administrativo' THEN 'admin'
-        WHEN 'Técnico'        THEN 'tecnico'
-        WHEN 'Jurídico'       THEN 'juridico'
-        WHEN 'Director'       THEN 'director'
-        ELSE 'admin'
-      END,
-      NOW(), 'pendiente', NOW(), NOW()
-    FROM usuario u
-    JOIN roles r ON u.id_rol = r.id_rol
-    WHERE u.id_usuario = ?
+      (id_expediente, id_usuario, observacion, fecha_hora, estado, created_at, updated_at)
+    VALUES (?, ?, ?, NOW(), 'pendiente', NOW(), NOW())
   `;
 
   connection.query(
     sqlInsert,
-    [id_expediente, id_usuario, observacion, id_usuario],
+    [id_expediente, id_usuario, observacion],
     (err, result) => {
       if (err) {
         console.error("Error al crear observación:", err);

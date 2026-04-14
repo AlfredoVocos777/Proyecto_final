@@ -6,6 +6,7 @@ import {
   URL_SUBIR_DOCUMENTO,
   URL_OBSERVACIONES,
   URL_HISTORIAL,
+  URL_USUARIOS
 } from "../Constants/endpoints";
 import { useNavigate } from "react-router-dom";
 import {
@@ -18,6 +19,7 @@ import {
   Alert,
 } from "react-bootstrap";
 import "../CSS/Consulta.css";
+import "../CSS/PerfilUsuario.css";
 
 function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada", ocultarPrioridad = false, compacto = false }) {
   const [expedientes, setExpedientes] = useState([]);
@@ -55,6 +57,67 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   const [modalFiles, setModalFiles] = useState([]);
   const [modalUploadedFiles, setModalUploadedFiles] = useState([]);
 
+  // Estados para Perfil de Usuario
+  const [showModalPerfil, setShowModalPerfil] = useState(false);
+  const [perfilData, setPerfilData] = useState({
+    nombre: "",
+    apellido: "",
+    email: "",
+    telefono: "",
+    direccion: "",
+    usuario: "",
+    contraseña: "",
+  });
+  const [editandoPerfil, setEditandoPerfil] = useState(false);
+  const [mensajePerfil, setMensajePerfil] = useState({ tipo: "", texto: "" });
+
+  // --- Funciones para Perfil de Usuario ---
+  const abrirModalPerfil = async () => {
+    try {
+      const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      if (!u?.id_usuario) return;
+      const res = await axios.get(`${URL_USUARIOS}/${u.id_usuario}`);
+      const data = res.data;
+      // Añadimos campo contraseña vacío para edición opcional
+      setPerfilData({ ...data, contraseña: "" });
+      setShowModalPerfil(true);
+      setMensajePerfil({ tipo: "", texto: "" });
+    } catch (err) {
+      alert("Error al cargar los datos del perfil.");
+    }
+  };
+
+  const guardarPerfil = async (e) => {
+    e.preventDefault();
+    setEditandoPerfil(true);
+    setMensajePerfil({ tipo: "", texto: "" });
+    try {
+      const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      
+      // Preparamos datos: si la contraseña está vacía, no la enviamos para no sobreescribir con vacío
+      const dataEnviar = { ...perfilData };
+      if (!dataEnviar.contraseña) {
+        delete dataEnviar.contraseña;
+      }
+
+      await axios.put(`${URL_USUARIOS}/${u.id_usuario}`, dataEnviar);
+      
+      const usuarioActualizado = { ...u, ...dataEnviar };
+      // Quitamos la contraseña del localStorage por seguridad (si estuviera)
+      delete usuarioActualizado.contraseña;
+
+      localStorage.setItem("usuarioLogueado", JSON.stringify(usuarioActualizado));
+      setUsuarioLog(usuarioActualizado);
+
+      setMensajePerfil({ tipo: "success", texto: "Perfil actualizado correctamente ✅" });
+      setTimeout(() => setShowModalPerfil(false), 1500);
+    } catch (err) {
+      setMensajePerfil({ tipo: "danger", texto: err.response?.data?.error || "Error al actualizar el perfil." });
+    } finally {
+      setEditandoPerfil(false);
+    }
+  };
+
   const navigate = useNavigate();
 
   // Obtener expedientes (filtrando por presentante si corresponde)
@@ -84,6 +147,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
@@ -392,6 +456,13 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
       <div className="consulta-header">
         <h2>Consulta de Expedientes</h2>
         <div className="d-flex gap-2">
+          <Button
+            variant="outline-primary"
+            onClick={abrirModalPerfil}
+            className="d-flex align-items-center gap-1"
+          >
+            👤 Mis Datos
+          </Button>
           <Button variant="outline-primary" onClick={obtenerExpedientes} disabled={loading}>
             {loading ? "Cargando..." : "Actualizar"}
           </Button>
@@ -986,6 +1057,124 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
           )}
         </Modal.Body>
       </Modal>
+      {/* Modal Perfil de Usuario */}
+      <Modal 
+        show={showModalPerfil} 
+        onHide={() => setShowModalPerfil(false)} 
+        centered
+        className="modal-perfil"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>👤 Mis Datos Personales</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form onSubmit={guardarPerfil}>
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Nombre</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={perfilData.nombre || ""} 
+                    onChange={e => setPerfilData({...perfilData, nombre: e.target.value})}
+                    required
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Apellido</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={perfilData.apellido || ""} 
+                    onChange={e => setPerfilData({...perfilData, apellido: e.target.value})}
+                    required
+                  />
+                </Form.Group>
+              </div>
+            </div>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control 
+                type="email" 
+                value={perfilData.email || ""} 
+                onChange={e => setPerfilData({...perfilData, email: e.target.value})}
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Teléfono</Form.Label>
+              <Form.Control 
+                type="text" 
+                value={perfilData.telefono || ""} 
+                onChange={e => setPerfilData({...perfilData, telefono: e.target.value})}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Dirección</Form.Label>
+              <Form.Control 
+                type="text" 
+                value={perfilData.direccion || ""} 
+                onChange={e => setPerfilData({...perfilData, direccion: e.target.value})}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>DNI</Form.Label>
+              <Form.Control 
+                type="text" 
+                value={perfilData.dni || ""} 
+                onChange={e => setPerfilData({...perfilData, dni: e.target.value})}
+                required
+              />
+            </Form.Group>
+
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Usuario</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={perfilData.usuario || ""} 
+                    onChange={e => setPerfilData({...perfilData, usuario: e.target.value})}
+                    required
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Nueva Contraseña (opcional)</Form.Label>
+                  <Form.Control 
+                    type="password" 
+                    placeholder="Dejar vacío para no cambiar"
+                    value={perfilData.contraseña || ""} 
+                    onChange={e => setPerfilData({...perfilData, contraseña: e.target.value})}
+                  />
+                </Form.Group>
+              </div>
+            </div>
+
+            {mensajePerfil.texto && (
+              <Alert variant={mensajePerfil.tipo} className="mt-2 py-2">
+                {mensajePerfil.texto}
+              </Alert>
+            )}
+
+            <div className="modal-footer">
+              <button type="button" className="btn-cancel" onClick={() => setShowModalPerfil(false)}>
+                Cancelar
+              </button>
+              <button type="submit" className="btn-save text-white" disabled={editandoPerfil}>
+                {editandoPerfil ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
     </Container>
   );
 }

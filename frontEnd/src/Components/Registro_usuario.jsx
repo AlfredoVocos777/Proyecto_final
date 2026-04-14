@@ -70,134 +70,131 @@ const RegistroUsuario = () => {
         <img src={cargaUsuario} alt="Usuario" className="ImgcargaUsuario" />
         <div className="contenedorFormUsuario">
           <Container className="mt-5">
-            <Form onSubmit={handleSubmit}>
+            <Form onSubmit={handleSubmit} autoComplete="off">
               <p className="text-muted mb-3">
                 Registrate como usuario comun o usuario profesional segun corresponda.
               </p>
               <div className="contenedorLabel">
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlInput1"
-                >
-                  <Form.Label>Nombre</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Nombre"
-                    name="nombre"
-                    value={usuario.nombre}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlInput1"
-                >
-                  <Form.Label>Apellido</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Apellido"
-                    name="apellido"
-                    value={usuario.apellido}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>DNI</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="ingresa tu DNI"
-                    name="dni"
-                    value={usuario.dni}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="ingresa tu email"
-                    name="email"
-                    value={usuario.email}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Dirección</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="ingresa la direccíon"
-                    name="direccion"
-                    value={usuario.direccion}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
+                <div className="row">
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nombre</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Nombre"
+                        name="nombre"
+                        value={usuario.nombre}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Apellido</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Apellido"
+                        name="apellido"
+                        value={usuario.apellido}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Teléfono</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="ingresa su n° de teléfono"
-                    name="telefono"
-                    value={usuario.telefono}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
+                <div className="row">
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>DNI</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="ingresa tu DNI"
+                        name="dni"
+                        value={usuario.dni}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        placeholder="ingresa tu email"
+                        name="email"
+                        value={usuario.email}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Usuario</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="ingresa el nombre de usuario"
-                    name="usuario"
-                    value={usuario.usuario}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
+                <div className="row">
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Dirección</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="ingresa la direccíon"
+                        name="direccion"
+                        value={usuario.direccion}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Teléfono</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="ingresa su n° de teléfono"
+                        name="telefono"
+                        value={usuario.telefono}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Contraseña</Form.Label>
-                  <Form.Control
-                    type="password"
-                    placeholder="ingresa la contraseña"
-                    name="contraseña"
-                     value={usuario.contraseña}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
+                <div className="row">
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Usuario</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="ingresa el nombre de usuario"
+                        name="usuario"
+                        value={usuario.usuario}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Contraseña</Form.Label>
+                      <Form.Control
+                        type="password"
+                        placeholder="ingresa la contraseña"
+                        name="contraseña"
+                        value={usuario.contraseña}
+                        onChange={handleChange}
+                        autoComplete="new-password"
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
               </div>
               <div className="contenedorBotonRegistro">
                 <Button
-                  size="sm"
-                  className="btnRegistro"
+                  className="btnRegistro custom-btn"
                   variant="primary"
                   type="submit"
-                  
                 >
                   Guardar
                 </Button>
 
                 <Button
-                  size="sm"
-                  className="btnRegistro"
+                  className="btnRegistro custom-btn"
                   variant="secondary"
                   type="button"
                   onClick={() => navigate(-1)}

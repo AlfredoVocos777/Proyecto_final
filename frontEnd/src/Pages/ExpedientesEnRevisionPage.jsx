@@ -41,8 +41,8 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
   const [documentos, setDocumentos]   = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [tecnicoId, setTecnicoId]     = useState("");
-  const [observacion, setObservacion] = useState("");
   const [enviando, setEnviando]       = useState(false);
+  const [archivosPase, setArchivosPase] = useState([]);
   const [feedback, setFeedback]       = useState(null);
 
   useEffect(() => {
@@ -72,24 +72,26 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
         id_expediente: expediente.id_expediente,
         id_usuario_responsable: tecnicoId,
         accion: "Pase a técnico",
-        comentario: observacion,
+        comentario: "Pase realizado por Administración",
         tipo_accion: "asignación",
       });
+
+      // Subir documentos si hay (Restaurado)
+      if (archivosPase.length > 0) {
+        const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+        const formData = new FormData();
+        archivosPase.forEach(f => formData.append('files', f));
+        formData.append('id_expediente', expediente.id_expediente);
+        formData.append('subido_por', user?.id_usuario);
+        await axios.post('http://localhost:8000/api/documentos/subirYRegistrar', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
       await axios.put(`${URL_EXPEDIENTES}/${expediente.id_expediente}`, {
         id_profesional_asignado: tecnicoId,
         estado_actual: "en revisión",
       });
-      // Guardar observación visible para el presentante
-      if (observacion.trim()) {
-        try {
-          const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-          await axios.post(URL_OBSERVACIONES, {
-            id_expediente: expediente.id_expediente,
-            id_usuario: user?.id_usuario,
-            observacion: observacion.trim()
-          });
-        } catch (_) { /* no crítico */ }
-      }
       try {
         await axios.post(API_NOTIFICAR, {
           id_usuario: expediente.id_usuario_presentante,
@@ -97,7 +99,7 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
           nombre: expediente.usuario_presentante_nombre ?? "",
           apellido: expediente.usuario_presentante_apellido ?? "",
           numero_expediente: expediente.numero_expediente,
-          observacion,
+          observacion: "Pase realizado por Administración",
           tecnico_nombre: tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : "",
         });
       } catch (_) { /* no crítico */ }
@@ -108,7 +110,7 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
     } finally {
       setEnviando(false);
     }
-  }, [tecnicoId, observacion, expediente, tecnicos, onClose, onPaseExitoso]);
+  }, [tecnicoId, expediente, tecnicos, onClose, onPaseExitoso]);
 
   if (!expediente) return null;
   return (
@@ -129,6 +131,20 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
         
 
         <hr />
+        <h5>Informe Administrativo</h5>
+        <Form.Group className="mb-3">
+          <Form.Label>Adjuntar archivo</Form.Label>
+          <Form.Control
+            type="file"
+            multiple
+            onChange={(e) => setArchivosPase(Array.from(e.target.files))}
+            disabled={enviando}
+          />
+          {archivosPase.length > 0 && (
+            <Form.Text className="text-muted">{archivosPase.length} archivo(s) seleccionado(s)</Form.Text>
+          )}
+        </Form.Group>
+        <hr />
         <Form.Group className="mb-3">
           <Form.Label>Técnico destino <span className="text-danger">*</span></Form.Label>
           <Form.Select value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)}>
@@ -137,17 +153,6 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
               <option key={t.id_usuario} value={t.id_usuario}>{t.nombre} {t.apellido}</option>
             ))}
           </Form.Select>
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Observaciones <span className="text-muted" style={{ fontSize: '0.82rem' }}>(serán visibles para el presentante)</span></Form.Label>
-          <Form.Control
-            as="textarea"
-            rows={3}
-            placeholder="Escriba las observaciones del pase..."
-            value={observacion}
-            onChange={(e) => setObservacion(e.target.value)}
-            disabled={enviando}
-          />
         </Form.Group>
        
         {feedback && <Alert variant={feedback.tipo} className="mb-0">{feedback.msg}</Alert>}
@@ -231,10 +236,7 @@ function ModalDetalle({ expediente, onClose }) {
       const res = await axios.get(`${URL_OBSERVACIONES}/${expediente.id_expediente}`);
       const data = res.data || {};
       const todas = [
-        ...(data.Administrativo || []),
-        ...(data.Técnico || []),
-        ...(data.Jurídico || []),
-        ...(data.Director || [])
+        ...(data.Administrativo || []).map(o => ({ ...o, rol: 'Administrativo' }))
       ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
       setObservacionesExps(todas);
     } catch (err) {
@@ -242,17 +244,27 @@ function ModalDetalle({ expediente, onClose }) {
     }
   };
 
-  useEffect(() => {
+  const cargarHistorialYDocumentos = async () => {
     if (!expediente) return;
     setLoading(true);
-    Promise.all([
-      axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`).catch(() => ({ data: [] })),
-      axios.get(`${API_DOCS}/expediente/${expediente.id_expediente}`).catch(() => ({ data: [] })),
-    ]).then(([resHist, resDocs]) => {
+    try {
+      const [resHist, resDocs] = await Promise.all([
+        axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`).catch(() => ({ data: [] })),
+        axios.get(`${API_DOCS}/expediente/${expediente.id_expediente}`).catch(() => ({ data: [] })),
+      ]);
       setHistorial(Array.isArray(resHist.data) ? resHist.data : []);
       setDocumentos(Array.isArray(resDocs.data) ? resDocs.data : []);
-      cargarObservaciones();
-    }).finally(() => setLoading(false));
+      await cargarObservaciones();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (expediente) {
+      setObservacionAdmin("");
+      cargarHistorialYDocumentos();
+    }
   }, [expediente]);
 
   if (!expediente) return null;
@@ -341,14 +353,24 @@ function ModalDetalle({ expediente, onClose }) {
               const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
               setSubiendoObs(true);
               try {
+                setSubiendoObs(true);
+                // 1. Guardar observación para el presentante
                 await axios.post(URL_OBSERVACIONES, {
                   id_expediente: expediente.id_expediente,
                   id_usuario: user.id_usuario,
-                  observacion: observacionAdmin
+                  observacion: observacionAdmin.trim()
+                });
+                // 2. Registrar en el historial para que aparezca en la tabla de abajo
+                await axios.post(URL_HISTORIAL, {
+                  id_expediente: expediente.id_expediente,
+                  id_usuario_responsable: user.id_usuario,
+                  accion: "Observación Administrativa",
+                  comentario: observacionAdmin.trim(),
+                  tipo_accion: "observación"
                 });
                 alert("Observación guardada ✅");
                 setObservacionAdmin("");
-                cargarObservaciones();
+                await cargarHistorialYDocumentos();
               } catch (err) {
                 console.error(err);
                 alert("No se pudo guardar la observación.");

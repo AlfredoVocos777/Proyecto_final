@@ -288,6 +288,7 @@ export const obtenerPasesPorUsuario = (req, res) => {
   // Unificar: expedientes asignados al usuario técnico o donde fue último responsable
   const sql = `
     SELECT DISTINCT e.id_expediente,
+           e.id_usuario_presentante,
            e.numero_expediente,
            e.tipo_expediente,
            e.descripcion,

@@ -58,12 +58,12 @@ export const crearUsuario = async (req, res) => {
     const hash = await bcrypt.hash(contraseña, salt);
 
     const sql = `INSERT INTO usuario 
-    (nombre, apellido, dni, email, direccion, telefono, usuario, contraseña)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    (nombre, apellido, dni, email, direccion, telefono, usuario, contraseña, id_rol)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     connection.query(
       sql,
-      [nombre, apellido, dni, email, direccion, telefono, usuario, hash],
+      [nombre, apellido, dni, email, direccion, telefono, usuario, hash, 32], // 32 is 'Presentante'
       (err, result) => {
         if (err) {
           console.error(err);
@@ -198,6 +198,9 @@ export const actualizarUsuario = async (req, res) => {
     values.push(id);
     connection.query(sql, values, (err, result) => {
       if (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ error: "El correo electrónico o nombre de usuario ya está registrado." });
+        }
         console.error(err);
         return res.status(500).json({ error: "Error al actualizar usuario" });
       }
