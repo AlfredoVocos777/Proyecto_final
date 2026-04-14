@@ -41,6 +41,7 @@ function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada", ocultarPrior
   const [filtroEstado, setFiltroEstado] = useState(soloEstado || "");
   const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
+  const [filtroAsignado, setFiltroAsignado] = useState("");
 
   // estados de los roles
   const [observacionesAdmin, setObservacionesAdmin] = useState([]);
@@ -158,7 +159,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   // Resetear a primera página cuando cambian filtros/búsqueda
   useEffect(() => {
     setPaginaActual(1);
-  }, [busqueda, filtroEstado, filtroPrioridad, filtroTipo]);
+  }, [busqueda, filtroEstado, filtroPrioridad, filtroTipo, filtroAsignado]);
 
   //-------------------------------------------------------------
   //-------------------------------------------------------------
@@ -438,9 +439,12 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     const coincidePrioridad =
       !filtroPrioridad ||
       (e.prioridad || "").toLowerCase() === filtroPrioridad.toLowerCase();
+    const coincideAsignado =
+      !filtroAsignado ||
+      `${e.usuario_asignado_nombre || ""} ${e.usuario_asignado_apellido || ""}`.toLowerCase().includes(filtroAsignado.toLowerCase());
 
     return (
-      coincideBusqueda && coincideTipo && coincideEstado && coincidePrioridad
+      coincideBusqueda && coincideTipo && coincideEstado && coincidePrioridad && coincideAsignado
     );
   });
 
@@ -556,6 +560,26 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
               </select>
             </div>
             )}
+            {ocultarPrioridad && (
+            <div className="col-md-2">
+              <select
+                className="form-select"
+                value={filtroAsignado}
+                onChange={(e) => setFiltroAsignado(e.target.value)}
+              >
+                <option value="">Asignado (todos)</option>
+                {Array.from(
+                  new Set(
+                    expedientes
+                      .map((e) => e.usuario_asignado_nombre ? `${e.usuario_asignado_nombre} ${e.usuario_asignado_apellido || ""}`.trim() : null)
+                      .filter(Boolean)
+                  )
+                ).map((nombre) => (
+                  <option key={nombre} value={nombre}>{nombre}</option>
+                ))}
+              </select>
+            </div>
+            )}
             <div className="col-md-2 d-grid">
               <Button
                 variant="outline-primary"
@@ -564,6 +588,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                   setFiltroEstado(soloEstado || "");
                   setFiltroPrioridad("");
                   setFiltroTipo("");
+                  setFiltroAsignado("");
                 }}
                 style={{ whiteSpace: "nowrap", backgroundColor: "#f8f6f0" }}
               >
