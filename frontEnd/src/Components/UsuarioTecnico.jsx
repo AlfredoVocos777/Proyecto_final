@@ -1235,7 +1235,7 @@ export default function UsuarioTecnico() {
 
           {/* Sección: observaciones (disponible siempre) */}
           <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-            <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones generales</p>
+            <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones para el Presentante</p>
             <Form.Control
               type="text"
               placeholder="Escriba una observación para el presentante del expediente..."

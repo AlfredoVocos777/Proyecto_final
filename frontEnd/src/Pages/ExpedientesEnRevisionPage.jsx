@@ -329,7 +329,7 @@ function ModalDetalle({ expediente, onClose }) {
 
         <hr />
         <Form.Group className="mb-3">
-          <Form.Label><strong>Observaciones generales:</strong></Form.Label>
+          <Form.Label><strong>Observaciones para el Presentante:</strong></Form.Label>
           <Form.Control
             as="textarea"
             rows={2}
