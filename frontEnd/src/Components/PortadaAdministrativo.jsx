@@ -20,6 +20,13 @@ const PortadaAdministrativo = () => {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
 
+  /*
+    BLOQUE: PROTECCIÓN DE RUTAS (GUARD FRONT-END)
+    Este useEffect se dispara antes de pintar la pantalla del Administrador.
+    Funciona como un escudo (Guard): escanea el localStorage buscando un 'usuarioLogueado'.
+    Si no existe la firma, patea al usuario inmediatamente al Login. 
+    Si existe, verifica que su rol sea estrictamente 'administrativo' o 'avanzado'.
+  */
   useEffect(() => {
     const raw = localStorage.getItem("usuarioLogueado");
     if (!raw) {

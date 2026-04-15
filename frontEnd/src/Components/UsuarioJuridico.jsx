@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -315,6 +315,13 @@ export default function UsuarioJuridico() {
     try { return JSON.parse(localStorage.getItem("usuarioLogueado")); } catch { return null; }
   })();
 
+  /*
+    BLOQUE: GESTIÓN DE BANDEJA Y MÁQUINA DE ESTADOS (JURÍDICO)
+    Comparte la arquitectura de los otros roles profesionales. 
+    1. Consigue los expedientes que ya fueron "Pasados" a este entorno (Pase).
+    2. Modela los estados de control (¿Puedo hacer pase? ¿El director ya lo recepcionó?).
+    De esta forma, en el Frontend protegemos las listas para que no desaparezcan expedientes.
+  */
   const recargarExpedientes = () => {
     const u = usuarioLogueado;
     if (!u?.id_usuario) return;

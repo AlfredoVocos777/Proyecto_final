@@ -18,6 +18,12 @@ export default function ConsultaExpedienteModal({ show, onHide }) {
     onHide();
   };
 
+  /*
+    BLOQUE: BÚSQUEDA MANUAL DE EXPEDIENTE
+    Esta función se activa cuando el usuario escribe un número de expediente y le da a 'Buscar'.
+    Verifica que el campo no esté vacío y lanza un Fetch (GET) localizando el expediente y, a su vez, 
+    dispara otra petición para traer su "Historial".
+  */
   const buscarExpediente = async () => {
     if (!numeroExpedienteConsulta.trim()) {
       setMensajeConsulta({ tipo: "warning", texto: "Ingrese un número de expediente" });

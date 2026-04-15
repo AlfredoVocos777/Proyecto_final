@@ -119,6 +119,14 @@ export default function UsuarioDirector() {
         .catch(() => {})
         .finally(() => setLoading(false));
       
+      /*
+        BLOQUE: GESTIÓN DE BANDEJA Y MÁQUINA DE ESTADOS (DIRECTOR)
+        A diferencia del técnico y jurídico, el Director evalúa los expedientes 
+        en la parte final de la cadena de mando.
+        El código carga todos los expedientes que le pasaron al Director, y mediante
+        una consulta cruzada al Historial marca cuáles ya recepcionó y cuáles le faltan.
+        ¡Un Director no puede Aprobar/Rechazar un exp que aún dice 'Nuevo' en su bandeja!
+      */
       // Cargar expedientes asignados
       if (idUsuario) {
         setLoadingExpedientes(true);

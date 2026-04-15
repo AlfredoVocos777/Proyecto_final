@@ -26,6 +26,13 @@ const RegistroUsuario = () => {
   };
   // ---------------------------------------------------------
 
+  /*
+    BLOQUE: CREACIÓN CENTRAL DE PERFIL
+    Manejamos el 'submit' del formulario asíncronamente interceptando el evento clásico
+    (e.preventDefault) y haciendo un POST hacia nuestra API (Backend) con el objeto de estado reactivo 'usuario'
+    que contiene DNI, Email, Password. Si la BD responde con un 200, parseamos la respuesta
+    para saludar al usuario de manera dinámica.
+  */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {

@@ -102,6 +102,13 @@ const NuevoTramite = () => {
     }
   };
 
+  /*
+    BLOQUE: PASO 2 - SUBIR ARCHIVOS (MULTIPART FORM DATA)
+    Esta función agarra todos los archivos cargados (PDFs, Imágenes) y los empaqueta 
+    usando "FormData". Se comunica con la ruta del backend (Multer) que los guarda en 
+    la carpeta /uploads y devuelve los IDs de los documentos guardados. 
+    Se guardan esos IDs temporalmente para luego atarlos al Expediente definitivo en el Paso 3 (Pago).
+  */
   const handleUpload = async () => {
     try {
       if (selectedFiles.length === 0) {

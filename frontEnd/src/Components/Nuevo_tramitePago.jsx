@@ -51,7 +51,10 @@ const NuevoTramitePago = () => {
     return ruta;
   };
 
-  // Función para manejar el pago
+  /*
+    FLUJO 1 DE PAGO: INICIO DE LA PREFERENCIA DE PAGO
+    Esta funcion se detona cuando el Alumno/Presentante da click en "Mercado Pago".
+  */
   const handlePago = async (metodo) => {
     const URL_FORMALIZACION = "http://localhost:8000/pagos";
 
@@ -84,7 +87,11 @@ const NuevoTramitePago = () => {
 
         const { init_point } = response.data;
 
-        // Abrir al usuario el link de pago de Mercado Pago en una nueva pestaña
+        /* 
+           INTEGRACIÓN TERCERIZADA (Mercado Pago)
+           Al haberle ordenado a nuestro backend crear la preferencia de pago, nos devuelve un init_point (URL).
+           Abrimos esa URL en una pestaña emergente "_blank" para que el usuario proceda a pagar sin salir de nuestra app.
+        */
         window.open(init_point, "_blank");
         
         // Habilitar la vista de carga de comprobante manual
@@ -104,6 +111,11 @@ const NuevoTramitePago = () => {
     }
   };
 
+  /*
+    FLUJO 2 DE PAGO: FORMALIZACIÓN (PAGO MANUAL)
+    Se detona cuando el usuario introdujo manualmente su N° de Operación o de Comprobante tras pagar por Mercado Pago
+    y le da a "Confirmar". Transmitirá todos los documentos, credenciales y número al backend para el registro definitivo en DB.
+  */
   const handleConfirmarPago = async () => {
     if (!numeroComprobante || numeroComprobante.trim() === "") {
       alert("Por favor ingrese el número de comprobante o de operación.");

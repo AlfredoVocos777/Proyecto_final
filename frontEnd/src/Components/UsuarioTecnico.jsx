@@ -121,7 +121,14 @@ export default function UsuarioTecnico() {
     }
   }, []);
 
-  // Recargar expedientes (Unificado)
+  /*
+    BLOQUE: GESTIÓN DE BANDEJA Y MÁQUINA DE ESTADOS (TÉCNICO)
+    Esta función es el corazón del flujo. No trae todos los expedientes a lo loco, sino que:
+    1. Consigue los expedientes que ya fueron "Pasados" explícitamente a este usuario.
+    2. Cruza esto contra la tabla "Historial" (Trazabilidad).
+    3. Construye un estado vivo (`puedeHacerPase`, `recepcionado`) para que un técnico no pueda
+       enviar un expediente si no lo recepcionó primero, o deshacer pase si el receptor ya lo agarró.
+  */
   const recargarExpedientes = () => {
     const idUsuario = usuarioLogueado?.id_usuario;
     if (!idUsuario) return;

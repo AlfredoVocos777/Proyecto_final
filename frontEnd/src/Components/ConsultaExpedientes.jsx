@@ -121,7 +121,12 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
 
   const navigate = useNavigate();
 
-  // Obtener expedientes (filtrando por presentante si corresponde)
+  /*
+    BLOQUE: FETCH Y FILTRADO INICIAL DE EXPEDIENTES
+    Esta función asíncrona hace un GET a la ruta de expedientes del Backend.
+    Dependiendo del 'Rol' guardado en LocalStorage (Usuario Presentante vs Admin/Técnico), 
+    filtra qué recursos puede ver el usuario por parámetros de seguridad front-end.
+  */
   const obtenerExpedientes = async () => {
     try {
       setLoading(true);
