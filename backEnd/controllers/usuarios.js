@@ -67,9 +67,14 @@ export const crearUsuario = async (req, res) => {
       (err, result) => {
         if (err) {
           console.error(err);
-          return res.status(500).json({ error: "Error al crear el usuario" });
+          if (err.code === 'ER_DUP_ENTRY') {
+            if (err.sqlMessage?.includes('dni')) return res.status(400).json({ error: 'Ya existe un usuario con ese DNI.' });
+            if (err.sqlMessage?.includes('email')) return res.status(400).json({ error: 'Ya existe un usuario con ese email.' });
+            return res.status(400).json({ error: 'Ya existe un usuario con esos datos.' });
+          }
+          return res.status(500).json({ error: `Error al crear el usuario: ${err.sqlMessage || err.message}` });
         }
-        res.json({ mensaje: "Usuario creado exitosamente", id: result.insertId });
+        res.json({ mensaje: "Usuario creado exitosamente", id: result.insertId, nombre, apellido });
       }
     );
   } catch (e) {
