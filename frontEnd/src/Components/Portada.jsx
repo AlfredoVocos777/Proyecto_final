@@ -29,7 +29,7 @@ const Portada = () => {
               variant="secondary"
               onClick={() => navigate("/Consulta")}
             >
-              Consulta
+              Mis Expedientes
             </Button>
           </div>
         </div>

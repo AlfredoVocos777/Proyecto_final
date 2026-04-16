@@ -952,45 +952,6 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 </div>
               )}
 
-              {/* Recepción y pases */}
-              {modalType === "ver" && (
-                <div className="mb-4">
-                  <h5 className="mb-3">📬 Recepción</h5>
-                  {(() => {
-                    const recepcion = [...historialModal]
-                      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-                      .find(h => h.accion?.toLowerCase().includes('recepci'));
-                    return recepcion ? (
-                      <p className="mb-1">
-                        <strong>Recepcionado por:</strong> {recepcion.usuario_nombre} {recepcion.usuario_apellido}<br />
-                        <strong>Fecha y hora:</strong> {new Date(recepcion.fecha).toLocaleString('es-AR')}
-                      </p>
-                    ) : (
-                      <p className="text-muted">Aún no fue recepcionado.</p>
-                    );
-                  })()}
-
-                  <h5 className="mt-3 mb-2">🔁 Orden de pases</h5>
-                  {(() => {
-                    const pases = [...historialModal]
-                      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-                      .filter(h => h.tipo_accion === 'asignación');
-                    return pases.length > 0 ? (
-                      <ol className="ps-3">
-                        {pases.map((p, i) => (
-                          <li key={i}>
-                            <strong>{p.usuario_nombre} {p.usuario_apellido}</strong> — {new Date(p.fecha).toLocaleString('es-AR')}
-                            {p.comentario && <span className="text-muted"> ({p.comentario})</span>}
-                          </li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <p className="text-muted">Sin pases registrados.</p>
-                    );
-                  })()}
-                </div>
-              )}
-
               {/*Agregar documentos en el modal ver*/}
 
               <div className="documentos-box">

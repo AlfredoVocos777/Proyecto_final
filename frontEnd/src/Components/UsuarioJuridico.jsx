@@ -530,6 +530,17 @@ export default function UsuarioJuridico() {
           </div>
         );
       }
+      case "manual-usuario":
+        return (
+          <div className="seccion-contenido">
+            <h2>📖 Manual de Usuario</h2>
+            <iframe
+              src="/Manual_Usuario_SIGEDEX.pdf"
+              title="Manual de Usuario"
+              style={{ width: "100%", height: "80vh", border: "none", borderRadius: "8px" }}
+            />
+          </div>
+        );
       case "inicio":
       case "resolver":
       case "bandeja":
