@@ -438,6 +438,8 @@ export default function ExpedientesEnRevisionPage() {
   const [modalDeshacer, setModalDeshacer]       = useState(null); // expediente
   const [modalDetalle, setModalDetalle]         = useState(null); // expediente
   const [modalPase, setModalPase]               = useState(null); // expediente
+  const [paginaActual, setPaginaActual]         = useState(1);
+  const POR_PAGINA = 6;
 
   const cargarExpedientes = useCallback(async () => {
     setLoading(true);
@@ -481,6 +483,9 @@ export default function ExpedientesEnRevisionPage() {
 
   useEffect(() => { cargarExpedientes(); }, [cargarExpedientes]);
 
+  // Resetear página al cambiar búsqueda o filtro
+  useEffect(() => { setPaginaActual(1); }, [busqueda, filtroEstado]);
+
   const handleDeshacerExito = (id_expediente) => {
     setExpedientes((prev) =>
       prev.map((e) =>
@@ -517,6 +522,19 @@ export default function ExpedientesEnRevisionPage() {
       (exp.descripcion ?? "").toLowerCase().includes(texto) ||
       (`${exp.usuario_presentante_nombre ?? ""} ${exp.usuario_presentante_apellido ?? ""}`).toLowerCase().includes(texto)
     );
+  });
+
+  const totalPaginas = Math.ceil(datos.length / POR_PAGINA);
+  const datosPagina = datos.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
+
+  const btnPagStyle = (disabled) => ({
+    minWidth: "36px", height: "36px", borderRadius: "8px",
+    border: "1px solid #dee2e6",
+    background: disabled ? "#f3f4f6" : "#fff",
+    color: disabled ? "#9ca3af" : "#374151",
+    fontWeight: 600, fontSize: "1rem",
+    cursor: disabled ? "default" : "pointer",
+    transition: "all 0.15s",
   });
 
   const exportarPDF = async () => {
@@ -580,145 +598,158 @@ export default function ExpedientesEnRevisionPage() {
           <div
             style={{
               width: "100%",
-              background: "rgba(255,255,255,0.13)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              borderRadius: "14px",
-              padding: "18px 24px",
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.3)",
+              borderRadius: "12px",
+              padding: "12px 16px",
               marginTop: "18px",
               marginBottom: "16px",
-              backdropFilter: "blur(8px)",
+              backdropFilter: "blur(10px)",
               display: "flex",
-              flexWrap: "wrap",
               alignItems: "center",
-              gap: "12px",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "10px",
             }}
           >
-            {/* Botón Volver */}
-            <button
-              onClick={() => navigate("/consulta-expedientes-estado")}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "rgba(255,255,255,0.95)",
-                color: "#4b5563",
-                border: "1.5px solid rgba(255,255,255,0.7)",
-                borderRadius: "8px",
-                padding: "7px 18px",
-                fontWeight: 600,
-                fontSize: "0.9rem",
-                cursor: "pointer",
-                transition: "all 0.18s",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.95)"}
-            >
-              ← Volver
-            </button>
+            {/* Izquierda: Volver + Buscador + Filtro */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
 
-            {/* Buscador */}
-            <InputGroup style={{ flex: "1 1 260px", minWidth: "200px" }}>
-              <InputGroup.Text
+              {/* Botón Volver */}
+              <button
+                onClick={() => navigate("/consulta-expedientes-estado")}
                 style={{
-                  background: "rgba(255,255,255,0.9)",
-                  border: "1.5px solid rgba(255,255,255,0.6)",
-                  borderRight: "none",
-                  color: "#555",
+                  display: "flex", alignItems: "center", gap: "5px",
+                  background: "rgba(255,255,255,0.2)",
+                  color: "#fff",
+                  border: "1.5px solid rgba(255,255,255,0.4)",
+                  borderRadius: "8px",
+                  padding: "0 14px",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  whiteSpace: "nowrap",
+                  height: "36px",
+                  letterSpacing: "0.02em",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.32)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
+              >
+                ← Volver
+              </button>
+
+              {/* Separador vertical */}
+              <div style={{ width: "1px", height: "24px", background: "rgba(255,255,255,0.3)" }} />
+
+              {/* Buscador */}
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <span style={{
+                  position: "absolute", left: "10px", color: "rgba(255,255,255,0.7)", fontSize: "0.85rem", pointerEvents: "none"
+                }}>🔍</span>
+                <Form.Control
+                  placeholder="Buscar expediente…"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  style={{
+                    background: "rgba(255,255,255,0.15)",
+                    border: "1.5px solid rgba(255,255,255,0.35)",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    paddingLeft: "32px",
+                    paddingRight: busqueda ? "32px" : "12px",
+                    height: "36px",
+                    fontSize: "0.87rem",
+                    width: "240px",
+                    outline: "none",
+                  }}
+                />
+                {busqueda && (
+                  <button
+                    onClick={() => setBusqueda("")}
+                    style={{
+                      position: "absolute", right: "8px",
+                      background: "none", border: "none",
+                      color: "rgba(255,255,255,0.7)", cursor: "pointer",
+                      fontSize: "0.8rem", padding: 0, lineHeight: 1,
+                    }}
+                  >✕</button>
+                )}
+              </div>
+
+              {/* Filtro estado */}
+              <Form.Select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                style={{
+                  background: "rgba(255,255,255,0.15)",
+                  border: "1.5px solid rgba(255,255,255,0.35)",
+                  borderRadius: "8px",
+                  color: "#fff",
+                  fontWeight: 500,
+                  height: "36px",
+                  fontSize: "0.87rem",
+                  width: "170px",
+                  cursor: "pointer",
                 }}
               >
-                🔍
-              </InputGroup.Text>
-              <Form.Control
-                placeholder="Buscar por N°, tipo, descripción o presentante…"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                style={{
-                  background: "rgba(255,255,255,0.9)",
-                  border: "1.5px solid rgba(255,255,255,0.6)",
-                  borderLeft: "none",
-                }}
-              />
-              {busqueda && (
-                <Button
-                  variant="light"
-                  onClick={() => setBusqueda("")}
-                  style={{ border: "1.5px solid rgba(255,255,255,0.6)" }}
-                >
-                  ✕
-                </Button>
-              )}
-            </InputGroup>
+                <option value="" style={{ color: "#333" }}>Todos los estados</option>
+                <option value="en revisión" style={{ color: "#333" }}>En revisión</option>
+                <option value="pendiente" style={{ color: "#333" }}>Pendiente</option>
+                <option value="aprobado" style={{ color: "#333" }}>Aprobado</option>
+                <option value="rechazado" style={{ color: "#333" }}>Rechazado</option>
+              </Form.Select>
+            </div>
 
-            {/* Filtro estado */}
-            <Form.Select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              style={{
-                flex: "0 0 auto",
-                width: "auto",
-                minWidth: "180px",
-                background: "rgba(255,255,255,0.9)",
-                border: "1.5px solid rgba(255,255,255,0.6)",
-                fontWeight: 500,
-              }}
-            >
-              <option value="">— Todos los estados —</option>
-              <option value="en revisión">En revisión</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="aprobado">Aprobado</option>
-              <option value="rechazado">Rechazado</option>
-            </Form.Select>
-
-            {/* Contador */}
-            {!loading && (
-              <span
-                style={{
+            {/* Derecha: Contador + PDF */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {!loading && (
+                <span style={{
                   background: "rgba(255,255,255,0.18)",
                   color: "#fff",
                   fontWeight: 600,
-                  fontSize: "0.85rem",
-                  padding: "6px 16px",
+                  fontSize: "0.82rem",
+                  padding: "0 14px",
                   borderRadius: "20px",
-                  border: "1px solid rgba(255,255,255,0.35)",
+                  border: "1px solid rgba(255,255,255,0.3)",
                   whiteSpace: "nowrap",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  letterSpacing: "0.02em",
+                }}>
+                  {datos.length} resultado{datos.length !== 1 ? "s" : ""}
+                </span>
+              )}
+
+              <button
+                onClick={async () => {
+                  const url = await exportarPDF();
+                  if (url) window.open(url, "_blank");
                 }}
+                disabled={generando}
+                style={{
+                  display: "flex", alignItems: "center", gap: "6px",
+                  background: generando ? "rgba(147,197,253,0.8)" : "rgba(37,99,235,0.9)",
+                  color: "#fff",
+                  border: "1.5px solid rgba(255,255,255,0.25)",
+                  borderRadius: "8px",
+                  padding: "0 18px",
+                  fontWeight: 600,
+                  fontSize: "0.87rem",
+                  cursor: generando ? "not-allowed" : "pointer",
+                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                  height: "36px",
+                  letterSpacing: "0.02em",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                }}
+                onMouseEnter={e => { if (!generando) e.currentTarget.style.background = "rgba(29,78,216,0.95)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = generando ? "rgba(147,197,253,0.8)" : "rgba(37,99,235,0.9)"; }}
               >
-                {datos.length} resultado{datos.length !== 1 ? "s" : ""}
-              </span>
-            )}
-
-            {/* Spacer */}
-            <div style={{ flex: "1 1 0" }} />
-
-            {/* Botón PDF */}
-            <button
-              onClick={async () => {
-                const url = await exportarPDF();
-                if (url) window.open(url, "_blank");
-              }}
-              disabled={generando}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "7px",
-                background: generando ? "#93c5fd" : "#2563eb",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                padding: "7px 20px",
-                fontWeight: 600,
-                fontSize: "0.9rem",
-                cursor: generando ? "not-allowed" : "pointer",
-                transition: "all 0.18s",
-                whiteSpace: "nowrap",
-                boxShadow: "0 2px 8px rgba(37,99,235,0.3)",
-              }}
-              onMouseEnter={e => { if (!generando) e.currentTarget.style.opacity = "0.88"; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
-            >
-              {generando ? "Generando…" : "📄 Generar reporte PDF"}
-            </button>
+                📄 {generando ? "Generando…" : "Generar PDF"}
+              </button>
+            </div>
           </div>
 
           {/* Contenido */}
@@ -755,7 +786,7 @@ export default function ExpedientesEnRevisionPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {datos.map((exp) => {
+                  {datosPagina.map((exp) => {
                     const tienePase = !!pasesPorExp[exp.id_expediente];
                     return (
                       <tr key={exp.id_expediente}>
@@ -812,6 +843,48 @@ export default function ExpedientesEnRevisionPage() {
                   })}
                 </tbody>
               </Table>
+
+              {/* Paginación */}
+              {totalPaginas > 1 && (
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", marginTop: "12px", marginBottom: "8px" }}>
+                  <button
+                    onClick={() => setPaginaActual(1)}
+                    disabled={paginaActual === 1}
+                    style={btnPagStyle(paginaActual === 1)}
+                  >«</button>
+                  <button
+                    onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                    disabled={paginaActual === 1}
+                    style={btnPagStyle(paginaActual === 1)}
+                  >‹</button>
+                  {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setPaginaActual(n)}
+                      style={{
+                        minWidth: "36px", height: "36px", borderRadius: "8px",
+                        border: n === paginaActual ? "none" : "1px solid #dee2e6",
+                        background: n === paginaActual ? "#2563eb" : "#fff",
+                        color: n === paginaActual ? "#fff" : "#374151",
+                        fontWeight: n === paginaActual ? 700 : 500,
+                        fontSize: "0.9rem", cursor: "pointer",
+                        boxShadow: n === paginaActual ? "0 2px 6px rgba(37,99,235,0.35)" : "none",
+                        transition: "all 0.15s",
+                      }}
+                    >{n}</button>
+                  ))}
+                  <button
+                    onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                    disabled={paginaActual === totalPaginas}
+                    style={btnPagStyle(paginaActual === totalPaginas)}
+                  >›</button>
+                  <button
+                    onClick={() => setPaginaActual(totalPaginas)}
+                    disabled={paginaActual === totalPaginas}
+                    style={btnPagStyle(paginaActual === totalPaginas)}
+                  >»</button>
+                </div>
+              )}
             </Container>
           )}
         </div>
