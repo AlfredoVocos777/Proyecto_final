@@ -152,7 +152,7 @@ export default function UsuarioTecnico() {
               // Detectar si yo fui el último en realizar una asignación (reversible)
               const pasesReversibles = historialData.filter(h => 
                 (h.tipo_accion ?? "").toLowerCase() === "asignación" ||
-                (h.accion ?? "").toLowerCase().includes("pase")
+                ((h.accion ?? "").toLowerCase().includes("pase") && !(h.accion ?? "").toLowerCase().includes("anulado"))
               );
               const ultimoPase = pasesReversibles[0];
               const penultimoPase = pasesReversibles[1];
@@ -1290,7 +1290,7 @@ export default function UsuarioTecnico() {
                     <span className="me-2 text-secondary">•</span>
                     <span>
                       {obs.rol && <strong className="me-1">[{obs.rol}]</strong>}
-                      {obs.observacion}
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{obs.observacion}</span>
                       {obs.fecha_hora && <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>{new Date(obs.fecha_hora).toLocaleString("es-AR")}</span>}
                     </span>
                   </div>

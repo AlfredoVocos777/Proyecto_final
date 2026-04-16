@@ -463,8 +463,8 @@ export default function UsuarioDirector() {
       // Construccion mensaje automático + comentario del director
         const mensajeObservacion =
           decisionTipo === "aprobar"
-            ? `• Expediente aprobado por Dirección.\n\n• Se autoriza la obra solicitada.\n\n• Observación del Director:\n${comentarioDecision}`
-            : `• Expediente rechazado por Dirección.\n\n• Falta documentación o requisitos.\n\n• Observación del Director:\n${comentarioDecision}`;
+            ? `• Expediente aprobado por Dirección.\n\n• Se autoriza la obra solicitada.\n\n• Observación del Director:\n\n${comentarioDecision}`
+            : `• Expediente rechazado por Dirección.\n\n• Falta documentación o requisitos.\n\n• Observación del Director:\n\n${comentarioDecision}`;
 
         // Guardar observación para el presentante
         await axios.post(URL_OBSERVACIONES, {

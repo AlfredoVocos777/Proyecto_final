@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -341,7 +341,7 @@ export default function UsuarioJuridico() {
 
               const pReversibles = hD.filter(h => 
                 (h.tipo_accion ?? "").toLowerCase() === "asignación" ||
-                (h.accion ?? "").toLowerCase().includes("pase")
+                ((h.accion ?? "").toLowerCase().includes("pase") && !(h.accion ?? "").toLowerCase().includes("anulado"))
               );
               const ultimoPase = pReversibles[0];
               const penultimoPase = pReversibles[1];
@@ -956,7 +956,7 @@ export default function UsuarioJuridico() {
                     <>
                       {obsT.map((obs, idx) => (
                         <p key={idx} className="mb-1" style={{ fontSize: '0.9rem', color: '#444' }}>
-                          <span className="me-1 text-secondary">•</span>{obs.observacion}
+                          <span className="me-1 text-secondary">•</span><span style={{ whiteSpace: 'pre-wrap' }}>{obs.observacion}</span>
                         </p>
                       ))}
                       {docsT.map(doc => (

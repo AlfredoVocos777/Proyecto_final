@@ -828,7 +828,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                         <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
                           <span className="me-2" style={{ color: '#007bff' }}>•</span>
                           <div>
-                            <div>{obs.observacion}</div>
+                            <div style={{ whiteSpace: 'pre-wrap' }}>{obs.observacion}</div>
                             <small className="text-muted" style={{ fontSize: '0.7rem' }}>
                               {new Date(obs.fecha_hora).toLocaleString('es-AR')}
                             </small>
@@ -850,7 +850,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                         <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
                           <span className="me-2" style={{ color: '#28a745' }}>•</span>
                           <div>
-                            <div>{obs.observacion}</div>
+                            <div style={{ whiteSpace: 'pre-wrap' }}>{obs.observacion}</div>
                             <small className="text-muted" style={{ fontSize: '0.7rem' }}>
                               {new Date(obs.fecha_hora).toLocaleString('es-AR')}
                             </small>
@@ -872,7 +872,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                         <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
                           <span className="me-2" style={{ color: '#17a2b8' }}>•</span>
                           <div>
-                            <div>{obs.observacion}</div>
+                            <div style={{ whiteSpace: 'pre-wrap' }}>{obs.observacion}</div>
                             <small className="text-muted" style={{ fontSize: '0.7rem' }}>
                               {new Date(obs.fecha_hora).toLocaleString('es-AR')}
                             </small>
@@ -894,7 +894,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                         <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
                           <span className="me-2" style={{ color: '#dc3545' }}>•</span>
                           <div>
-                            <div>{obs.observacion}</div>
+                            <div style={{ whiteSpace: 'pre-wrap' }}>{obs.observacion}</div>
                             <small className="text-muted" style={{ fontSize: '0.7rem' }}>
                               {new Date(obs.fecha_hora).toLocaleString('es-AR')}
                             </small>
