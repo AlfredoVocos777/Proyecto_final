@@ -659,7 +659,14 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                   {ocultarPrioridad ? (
                   <td>
                     {expediente.usuario_asignado_nombre
-                      ? `${expediente.usuario_asignado_nombre} ${expediente.usuario_asignado_apellido || ''}`.trim()
+                      ? (() => {
+                          const nombre = `${expediente.usuario_asignado_nombre} ${expediente.usuario_asignado_apellido || ''}`.trim();
+                          const tipo = (expediente.usuario_asignado_tipo ?? '').toLowerCase();
+                          if (tipo === 'técnico' || tipo === 'tecnico') return `${nombre} (técnico)`;
+                          if (tipo === 'jurídico' || tipo === 'juridico') return `${nombre} (jurídico)`;
+                          if (tipo === 'director') return `${nombre} (director)`;
+                          return nombre;
+                        })()
                       : <span className="text-muted">Sin asignar</span>}
                   </td>
                   ) : (

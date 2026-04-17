@@ -17,11 +17,12 @@ export const obtenerExpediente = (req, res) => {
       u.email AS usuario_presentante_email,
       COALESCE(ur.id_usuario, ut.id_usuario) AS usuario_asignado_id,
       COALESCE(ur.nombre, ut.nombre) AS usuario_asignado_nombre,
-      COALESCE(ur.apellido, ut.apellido) AS usuario_asignado_apellido
+      COALESCE(ur.apellido, ut.apellido) AS usuario_asignado_apellido,
+      COALESCE(ur.tipo_usuario, ut.tipo_usuario) AS usuario_asignado_tipo
     FROM expedientes e
     LEFT JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
     LEFT JOIN (
-      SELECT h1.id_expediente, h1.id_usuario_responsable, u2.nombre, u2.apellido, u2.id_usuario
+      SELECT h1.id_expediente, h1.id_usuario_responsable, u2.nombre, u2.apellido, u2.id_usuario, u2.tipo_usuario
       FROM historial_expediente h1
       INNER JOIN (
         SELECT id_expediente, MAX(fecha) AS max_fecha

@@ -137,15 +137,18 @@ export default function UsuarioTecnico() {
     // Traemos los asignados a mí Y todos los en revisión/asignados para buscar los que yo mandé
     Promise.all([
       axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`),
-      axios.get(URL_EXPEDIENTES, { params: { estado: 'asignado' } })
-    ]).then(async ([resAsignados, resAsignadosGral]) => {
+      axios.get(URL_EXPEDIENTES, { params: { estado: 'asignado' } }),
+      axios.get(URL_EXPEDIENTES, { params: { estado: 'en revisión' } })
+    ]).then(async ([resAsignados, resAsignadosGral, resEnRevision]) => {
         const listAsignados = resAsignados.data || [];
         const listGral = resAsignadosGral.data || [];
+        const listEnRevision = resEnRevision.data || [];
         
         // Unificamos (evitando duplicados)
         const mapUnico = new Map();
         listAsignados.forEach(e => mapUnico.set(e.id_expediente, e));
         listGral.forEach(e => mapUnico.set(e.id_expediente, e));
+        listEnRevision.forEach(e => mapUnico.set(e.id_expediente, e));
         
         const expedientes = Array.from(mapUnico.values());
         const mapaPases = {};
@@ -717,8 +720,8 @@ export default function UsuarioTecnico() {
       const expedientesMap = new Map();
       for (const exp of expedientesPendientes) {
         const tienePaseUndoble = !!pasesPorExp[exp.id_expediente];
-        // Caso 1: Asignado a mí y ya lo recepcioné (puedo realizar pase)
-        if (exp.recepcionado && exp.puedeHacerPase && exp.id_profesional_asignado === usuarioLogueado.id_usuario) {
+        // Caso 1: Yo recepcioné este expediente (puedo realizar pase)
+        if (exp.recepcionado && exp.puedeHacerPase) {
           expedientesMap.set(exp.id_expediente, exp);
         }
         // Caso 2: Ya lo pasé y puedo deshacer
@@ -777,7 +780,6 @@ export default function UsuarioTecnico() {
                               ↩️ Deshacer Pase
                             </Button>
                           ) : (
-                            exp.id_profesional_asignado === usuarioLogueado?.id_usuario && (
                               <Button 
                                 variant="primary" 
                                 size="sm" 
@@ -802,7 +804,6 @@ export default function UsuarioTecnico() {
                               >
                                 Realizar Pase
                               </Button>
-                            )
                           )}
                         </div>
                       </td>
