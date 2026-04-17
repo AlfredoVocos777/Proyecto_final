@@ -36,6 +36,9 @@ export default function UsuarioTecnico() {
   const [expedientesTodos, setExpedientesTodos] = useState([]);
   const [filtroConsulta, setFiltroConsulta] = useState("");
   const [loadingTodos, setLoadingTodos] = useState(false);
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [mostrarPickerFecha, setMostrarPickerFecha] = useState(false);
 
   // Estados para subir documentación
   const [showModalDoc, setShowModalDoc] = useState(false);
@@ -91,10 +94,17 @@ export default function UsuarioTecnico() {
   useEffect(() => {
         // Cargar todos los expedientes para la consulta general
         setLoadingTodos(true);
-        axios.get(URL_EXPEDIENTES)
-          .then(res => setExpedientesTodos(res.data || []))
-          .catch(() => setExpedientesTodos([]))
-          .finally(() => setLoadingTodos(false));
+        const cargarTodos = (desde, hasta) => {
+          setLoadingTodos(true);
+          const params = {};
+          if (desde) params.desde = desde;
+          if (hasta) params.hasta = hasta;
+          axios.get(URL_EXPEDIENTES, { params })
+            .then(res => setExpedientesTodos(res.data || []))
+            .catch(() => setExpedientesTodos([]))
+            .finally(() => setLoadingTodos(false));
+        };
+        cargarTodos("", "");
     try {
       const user = usuarioLogueado;
       const idRol = user?.id_rol;
@@ -625,6 +635,16 @@ export default function UsuarioTecnico() {
   const renderContenido = () => {
     switch (seccionActiva) {
       case "consultar-expediente": {
+        const recargarTodos = () => {
+          setLoadingTodos(true);
+          const params = {};
+          if (fechaDesde) params.desde = fechaDesde;
+          if (fechaHasta) params.hasta = fechaHasta;
+          axios.get(URL_EXPEDIENTES, { params })
+            .then(res => setExpedientesTodos(res.data || []))
+            .catch(() => setExpedientesTodos([]))
+            .finally(() => setLoadingTodos(false));
+        };
         // Filtro simple por número, estado o texto
         const expedientesFiltrados = expedientesTodos.filter(exp => {
           const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
@@ -647,6 +667,57 @@ export default function UsuarioTecnico() {
                   disabled={loadingTodos}
                 />
               </div>
+
+              {/* Filtro por rango de fechas */}
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <button
+                  onClick={() => setMostrarPickerFecha(v => !v)}
+                  title={(fechaDesde || fechaHasta) ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "6px",
+                    background: (fechaDesde || fechaHasta) ? "#2563eb" : "#f3f4f6",
+                    color: (fechaDesde || fechaHasta) ? "#fff" : "#374151",
+                    border: "1px solid #d1d5db", borderRadius: "7px",
+                    height: "34px", padding: "0 12px", fontSize: "1rem", cursor: "pointer",
+                  }}
+                >
+                  📅
+                  {(fechaDesde || fechaHasta) && (
+                    <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>{fechaDesde || "…"} — {fechaHasta || "…"}</span>
+                  )}
+                </button>
+                {mostrarPickerFecha && (
+                  <div style={{
+                    position: "absolute", top: "40px", left: 0, zIndex: 9999,
+                    background: "#fff", borderRadius: "12px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                    padding: "16px 20px", minWidth: "260px", border: "1px solid #e5e7eb",
+                  }}>
+                    <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#1e3a5f", fontSize: "0.9rem" }}>Rango de fechas</p>
+                    <div style={{ marginBottom: "10px" }}>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Desde</label>
+                      <input type="date" value={fechaDesde} max={fechaHasta || undefined}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                        style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }} />
+                    </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Hasta</label>
+                      <input type="date" value={fechaHasta} min={fechaDesde || undefined}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                        style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }} />
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
+                        style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "1px solid #d1d5db", background: "#f9fafb", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600, color: "#6b7280" }}>
+                        Limpiar</button>
+                      <button onClick={() => { recargarTodos(); setMostrarPickerFecha(false); }}
+                        style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", background: "#2563eb", color: "#fff", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600 }}>
+                        Aplicar</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {!loadingTodos && (
                 <div className="consulta-pag">
                   <button className="cpag-btn" disabled={paginaConsulta === 1} onClick={() => setPaginaConsulta(p => p - 1)}>‹</button>

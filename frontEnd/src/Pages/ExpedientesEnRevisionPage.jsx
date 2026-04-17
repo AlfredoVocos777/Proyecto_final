@@ -444,6 +444,9 @@ export default function ExpedientesEnRevisionPage() {
   const [error, setError]                       = useState(null);
   const [busqueda, setBusqueda]                 = useState("");
   const [filtroEstado, setFiltroEstado]         = useState("en revisión");
+  const [fechaDesde, setFechaDesde]             = useState("");
+  const [fechaHasta, setFechaHasta]             = useState("");
+  const [mostrarPickerFecha, setMostrarPickerFecha] = useState(false);
   const [generando, setGenerando]               = useState(false);
   const [modalDeshacer, setModalDeshacer]       = useState(null); // expediente
   const [modalDetalle, setModalDetalle]         = useState(null); // expediente
@@ -455,7 +458,10 @@ export default function ExpedientesEnRevisionPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = filtroEstado ? { estado: filtroEstado } : {};
+      const params = {};
+      if (filtroEstado) params.estado = filtroEstado;
+      if (fechaDesde)  params.desde   = fechaDesde;
+      if (fechaHasta)  params.hasta   = fechaHasta;
       const res = await axios.get(URL_EXPEDIENTES, { params });
       const lista = Array.isArray(res.data) ? res.data : [];
       setExpedientes(lista);
@@ -489,12 +495,12 @@ export default function ExpedientesEnRevisionPage() {
     } finally {
       setLoading(false);
     }
-  }, [filtroEstado]);
+  }, [filtroEstado, fechaDesde, fechaHasta]);
 
   useEffect(() => { cargarExpedientes(); }, [cargarExpedientes]);
 
   // Resetear página al cambiar búsqueda o filtro
-  useEffect(() => { setPaginaActual(1); }, [busqueda, filtroEstado]);
+  useEffect(() => { setPaginaActual(1); }, [busqueda, filtroEstado, fechaDesde, fechaHasta]);
 
   const handleDeshacerExito = (id_expediente) => {
     setExpedientes((prev) =>
@@ -550,7 +556,10 @@ export default function ExpedientesEnRevisionPage() {
   const exportarPDF = async () => {
     setGenerando(true);
     try {
-      const params = filtroEstado ? { estado: filtroEstado } : {};
+      const params = {};
+      if (filtroEstado) params.estado = filtroEstado;
+      if (fechaDesde)  params.desde   = fechaDesde;
+      if (fechaHasta)  params.hasta   = fechaHasta;
       const res = await axios.get(URL_EXPEDIENTES, { params });
       const lista = Array.isArray(res.data) ? res.data : [];
 
@@ -709,6 +718,80 @@ export default function ExpedientesEnRevisionPage() {
                 <option value="aprobado" style={{ color: "#333" }}>Aprobado</option>
                 <option value="rechazado" style={{ color: "#333" }}>Rechazado</option>
               </Form.Select>
+
+              {/* Filtro fecha rango */}
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setMostrarPickerFecha(v => !v)}
+                  title={fechaDesde || fechaHasta ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "6px",
+                    background: (fechaDesde || fechaHasta) ? "rgba(37,99,235,0.7)" : "rgba(255,255,255,0.15)",
+                    color: "#fff",
+                    border: (fechaDesde || fechaHasta) ? "1.5px solid rgba(99,160,255,0.7)" : "1.5px solid rgba(255,255,255,0.35)",
+                    borderRadius: "8px",
+                    height: "36px",
+                    padding: "0 12px",
+                    fontSize: "1rem",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  📅
+                  {(fechaDesde || fechaHasta) && (
+                    <span style={{ fontSize: "0.75rem", fontWeight: 600, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {fechaDesde || "…"} — {fechaHasta || "…"}
+                    </span>
+                  )}
+                </button>
+
+                {mostrarPickerFecha && (
+                  <div
+                    style={{
+                      position: "absolute", top: "44px", left: 0, zIndex: 9999,
+                      background: "#fff",
+                      borderRadius: "12px",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                      padding: "16px 20px",
+                      minWidth: "260px",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#1e3a5f", fontSize: "0.9rem" }}>Rango de fechas</p>
+                    <div style={{ marginBottom: "10px" }}>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Desde</label>
+                      <input
+                        type="date"
+                        value={fechaDesde}
+                        max={fechaHasta || undefined}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                        style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }}
+                      />
+                    </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Hasta</label>
+                      <input
+                        type="date"
+                        value={fechaHasta}
+                        min={fechaDesde || undefined}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                        style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
+                        style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "1px solid #d1d5db", background: "#f9fafb", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600, color: "#6b7280" }}
+                      >Limpiar</button>
+                      <button
+                        onClick={() => setMostrarPickerFecha(false)}
+                        style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", background: "#2563eb", color: "#fff", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600 }}
+                      >Aplicar</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Derecha: Contador + PDF */}

@@ -1,12 +1,19 @@
 import connection from "../configDB/dataBase.js";
 
 
-// Obtener todos los expedientes — acepta ?estado=<valor> para filtrar
+// Obtener todos los expedientes — acepta ?estado, ?anio, ?desde, ?hasta para filtrar
 export const obtenerExpediente = (req, res) => {
-  const { estado } = req.query;
+  const { estado, anio, desde, hasta } = req.query;
 
-  const whereClause = estado ? `WHERE e.estado_actual = ?` : "";
-  const params = estado ? [estado] : [];
+  const condiciones = [];
+  const params = [];
+
+  if (estado) { condiciones.push("e.estado_actual = ?"); params.push(estado); }
+  if (anio)   { condiciones.push("YEAR(e.fecha_creacion) = ?"); params.push(Number(anio)); }
+  if (desde)  { condiciones.push("e.fecha_creacion >= ?"); params.push(desde); }
+  if (hasta)  { condiciones.push("e.fecha_creacion <= ?"); params.push(`${hasta} 23:59:59`); }
+
+  const whereClause = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
 
   const sql = `
     SELECT 
