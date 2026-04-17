@@ -35,6 +35,16 @@ function formatFecha(fecha) {
   });
 }
 
+function formatAsignado(exp) {
+  if (!exp?.usuario_asignado_nombre) return null;
+  const nombre = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido ?? ""}`.trim();
+  const tipo = (exp.usuario_asignado_tipo ?? "").toLowerCase();
+  if (tipo === "técnico" || tipo === "tecnico") return `${nombre} (técnico)`;
+  if (tipo === "jurídico" || tipo === "juridico") return `${nombre} (jurídico)`;
+  if (tipo === "director") return `${nombre} (director)`;
+  return nombre;
+}
+
 // ─── Modal Realizar Pase ─────────────────────────────────────────────────────
 function ModalPase({ expediente, onClose, onPaseExitoso }) {
   const [tecnicos, setTecnicos]       = useState([]);
@@ -202,7 +212,7 @@ function ModalDeshacerPase({ expediente, onClose, onExito }) {
           <strong>Estado actual:</strong>{" "}
           <Badge bg={getBadge(expediente.estado_actual)}>{expediente.estado_actual ?? "-"}</Badge><br />
           {expediente.usuario_asignado_nombre && (
-            <><strong>Asignado a:</strong> {expediente.usuario_asignado_nombre} {expediente.usuario_asignado_apellido ?? ""}<br /></>
+            <><strong>Asignado a:</strong> {formatAsignado(expediente)}<br /></>
           )}
         </div>
         <p className="text-muted small mb-0">
@@ -300,7 +310,7 @@ function ModalDetalle({ expediente, onClose }) {
               <th>Asignado a</th>
               <td>
                 {expediente.usuario_asignado_nombre
-                  ? `${expediente.usuario_asignado_nombre} ${expediente.usuario_asignado_apellido ?? ""}`
+                  ? formatAsignado(expediente)
                   : <span className="text-muted fst-italic">Sin asignar</span>}
               </td>
             </tr>
@@ -571,7 +581,7 @@ export default function ExpedientesEnRevisionPage() {
             ? `${e.usuario_presentante_nombre} ${e.usuario_presentante_apellido ?? ""}`.trim()
             : "",
           asignado: e.usuario_asignado_nombre
-            ? `${e.usuario_asignado_nombre} ${e.usuario_asignado_apellido ?? ""}`.trim()
+            ? formatAsignado(e)
             : "Sin asignar",
           fecha: e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString("es-AR") : "",
         })),
@@ -805,7 +815,7 @@ export default function ExpedientesEnRevisionPage() {
                         </td>
                         <td>
                           {exp.usuario_asignado_nombre
-                            ? `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido ?? ""}`
+                            ? formatAsignado(exp)
                             : <span className="text-muted fst-italic">Sin asignar</span>}
                         </td>
                         <td>{formatFecha(exp.fecha_creacion)}</td>
