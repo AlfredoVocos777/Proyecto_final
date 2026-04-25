@@ -21,7 +21,6 @@ SET u.tipo_usuario = CASE
     WHEN r.nombre = 'Técnico' THEN 'tecnico'
     WHEN r.nombre = 'Jurídico' THEN 'juridico'
     WHEN r.nombre = 'Presentante' THEN 'presentante'
-    WHEN r.nombre = 'Admin TI' THEN 'admin_TI'
     ELSE 'presentante'
 END
 WHERE u.id_rol IS NOT NULL;

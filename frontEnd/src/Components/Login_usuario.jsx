@@ -89,7 +89,7 @@ function Login_usuario() {
         // Redirección según el nombre del rol...
         const rolLower = (rolNombre || "").toLowerCase();
 
-        if (["administrativo", "admin ti"].includes(rolLower)) {
+        if (["administrativo"].includes(rolLower)) {
           userNavigate(PORTADA_ADMINISTRATIVO);
           return;
         }

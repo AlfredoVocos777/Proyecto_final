@@ -25,10 +25,6 @@ UPDATE usuario u
 SET u.id_rol = (SELECT r.id_rol FROM roles r WHERE r.nombre = 'Presentante' LIMIT 1)
 WHERE u.tipo_usuario = 'presentante' AND u.id_rol IS NULL;
 
-UPDATE usuario u
-SET u.id_rol = (SELECT r.id_rol FROM roles r WHERE r.nombre = 'Admin TI' LIMIT 1)
-WHERE u.tipo_usuario = 'admin_TI' AND u.id_rol IS NULL;
-
 -- 2. Hacer id_rol NOT NULL (ahora todos los usuarios tienen rol asignado)
 ALTER TABLE usuario MODIFY COLUMN id_rol INT NOT NULL;
 
