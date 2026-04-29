@@ -42,6 +42,9 @@ function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada", ocultarPrior
   const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroAsignado, setFiltroAsignado] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [mostrarPickerFecha, setMostrarPickerFecha] = useState(false);
 
   // estados de los roles
   const [observacionesAdmin, setObservacionesAdmin] = useState([]);
@@ -130,7 +133,11 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   const obtenerExpedientes = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(URL_EXPEDIENTES);
+      const params = {};
+      if (fechaDesde) params.desde = fechaDesde;
+      if (fechaHasta) params.hasta = fechaHasta;
+
+      const response = await axios.get(URL_EXPEDIENTES, { params });
       const data = response.data || [];
       const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
       if (usuario?.tipo_usuario?.toLowerCase() === "presentante") {
@@ -158,13 +165,31 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
     setUsuarioLog(u || null);
-    obtenerExpedientes();
+
+    // Por defecto, filtrar el último mes si no hay fechas seteadas
+    const hoy = new Date();
+    const haceUnMes = new Date();
+    haceUnMes.setMonth(hoy.getMonth() - 1);
+    
+    // Formato YYYY-MM-DD para el input type="date"
+    const desdeStr = haceUnMes.toISOString().split('T')[0];
+    setFechaDesde(desdeStr);
+    
+    // El primer fetch se disparará por el cambio de fechaDesde en el useEffect de abajo
+    // pero como necesitamos cargar el usuarioLogueado, lo dejamos así.
+    // Para evitar doble carga, solo llamamos si no vamos a cambiar el estado de fechaDesde
+    // o simplemente dejamos que los efectos se encarguen.
   }, []);
+
+  // Efecto para recargar cuando cambian fechas o filtros básicos (que el backend soporta)
+  useEffect(() => {
+    obtenerExpedientes();
+  }, [fechaDesde, fechaHasta]);
 
   // Resetear a primera página cuando cambian filtros/búsqueda
   useEffect(() => {
     setPaginaActual(1);
-  }, [busqueda, filtroEstado, filtroPrioridad, filtroTipo, filtroAsignado]);
+  }, [busqueda, filtroEstado, filtroPrioridad, filtroTipo, filtroAsignado, fechaDesde, fechaHasta]);
 
   //-------------------------------------------------------------
   //-------------------------------------------------------------
@@ -585,6 +610,94 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
               </select>
             </div>
             )}
+            
+            {/* Filtro fecha rango */}
+            <div className="col-md-2" style={{ position: "relative" }}>
+              <button
+                onClick={() => setMostrarPickerFecha(v => !v)}
+                title={fechaDesde || fechaHasta ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
+                className="btn w-100 d-flex align-items-center justify-content-center gap-2"
+                style={{
+                  background: "#fff",
+                  color: "#333",
+                  border: "1px solid #ced4da",
+                  borderRadius: "0.375rem",
+                  height: "38px",
+                  fontSize: "0.9rem",
+                  transition: "all 0.15s",
+                }}
+              >
+                📅
+                {(fechaDesde || fechaHasta) && (
+                  <span style={{ fontSize: "0.8rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {fechaDesde ? (fechaHasta ? "Rango" : "Desde") : "Hasta"}
+                  </span>
+                )}
+              </button>
+
+              {mostrarPickerFecha && (
+                <div
+                  style={{
+                    position: "absolute", top: "44px", left: "50%", transform: "translateX(-50%)", zIndex: 1050,
+                    background: "#fff",
+                    borderRadius: "12px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                    padding: "16px 20px",
+                    minWidth: "280px",
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h6 className="mb-0" style={{ fontWeight: 700, color: "#111827" }}>Filtrar por fecha</h6>
+                    <button 
+                      className="btn-close" 
+                      style={{ fontSize: "0.75rem" }} 
+                      onClick={() => setMostrarPickerFecha(false)}
+                    ></button>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Desde:</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={fechaDesde}
+                      onChange={(e) => setFechaDesde(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="mb-3">
+                    <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Hasta:</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={fechaHasta}
+                      onChange={(e) => setFechaHasta(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="d-flex gap-2">
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="text-decoration-none p-0 ms-auto"
+                      onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
+                      style={{ fontSize: "0.8rem", color: "#6b7280" }}
+                    >
+                      Limpiar fechas
+                    </Button>
+                    <Button 
+                      variant="primary" 
+                      size="sm"
+                      onClick={() => setMostrarPickerFecha(false)}
+                      style={{ borderRadius: "6px", padding: "4px 12px" }}
+                    >
+                      Aplicar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="col-md-2 d-grid">
               <Button
                 variant="outline-primary"
@@ -594,6 +707,8 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                   setFiltroPrioridad("");
                   setFiltroTipo("");
                   setFiltroAsignado("");
+                  setFechaDesde("");
+                  setFechaHasta("");
                 }}
                 style={{ whiteSpace: "nowrap", backgroundColor: "#f8f6f0" }}
               >

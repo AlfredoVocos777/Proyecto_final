@@ -588,6 +588,15 @@ export default function ExpedientesEnRevisionPage() {
     }
   }, [filtroEstado, fechaDesde, fechaHasta]);
 
+  useEffect(() => {
+    // Por defecto, filtrar el último mes
+    const hoy = new Date();
+    const haceUnMes = new Date();
+    haceUnMes.setMonth(hoy.getMonth() - 1);
+    const desdeStr = haceUnMes.toISOString().split('T')[0];
+    setFechaDesde(desdeStr);
+  }, []);
+
   useEffect(() => { cargarExpedientes(); }, [cargarExpedientes]);
 
   // Resetear página al cambiar búsqueda o filtro
