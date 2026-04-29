@@ -53,7 +53,11 @@ export const obtenerExpediente = (req, res) => {
   });
 };
 
-// Crear nuevo expediente
+/*
+  BLOQUE PRINCIPAL 1: CREAR UN NUEVO EXPEDIENTE
+  Esta función es llamada cuando un Presentante inicia su trámite.
+  Recibe por 'req.body' (el cuerpo de la petición HTTP) los datos del formulario de React.
+*/
 export const crearExpediente = (req, res) => {
   const {
     tipo_expediente,
@@ -62,14 +66,18 @@ export const crearExpediente = (req, res) => {
     id_usuario_presentante
   } = req.body;
 
-  // Validación básica
+  // Validación básica: asegura que no insertemos basura o nulos clave
   if (!id_usuario_presentante) {
     return res.status(400).json({ error: "Falta el ID del usuario presentante" });
   }
 
   const year = new Date().getFullYear();
 
-  // Buscar el último número de expediente del año actual
+  /*
+    LÓGICA DE AUTO-NUMERACIÓN
+    Buscamos el último número de expediente del año actual para sumar +1.
+    Ej: Si el último es 2026/0004, el próximo será 2026/0005.
+  */
   const sqlUltimo = `
     SELECT numero_expediente 
     FROM expedientes 
@@ -90,6 +98,7 @@ export const crearExpediente = (req, res) => {
       nuevoNumero = parseInt(ultimoNumero) + 1;
     }
 
+    // padStart(4, "0") asegura que el número sea '0005' y no solo '5'.
     const numeroFormateado = nuevoNumero.toString().padStart(4, "0");
     const numero_expediente = `${year}/${numeroFormateado}`;
     const fecha_creacion = new Date();
@@ -151,7 +160,10 @@ export const obtenerExpedientePorId = (req, res) => {
   );
 };
 
-// Actualizar expediente
+/*
+  BLOQUE PRINCIPAL 2: ACTUALIZAR ESTADO DEL EXPEDIENTE
+  Se ejecuta cuando el Técnico o Director aprueba, rechaza o cambia un dato.
+*/
 export const actualizarExpediente = (req, res) => {
   const { id } = req.params;
   const {
@@ -165,8 +177,11 @@ export const actualizarExpediente = (req, res) => {
 
   const updated_at = new Date();
 
-  // Construir el objeto de actualización de forma dinámica
-  // Solo se agregan al objeto los campos que vienen definidos en el body
+  /*
+    CONSTRUCCIÓN DINÁMICA DE LA QUERY
+    Protege contra inyección manipulando solo los campos declarados y permitidos,
+    ignorando cualquier data maliciosa que me manden adicional.
+  */
   const expedienteUpdate = { updated_at };
 
   const camposPermitidos = [
@@ -185,7 +200,8 @@ export const actualizarExpediente = (req, res) => {
   });
 
 
-  // 1. Actualizamos los datos en la DB
+  // 1. Ejecutamos la acción real en MySQL actualizando solo ese ID
+
   connection.query(
     "UPDATE Expedientes SET ? WHERE id_expediente = ?",
     [expedienteUpdate, id],

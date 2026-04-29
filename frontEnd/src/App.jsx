@@ -63,9 +63,20 @@ import RecuperarContrasena from "./Components/RecuperarContrasena";
 import ResetPasswordPage from "./Pages/ResetPasswordPage";
 
 function App() {
+  /*
+    BLOQUE PRINCIPAL: ENRUTAMIENTO Y VISTAS (SPA)
+    Usamos BrowserRouter para simular una navegación de páginas MÚLTIPLES sin recargar el DOM.
+    'Routes' inspecciona la URL de la barra de direcciones y renderiza el 'Elemento' (componente) que haga match.
+  */
   return (
     <BrowserRouter>
       <Routes>
+        {/* 
+          RUTAS PÚBLICAS Y PROTEGIDAS (Guards)
+          - <LoginPage /> no está protegido, cualquiera puede entrar.
+          - RUTAS DE SISTEMA: se envuelven en HOCs (Higher Order Components) como <RequireAdmin>. 
+            Esto verifica en LocalStorage/JWT si el usuario tiene el Rol 4 (admin). Si no, lo patea al login previniendo hackeos front-end.
+        */}
         <Route path="/" element={<LoginPage />} />
         <Route path={LOGIN_USUARIO} element={<LoginPage />} />
         <Route path={REGISTRO_USUARIO} element={<RegistroPage />} />

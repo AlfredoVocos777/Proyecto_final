@@ -11,6 +11,12 @@ const NuevoTramiteExpediente = () => {
   const [usuario, setUsuario] = useState(null);
 
 
+  /*
+    BLOQUE: PANTALLA 4 - ÉXITO Y FORMALIZACIÓN
+    El useEffect se dipara tan pronto como la pantalla carga. Toma el paquete "expedienteCreado" 
+    del LocalStorage (que fue inyectado por la ventana de Pago tras recibir el 'Ok' del Backend).
+    Si los datos existen, se los pinta al usuario dándole su nuevo N° de Expediente oficial.
+  */
   useEffect(() => {
     try {
       const exp = localStorage.getItem("expedienteCreado");

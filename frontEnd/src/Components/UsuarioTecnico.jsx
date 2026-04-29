@@ -67,6 +67,7 @@ export default function UsuarioTecnico() {
   //observaciones generales modal ver
   const [observacionTecnico, setObservacionTecnico] = useState("");
   const [errorObs, setErrorObs] = useState("");
+  const [successObs, setSuccessObs] = useState("");
   const [modalSoloVer, setModalSoloVer] = useState(false);
   const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
   const [subiendoObs, setSubiendoObs] = useState(false); // Nuevo estado para bloqueo de botón
@@ -131,7 +132,14 @@ export default function UsuarioTecnico() {
     }
   }, []);
 
-  // Recargar expedientes (Unificado)
+  /*
+    BLOQUE: GESTIÓN DE BANDEJA Y MÁQUINA DE ESTADOS (TÉCNICO)
+    Esta función es el corazón del flujo. No trae todos los expedientes a lo loco, sino que:
+    1. Consigue los expedientes que ya fueron "Pasados" explícitamente a este usuario.
+    2. Cruza esto contra la tabla "Historial" (Trazabilidad).
+    3. Construye un estado vivo (`puedeHacerPase`, `recepcionado`) para que un técnico no pueda
+       enviar un expediente si no lo recepcionó primero, o deshacer pase si el receptor ya lo agarró.
+  */
   const recargarExpedientes = () => {
     const idUsuario = usuarioLogueado?.id_usuario;
     if (!idUsuario) return;
@@ -1311,7 +1319,7 @@ export default function UsuarioTecnico() {
 
           {/* Sección: observaciones (disponible siempre) */}
           <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-            <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones para el Presentante</p>
+            <h6 className="mb-3 fw-bold" style={{ color: '#495057' }}>Observaciones para el Presentante</h6>
             <Form.Control
               type="text"
               placeholder="Escriba una observación para el presentante del expediente..."
@@ -1345,13 +1353,14 @@ export default function UsuarioTecnico() {
                     comentario: observacionTecnico,
                     tipo_accion: "observación"
                   });
-                  alert("Observación guardada ✅");
+                  setSuccessObs("Observación guardada correctamente");
+                  setTimeout(() => setSuccessObs(""), 3000);
                   setObservacionTecnico("");
                   setErrorObs("");
                   cargarObservaciones(expedienteDoc.id_expediente);
                 } catch (err) {
                   console.error(err);
-                  alert("No se pudo guardar la observación.");
+                  setErrorObs("No se pudo guardar la observación.");
                 } finally {
                   setSubiendoObs(false);
                 }
@@ -1380,52 +1389,78 @@ export default function UsuarioTecnico() {
           {/* Sección: documentos existentes */}
           {loadingDocs ? (
             <p className="text-muted text-center py-3">Cargando documentos…</p>
-          ) : documentosDoc.length > 0 ? (
-            <div>
-              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
-              <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
-                <thead className="table-light">
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Tipo</th>
-                    <th>Tamaño</th>
-                    <th>Fecha</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documentosDoc.map(doc => (
-                    <tr key={doc.id_documento}>
-                      <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
-                      <td>{doc.tipo}</td>
-                      <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
-                          {!modalSoloVer && (
-                            <button className="btn btn-outline-danger btn-sm" onClick={async () => {
-                              if (!window.confirm('¿Eliminar este documento?')) return;
-                              try {
-                                await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                setDocumentosDoc(resp.data || []);
-                              } catch (err) {
-                                console.error('Error al eliminar documento:', err);
-                                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                              }
-                            }}>Eliminar</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-muted text-center py-3" style={{ fontSize: '0.9rem' }}>No hay documentos adjuntos para este expediente.</p>
-          )}
+          ) : (() => {
+            const rolOrder = ['Presentante', 'Administrativo', 'Técnico'];
+            const grupos = {};
+            rolOrder.forEach(r => { grupos[r] = []; });
+            documentosDoc.forEach(doc => {
+              const rol = doc.rol_nombre || 'Otro';
+              if (grupos[rol]) grupos[rol].push(doc);
+              else { grupos[rol] = [doc]; }
+            });
+            const nombresPorRol = {};
+            documentosDoc.forEach(doc => {
+              if (['Administrativo', 'Técnico'].includes(doc.rol_nombre) && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
+                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
+              }
+            });
+            return (
+              <div>
+                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
+                {rolOrder.map(rol => {
+                  const docs = grupos[rol] || [];
+                  if (rol === 'Técnico' && docs.length === 0) return null;
+                  return (
+                    <div key={rol} className="mb-3">
+                      <h6 className="fw-bold" style={{ color: '#495057' }}>
+                        {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '📁'} {rol}
+                        {nombresPorRol[rol] && (
+                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
+                        )}
+                      </h6>
+                      {docs.length === 0 ? (
+                        <p className="text-muted small ms-2">Sin archivos adjuntos</p>
+                      ) : (
+                        <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                          <thead className="table-light">
+                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
+                          </thead>
+                          <tbody>
+                            {docs.map(doc => (
+                              <tr key={doc.id_documento}>
+                                <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
+                                <td>{doc.tipo}</td>
+                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
+                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
+                                <td>
+                                  <div className="d-flex gap-2">
+                                    <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                                    {!modalSoloVer && (
+                                      <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                                        if (!window.confirm('¿Eliminar este documento?')) return;
+                                        try {
+                                          await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                          const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                          setDocumentosDoc(resp.data || []);
+                                        } catch (err) {
+                                          console.error('Error al eliminar documento:', err);
+                                          setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
+                                        }
+                                      }}>Eliminar</button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
         </Modal.Body>
       </Modal>
@@ -1499,6 +1534,18 @@ export default function UsuarioTecnico() {
           <Button variant="danger" onClick={confirmarDeshacerPase}>Sí, deshacer pase</Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Notificación flotante de éxito para observaciones */}
+      {successObs && (
+        <div style={{
+          position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999,
+          background: '#28a745', color: 'white', padding: '12px 24px',
+          borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontWeight: '500', transition: 'opacity 0.3s ease-in-out'
+        }}>
+          ✅ {successObs}
+        </div>
+      )}
     </div>
   );
 }

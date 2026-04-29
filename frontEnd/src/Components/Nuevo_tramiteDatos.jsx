@@ -45,6 +45,13 @@ const NuevoTramiteDatos = () => {
   const handleChangeExpediente = (e) => {
     setExpediente({ ...expediente, [e.target.name]: e.target.value });
   };
+  /*
+    BLOQUE: PASO 1 - RECOPILACIÓN DE DATOS (NO INSERTA AÚN)
+    Esta función es el cierre de la primera pantalla del 'Trámite'.
+    Es vital entender que NO envía los datos a la base de datos todavía.
+    Valida el input y guarda temporalmente en LocalStorage ('expedientePendiente') 
+    para pasárselos a la pantall de Documentos y posteriormente a la de Pagos.
+  */
   const handleSubmit = async (e) => {
     e.preventDefault();
 

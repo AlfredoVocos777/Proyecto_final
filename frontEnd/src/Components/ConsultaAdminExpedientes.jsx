@@ -3,6 +3,11 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function ConsultaAdminExpedientes() {
+	/*
+	  BLOQUE: MENÚ ADMINISTRATIVO (ENRUTADOR)
+	  Este es puramente un componente de presentación (Navegación).
+	  Su propósito único es servir de menú secundario devolviendo al administrador a "Consultar y Asignar" mediante React Router navigate().
+    */
 	const [vista, setVista] = useState("");
 	const navigate = useNavigate();
 	return (
