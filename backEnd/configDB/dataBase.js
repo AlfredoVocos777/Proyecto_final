@@ -9,7 +9,7 @@ import mysql from 'mysql2';
 const connection = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: 'Alfredvocos777', // Contraseña de tu entorno local
+    password: 'Alfredvocos777',
     database: 'sigedex',
     ssl: { rejectUnauthorized: false },
 });

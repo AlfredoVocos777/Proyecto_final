@@ -141,11 +141,39 @@ export default function UsuarioDirector() {
               expedientes.map(async exp => {
                 try {
                   const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                  const recepcionado = historial.data.some(h => 
+                  const historialData = historial.data || [];
+                  const recepcionado = historialData.some(h => 
                     Number(h.id_usuario_responsable) === Number(idUsuario) && 
                     h.accion?.toLowerCase().includes('recepci')
                   );
-                  return { ...exp, recepcionado };
+
+                  // --- Calcular fecha de pase y datos de asignación ---
+                  const ultimoAsignadoAUsuario = historialData
+                    .filter(h => h.id_usuario_responsable === idUsuario)
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+
+                  let fechaPase = exp.fecha_creacion;
+                  let observacionesPase = '';
+                  let desdeUsuario = '-';
+
+                  if (ultimoAsignadoAUsuario) {
+                    fechaPase = ultimoAsignadoAUsuario.fecha;
+                    observacionesPase = ultimoAsignadoAUsuario.comentario || '';
+                    const historialAsc = [...historialData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                    const idxEnAsc = historialAsc.findIndex(h => h.id_historial === ultimoAsignadoAUsuario.id_historial);
+                    if (idxEnAsc > 0) {
+                      const entradaAnterior = historialAsc[idxEnAsc - 1];
+                      desdeUsuario = `${entradaAnterior.usuario_nombre || ''} ${entradaAnterior.usuario_apellido || ''}`.trim() || '-';
+                    }
+                  }
+
+                  return { 
+                    ...exp, 
+                    recepcionado,
+                    fecha_pase: fechaPase,
+                    desde_usuario: desdeUsuario,
+                    observaciones_pase: observacionesPase
+                  };
                 } catch {
                   return { ...exp, recepcionado: false };
                 }
@@ -754,7 +782,12 @@ export default function UsuarioDirector() {
                     <thead>
                       <tr>
                         <th><input type="checkbox" checked={expBandeja.filter(e => !e.recepcionado).length > 0 && expedientesSeleccionados.length === expBandeja.filter(e => !e.recepcionado).length} onChange={toggleSeleccionTodos} disabled={expBandeja.filter(e => !e.recepcionado).length === 0} /></th>
-                        <th>Nº Expediente</th><th>Tipo</th><th>Descripción</th><th>Prioridad</th><th>Fecha Creación</th><th>Acciones</th>
+                        <th>Nº Expediente</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Nombre</th>
+                        <th>Fecha Pase</th>
+                        <th>Documentación</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -767,8 +800,8 @@ export default function UsuarioDirector() {
                           </td>
                           <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
                           <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                          <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
-                          <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
+                          <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString('es-AR') : '-'}</td>
                           <td><button className="btn btn-sm btn-info" onClick={() => abrirModalDoc(exp, true)}>📄 Ver Documentos</button></td>
                         </tr>
                       ))}
@@ -825,9 +858,8 @@ export default function UsuarioDirector() {
                         <th>Nº Expediente</th>
                         <th>Tipo</th>
                         <th>Descripción</th>
-                        <th>Prioridad</th>
-                        <th>Profesional Asignado</th>
-                        <th>Fecha Creación</th>
+                        <th>Nombre</th>
+                        <th>Fecha Pase</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
@@ -839,19 +871,8 @@ export default function UsuarioDirector() {
                           </td>
                           <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
                           <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                          <td>
-                            <span className={`badge badge-${exp.prioridad}`}>
-                              {exp.prioridad || 'normal'}
-                            </span>
-                          </td>
-                          <td>
-                            {exp.nombre_asignado
-                              ? `${exp.nombre_asignado} ${exp.apellido_asignado || ''}`
-                              : exp.usuario_asignado_nombre
-                                ? `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido || ''}`
-                                : 'Sin asignar'}
-                          </td>
-                          <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
+                          <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString('es-AR') : '-'}</td>
                           <td>
                             <div className="d-flex gap-1 justify-content-center">
                               <button
@@ -1325,7 +1346,7 @@ export default function UsuarioDirector() {
           {loadingDocs ? (
             <p className="text-muted text-center py-3">Cargando documentos…</p>
           ) : (() => {
-            const rolOrder = ['Presentante', 'Técnico', 'Jurídico'];
+            const rolOrder = ['Presentante', 'Administrativo', 'Técnico', 'Jurídico'];
             const grupos = {};
             rolOrder.forEach(r => { grupos[r] = []; });
             documentosDoc.forEach(doc => {
@@ -1335,13 +1356,13 @@ export default function UsuarioDirector() {
             });
             const nombresPorRol = {};
             historialDoc.forEach(h => {
-              if ((h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
+              if ((h.rol_nombre === 'Administrativo' || h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
                 nombresPorRol[h.rol_nombre] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
               }
             });
             // También obtener nombres desde los propios documentos
             documentosDoc.forEach(doc => {
-              if ((doc.rol_nombre === 'Técnico' || doc.rol_nombre === 'Jurídico') && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
+              if ((doc.rol_nombre === 'Administrativo' || doc.rol_nombre === 'Técnico' || doc.rol_nombre === 'Jurídico') && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
                 nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
               }
             });
@@ -1351,14 +1372,14 @@ export default function UsuarioDirector() {
             );
             return (
               <div>
-                <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
+                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
                 {rolOrder.map(rol => {
                   const docs = grupos[rol] || [];
                   if (rol === 'Presentante' && docs.length === 0) return null;
                   return (
                     <div key={rol} className="mb-2">
                       <h6 className="fw-bold" style={{ color: '#495057' }}>
-                        {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
+                        {rol === 'Presentante' ? '👤' : rol === 'Administrativo' ? '📂' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
                         {nombresPorRol[rol] && (
                           <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
                         )}
@@ -1431,54 +1452,27 @@ export default function UsuarioDirector() {
           {expedienteRevision && (
             <>
               {/* Información del Expediente */}
-              <div className="mb-4">
-                <h5 className="text-primary">Información del Expediente</h5>
-                <table className="table table-bordered table-sm">
-                  <tbody>
-                    <tr>
-                      <th width="30%">Número de Expediente:</th>
-                      <td><strong>{expedienteRevision.numero_expediente}</strong></td>
-                    </tr>
-                    <tr>
-                      <th>Presentante:</th>
-                      <td>{expedienteRevision.usuario_presentante_apellido || ''}{expedienteRevision.usuario_presentante_apellido && expedienteRevision.usuario_presentante_nombre ? ', ' : ''}{expedienteRevision.usuario_presentante_nombre || 'Sin datos'}</td>
-                    </tr>
-                    <tr>
-                      <th>Teléfono:</th>
-                      <td>{expedienteRevision.usuario_presentante_telefono || 'Sin especificar'}</td>
-                    </tr>
-                    <tr>
-                      <th>Tipo:</th>
-                      <td>{expedienteRevision.tipo_tramite || expedienteRevision.tipo_expediente}</td>
-                    </tr>
-                    <tr>
-                      <th>Descripción:</th>
-                      <td>{expedienteRevision.descripcion || 'Sin descripción'}</td>
-                    </tr>
-                    <tr>
-                      <th>Prioridad:</th>
-                      <td>
-                        <span className={`badge badge-${expedienteRevision.prioridad}`}>
-                          {expedienteRevision.prioridad || 'normal'}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th>Ubicación:</th>
-                      <td>{expedienteRevision.ubicacion || 'Sin especificar'}</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="mb-4 p-3" style={{ background: '#f0f4ff', borderRadius: '8px', border: '1px solid #c7d4f0' }}>
+                <p className="mb-3 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Información del Expediente</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', fontSize: '0.9rem', color: '#333' }}>
+                  <span><span className="text-muted">Número:</span> <strong>{expedienteRevision.numero_expediente}</strong></span>
+                  <span><span className="text-muted">Presentante:</span> <strong>{expedienteRevision.usuario_presentante_nombre} {expedienteRevision.usuario_presentante_apellido}</strong></span>
+                  <span><span className="text-muted">Teléfono:</span> <strong>{expedienteRevision.usuario_presentante_telefono || '—'}</strong></span>
+                  <span><span className="text-muted">Tipo:</span> <strong>{expedienteRevision.tipo_tramite || expedienteRevision.tipo_expediente}</strong></span>
+                  <span style={{ gridColumn: '1 / -1' }}><span className="text-muted">Descripción:</span> <strong>{expedienteRevision.descripcion || 'Sin descripción'}</strong></span>
+                  <span><span className="text-muted">Prioridad:</span> <span className={`badge badge-${expedienteRevision.prioridad}`}>{expedienteRevision.prioridad || 'normal'}</span></span>
+                  <span><span className="text-muted">Ubicación:</span> <strong>{expedienteRevision.ubicacion || 'Sin especificar'}</strong></span>
+                </div>
               </div>
 
               {/* Documentos Existentes */}
               <div className="mb-4">
-                <h5 className="text-primary">Documentos del Expediente</h5>
+                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
                 {loadingDocsRevision ? (
                   <p>Cargando documentos...</p>
                 ) : documentosRevision.length > 0 ? (
                   (() => {
-                    const rolOrder = ['Presentante', 'Técnico', 'Jurídico'];
+                    const rolOrder = ['Presentante', 'Administrativo', 'Técnico', 'Jurídico'];
                     const grupos = {};
                     rolOrder.forEach(r => { grupos[r] = []; });
                     documentosRevision.forEach(doc => {
@@ -1486,10 +1480,10 @@ export default function UsuarioDirector() {
                       if (grupos[rol]) grupos[rol].push(doc);
                       else { grupos[rol] = grupos[rol] || []; grupos[rol].push(doc); }
                     });
-                    // Buscar nombres de Técnico y Jurídico en el historial
+                    // Buscar nombres en el historial
                     const nombresPorRol = {};
                     historialRevision.forEach(h => {
-                      if ((h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
+                      if ((h.rol_nombre === 'Administrativo' || h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
                         nombresPorRol[h.rol_nombre] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
                       }
                     });
@@ -1503,7 +1497,7 @@ export default function UsuarioDirector() {
                           return (
                             <div key={rol} className="mb-3">
                               <h6 className="fw-bold" style={{ color: '#495057' }}>
-                                {rol}
+                                {rol === 'Presentante' ? '👤' : rol === 'Administrativo' ? '📂' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
                                 {nombresPorRol[rol] && (
                                   <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>
                                     — {nombresPorRol[rol]}
@@ -1512,32 +1506,25 @@ export default function UsuarioDirector() {
                               </h6>
                               {docs.length > 0 ? (
                                 <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                  <table className="table table-sm table-striped">
-                                    <thead>
+                                  <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                                    <thead className="table-light">
                                       <tr>
                                         <th>Nombre</th>
-                                        <th>Subido por</th>
                                         <th>Tipo</th>
                                         <th>Tamaño</th>
                                         <th>Fecha</th>
-                                        <th>Acción</th>
+                                        <th></th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {docs.map(doc => (
                                         <tr key={doc.id_documento}>
-                                          <td>{doc.nombre_archivo}</td>
-                                          <td>{doc.subido_por_nombre || '—'}</td>
+                                          <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
                                           <td>{doc.tipo}</td>
                                           <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                                          <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString() : '-'}</td>
+                                          <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString('es-AR') : '—'}</td>
                                           <td>
-                                            <button
-                                              className="btn btn-sm btn-outline-primary"
-                                              onClick={() => window.open(`${URL_UPLOADS}/${doc.ruta_archivo}`, '_blank')}
-                                            >
-                                              👁️ Ver
-                                            </button>
+                                            <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
                                           </td>
                                         </tr>
                                       ))}

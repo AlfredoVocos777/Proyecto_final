@@ -662,9 +662,11 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       ? (() => {
                           const nombre = `${expediente.usuario_asignado_nombre} ${expediente.usuario_asignado_apellido || ''}`.trim();
                           const tipo = (expediente.usuario_asignado_tipo ?? '').toLowerCase();
-                          if (tipo === 'técnico' || tipo === 'tecnico') return `${nombre} (técnico)`;
-                          if (tipo === 'jurídico' || tipo === 'juridico') return `${nombre} (jurídico)`;
-                          if (tipo === 'director') return `${nombre} (director)`;
+                          
+                          if (tipo === 'técnico' || tipo === 'tecnico') return <>{nombre} <strong>(Técnico)</strong></>;
+                          if (tipo === 'jurídico' || tipo === 'juridico') return <>{nombre} <strong>(Jurídico)</strong></>;
+                          if (tipo === 'director') return <>{nombre} <strong>(Director)</strong></>;
+                          if (tipo === 'administrador' || tipo === 'administrativo') return <>{nombre} <strong>(Administrador)</strong></>;
                           return nombre;
                         })()
                       : <span className="text-muted">Sin asignar</span>}

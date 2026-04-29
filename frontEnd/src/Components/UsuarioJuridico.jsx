@@ -72,6 +72,7 @@ export default function UsuarioJuridico() {
   // Observaciones generales
   const [observacionJuridico, setObservacionJuridico] = useState("");
   const [errorObs, setErrorObs] = useState("");
+  const [successObs, setSuccessObs] = useState("");
   const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
   const [subiendoObs, setSubiendoObs] = useState(false); // Nuevo estado
   
@@ -646,7 +647,12 @@ export default function UsuarioJuridico() {
                     <thead>
                       <tr>
                         <th><input type="checkbox" checked={expedientesUnicos.filter(e => !e.recepcionado).length > 0 && expedientesSeleccionados.length === expedientesUnicos.filter(e => !e.recepcionado).length} onChange={toggleSeleccionTodos} disabled={expedientesUnicos.filter(e => !e.recepcionado).length === 0} /></th>
-                        <th>Nº Expediente</th><th>Tipo</th><th>Descripción</th><th>Prioridad</th><th>Fecha Creación</th><th>Acciones</th>
+                        <th>Nº Expediente</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Nombre</th>
+                        <th>Fecha Pase</th>
+                        <th>Documentación</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -660,8 +666,8 @@ export default function UsuarioJuridico() {
                           </td>
                           <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
                           <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                          <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
-                          <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : '-'}</td>
+                          <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString('es-AR') : '-'}</td>
                           <td><button className="btn btn-sm btn-info" onClick={() => abrirModalDoc(exp, true)}>📄 Ver Documentos</button></td>
                         </tr>
                       ))}
@@ -862,7 +868,7 @@ export default function UsuarioJuridico() {
 
           {/* Sección: observaciones (disponible siempre) */}
           <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-            <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Observaciones para el Presentante</p>
+            <h6 className="mb-3 fw-bold" style={{ color: '#495057' }}>Observaciones para el Presentante</h6>
             <Form.Control 
               type="text" 
               placeholder="Escriba una observación para el presentante del expediente..." 
@@ -892,12 +898,13 @@ export default function UsuarioJuridico() {
                     comentario: observacionJuridico,
                     tipo_accion: "observación"
                   });
-                  alert("Observación guardada ✅");
+                  setSuccessObs("Observación guardada correctamente");
+                  setTimeout(() => setSuccessObs(""), 3000);
                   setObservacionJuridico("");
                   setErrorObs("");
                   cargarObservaciones(expedienteDoc.id_expediente);
                 } catch { 
-                  alert("No se pudo guardar la observación."); 
+                  setErrorObs("No se pudo guardar la observación."); 
                 } finally {
                   setSubiendoObs(false);
                 }
@@ -941,7 +948,7 @@ export default function UsuarioJuridico() {
           {loadingDocs ? (
             <p className="text-muted text-center py-3">Cargando documentos…</p>
           ) : (() => {
-            const rolOrder = ['Presentante', 'Técnico'];
+            const rolOrder = ['Presentante', 'Administrativo', 'Técnico'];
             const grupos = {};
             rolOrder.forEach(r => { grupos[r] = []; });
             documentosDoc.forEach(doc => {
@@ -951,24 +958,24 @@ export default function UsuarioJuridico() {
             });
             const nombresPorRol = {};
             historialDoc.forEach(h => {
-              if (h.rol_nombre === 'Técnico' && !nombresPorRol['Técnico']) {
-                nombresPorRol['Técnico'] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
+              if (['Administrativo', 'Técnico'].includes(h.rol_nombre) && !nombresPorRol[h.rol_nombre]) {
+                nombresPorRol[h.rol_nombre] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
               }
             });
             documentosDoc.forEach(doc => {
-              if (doc.rol_nombre === 'Técnico' && !nombresPorRol['Técnico'] && doc.subido_por_nombre) {
-                nombresPorRol['Técnico'] = doc.subido_por_nombre;
+              if (['Administrativo', 'Técnico'].includes(doc.rol_nombre) && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
+                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
               }
             });
             return (
               <div>
-                <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Documentación adjunta</p>
+                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
                 {rolOrder.map(rol => {
                   const docs = grupos[rol] || [];
                   return (
                     <div key={rol} className="mb-3">
                       <h6 className="fw-bold" style={{ color: '#495057' }}>
-                        {rol === 'Presentante' ? '👤' : '🔧'} {rol}
+                        {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '📁'} {rol}
                         {nombresPorRol[rol] && (
                           <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
                         )}
@@ -1109,6 +1116,18 @@ export default function UsuarioJuridico() {
           <Button variant="danger" onClick={confirmarDeshacerPase}>Sí, deshacer pase</Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Notificación flotante de éxito para observaciones */}
+      {successObs && (
+        <div style={{
+          position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999,
+          background: '#28a745', color: 'white', padding: '12px 24px',
+          borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontWeight: '500', transition: 'opacity 0.3s ease-in-out'
+        }}>
+          ✅ {successObs}
+        </div>
+      )}
     </div>
   );
 }

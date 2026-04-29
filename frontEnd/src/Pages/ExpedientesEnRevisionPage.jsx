@@ -39,9 +39,21 @@ function formatAsignado(exp) {
   if (!exp?.usuario_asignado_nombre) return null;
   const nombre = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido ?? ""}`.trim();
   const tipo = (exp.usuario_asignado_tipo ?? "").toLowerCase();
-  if (tipo === "técnico" || tipo === "tecnico") return `${nombre} (técnico)`;
-  if (tipo === "jurídico" || tipo === "juridico") return `${nombre} (jurídico)`;
-  if (tipo === "director") return `${nombre} (director)`;
+  if (tipo === "técnico" || tipo === "tecnico") return `${nombre} (TÉCNICO)`;
+  if (tipo === "jurídico" || tipo === "juridico") return `${nombre} (JURÍDICO)`;
+  if (tipo === "director") return `${nombre} (DIRECTOR)`;
+  if (tipo === "administrador" || tipo === "administrativo") return `${nombre} (ADMINISTRADOR)`;
+  return nombre;
+}
+
+function renderAsignado(exp) {
+  if (!exp?.usuario_asignado_nombre) return null;
+  const nombre = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido ?? ""}`.trim();
+  const tipo = (exp.usuario_asignado_tipo ?? "").toLowerCase();
+  if (tipo === "técnico" || tipo === "tecnico") return <>{nombre} <strong>(TÉCNICO)</strong></>;
+  if (tipo === "jurídico" || tipo === "juridico") return <>{nombre} <strong>(JURÍDICO)</strong></>;
+  if (tipo === "director") return <>{nombre} <strong>(DIRECTOR)</strong></>;
+  if (tipo === "administrador" || tipo === "administrativo") return <>{nombre} <strong>(ADMINISTRADOR)</strong></>;
   return nombre;
 }
 
@@ -141,6 +153,71 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
         
 
         <hr />
+        {/* Documentación adjunta agrupada por rol */}
+        <div className="mb-4 p-3 bg-white border rounded">
+          <p className="mb-2 fw-semibold text-uppercase text-secondary" style={{ fontSize: '0.85rem', letterSpacing: '0.05em' }}>Documentación adjunta</p>
+          {loadingDocs ? (
+            <p className="text-muted small">Cargando documentos…</p>
+          ) : documentos.length === 0 ? (
+            <p className="text-muted small">No hay documentos adjuntos.</p>
+          ) : (() => {
+            const rolOrder = ['Presentante', 'Administrativo'];
+            const grupos = {};
+            rolOrder.forEach(r => { grupos[r] = []; });
+            documentos.forEach(doc => {
+              const rol = doc.rol_nombre || 'Otro';
+              if (grupos[rol]) grupos[rol].push(doc);
+              else { grupos[rol] = [doc]; }
+            });
+            const nombresPorRol = {};
+            documentos.forEach(doc => {
+              if (doc.rol_nombre === 'Administrativo' && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
+                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
+              }
+            });
+            return (
+              <div>
+                {rolOrder.map(rol => {
+                  const docs = grupos[rol] || [];
+                  return (
+                    <div key={rol} className="mb-3">
+                      <h6 className="fw-bold" style={{ color: '#495057' }}>
+                        {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '📁'} {rol}
+                        {nombresPorRol[rol] && (
+                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
+                        )}
+                      </h6>
+                      {docs.length === 0 ? (
+                        <p className="text-muted small ms-2">Sin archivos adjuntos</p>
+                      ) : (
+                        <Table size="sm" hover className="align-middle" style={{ fontSize: '0.875rem' }}>
+                          <thead className="table-light">
+                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
+                          </thead>
+                          <tbody>
+                            {docs.map(doc => (
+                              <tr key={doc.id_documento}>
+                                <td title={doc.nombre_archivo} style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
+                                <td>{doc.tipo}</td>
+                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
+                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
+                                <td>
+                                  <a href={`http://localhost:8000/api/documentos/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+
+        <hr />
         <h5>Informe Administrativo</h5>
         <Form.Group className="mb-3">
           <Form.Label>Adjuntar archivo</Form.Label>
@@ -212,7 +289,7 @@ function ModalDeshacerPase({ expediente, onClose, onExito }) {
           <strong>Estado actual:</strong>{" "}
           <Badge bg={getBadge(expediente.estado_actual)}>{expediente.estado_actual ?? "-"}</Badge><br />
           {expediente.usuario_asignado_nombre && (
-            <><strong>Asignado a:</strong> {formatAsignado(expediente)}<br /></>
+            <><strong>Asignado a:</strong> {renderAsignado(expediente)}<br /></>
           )}
         </div>
         <p className="text-muted small mb-0">
@@ -237,6 +314,7 @@ function ModalDetalle({ expediente, onClose }) {
   const [loading, setLoading]       = useState(true);
   const [observacionAdmin, setObservacionAdmin] = useState("");
   const [errorObs, setErrorObs]     = useState("");
+  const [successObs, setSuccessObs] = useState("");
   const [subiendoObs, setSubiendoObs] = useState(false);
   const [observacionesExps, setObservacionesExps] = useState([]);
 
@@ -310,7 +388,7 @@ function ModalDetalle({ expediente, onClose }) {
               <th>Asignado a</th>
               <td>
                 {expediente.usuario_asignado_nombre
-                  ? formatAsignado(expediente)
+                  ? renderAsignado(expediente)
                   : <span className="text-muted fst-italic">Sin asignar</span>}
               </td>
             </tr>
@@ -378,12 +456,13 @@ function ModalDetalle({ expediente, onClose }) {
                   comentario: observacionAdmin.trim(),
                   tipo_accion: "observación"
                 });
-                alert("Observación guardada ✅");
+                setSuccessObs("Observación guardada correctamente");
+                setTimeout(() => setSuccessObs(""), 3000);
                 setObservacionAdmin("");
                 await cargarHistorialYDocumentos();
               } catch (err) {
                 console.error(err);
-                alert("No se pudo guardar la observación.");
+                setErrorObs("No se pudo guardar la observación.");
               } finally {
                 setSubiendoObs(false);
               }
@@ -431,6 +510,18 @@ function ModalDetalle({ expediente, onClose }) {
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>Cerrar</Button>
       </Modal.Footer>
+
+      {/* Notificación flotante de éxito para observaciones */}
+      {successObs && (
+        <div style={{
+          position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999,
+          background: '#28a745', color: 'white', padding: '12px 24px',
+          borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontWeight: '500', transition: 'opacity 0.3s ease-in-out'
+        }}>
+          ✅ {successObs}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -898,7 +989,7 @@ export default function ExpedientesEnRevisionPage() {
                         </td>
                         <td>
                           {exp.usuario_asignado_nombre
-                            ? formatAsignado(exp)
+                            ? renderAsignado(exp)
                             : <span className="text-muted fst-italic">Sin asignar</span>}
                         </td>
                         <td>{formatFecha(exp.fecha_creacion)}</td>
