@@ -1,0 +1,286 @@
+import { useState, useEffect } from "react";
+import { Table, Button, Modal, Alert, Spinner, Form } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { URL_TIPOS_TRAMITE } from "../Constants/endpoints";
+import { PORTADA_ADMINISTRATIVO } from "../Routers/router";
+
+const GestionarTiposTramite = () => {
+  const navigate = useNavigate();
+
+  const [tipos, setTipos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+  const [exito, setExito] = useState("");
+
+  // Modal agregar/editar
+  const [mostrarFormModal, setMostrarFormModal] = useState(false);
+  const [tipoEditando, setTipoEditando] = useState(null); // null = crear, objeto = editar
+  const [formNombre, setFormNombre] = useState("");
+  const [formImporte, setFormImporte] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorForm, setErrorForm] = useState("");
+
+  // Modal confirmar eliminación
+  const [mostrarConfirmModal, setMostrarConfirmModal] = useState(false);
+  const [tipoAEliminar, setTipoAEliminar] = useState(null);
+
+  const cargarTipos = async () => {
+    try {
+      setCargando(true);
+      const { data } = await axios.get(URL_TIPOS_TRAMITE);
+      setTipos(data);
+      setError("");
+    } catch (e) {
+      console.error(e);
+      setError("Error al cargar los tipos de trámite");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarTipos();
+  }, []);
+
+  // ── Abrir modal para crear ──────────────────────────
+  const abrirCrear = () => {
+    setTipoEditando(null);
+    setFormNombre("");
+    setFormImporte("");
+    setErrorForm("");
+    setMostrarFormModal(true);
+  };
+
+  // ── Abrir modal para editar ─────────────────────────
+  const abrirEditar = (tipo) => {
+    setTipoEditando(tipo);
+    setFormNombre(tipo.nombre);
+    setFormImporte(String(tipo.importe));
+    setErrorForm("");
+    setMostrarFormModal(true);
+  };
+
+  // ── Guardar (crear o editar) ─────────────────────────
+  const handleGuardar = async (e) => {
+    e.preventDefault();
+    setErrorForm("");
+
+    const nombre = formNombre.trim();
+    const importe = parseFloat(formImporte);
+
+    if (!nombre) {
+      setErrorForm("El nombre no puede estar vacío.");
+      return;
+    }
+    if (isNaN(importe) || importe < 0) {
+      setErrorForm("El importe debe ser un número mayor o igual a 0.");
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      if (tipoEditando) {
+        await axios.put(`${URL_TIPOS_TRAMITE}/${tipoEditando.id_tipo}`, { nombre, importe });
+        setExito("Tipo de trámite actualizado correctamente.");
+      } else {
+        await axios.post(URL_TIPOS_TRAMITE, { nombre, importe });
+        setExito("Tipo de trámite creado correctamente.");
+      }
+      setMostrarFormModal(false);
+      cargarTipos();
+    } catch (e) {
+      const msg = e.response?.data?.error || "Error al guardar. Intente de nuevo.";
+      setErrorForm(msg);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  // ── Confirmar eliminación ───────────────────────────
+  const confirmarEliminar = (tipo) => {
+    setTipoAEliminar(tipo);
+    setMostrarConfirmModal(true);
+  };
+
+  const handleEliminar = async () => {
+    if (!tipoAEliminar) return;
+    try {
+      await axios.delete(`${URL_TIPOS_TRAMITE}/${tipoAEliminar.id_tipo}`);
+      setMostrarConfirmModal(false);
+      setTipoAEliminar(null);
+      setExito("Tipo de trámite eliminado.");
+      cargarTipos();
+    } catch (e) {
+      setError("No se pudo eliminar. Puede estar en uso por expedientes existentes.");
+      setMostrarConfirmModal(false);
+    }
+  };
+
+  // ── Render ───────────────────────────────────────────
+  return (
+    <div className="container mt-5 pt-5">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="mb-0">Gestión de Tipos de Trámite</h2>
+          <small className="text-muted">Administrá los tipos de trámite y sus importes</small>
+        </div>
+        <div className="d-flex gap-2">
+          <Button variant="primary" onClick={abrirCrear}>
+            + Agregar Tipo
+          </Button>
+          <Button variant="outline-secondary" onClick={() => navigate(PORTADA_ADMINISTRATIVO)}>
+            ← Volver
+          </Button>
+        </div>
+      </div>
+
+      {exito && (
+        <Alert variant="success" dismissible onClose={() => setExito("")}>
+          {exito}
+        </Alert>
+      )}
+      {error && (
+        <Alert variant="danger" dismissible onClose={() => setError("")}>
+          {error}
+        </Alert>
+      )}
+
+      {cargando ? (
+        <div className="text-center mt-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-3">Cargando...</p>
+        </div>
+      ) : (
+        <Table striped bordered hover responsive>
+          <thead className="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Nombre del Trámite</th>
+              <th>Importe ($)</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tipos.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-center text-muted py-4">
+                  No hay tipos de trámite registrados.
+                </td>
+              </tr>
+            ) : (
+              tipos.map((t, idx) => (
+                <tr key={t.id_tipo}>
+                  <td>{idx + 1}</td>
+                  <td>{t.nombre}</td>
+                  <td>
+                    <strong>${Number(t.importe).toFixed(2)}</strong>
+                  </td>
+                  <td>
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="warning"
+                        size="sm"
+                        onClick={() => abrirEditar(t)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => confirmarEliminar(t)}
+                      >
+                        Eliminar
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </Table>
+      )}
+
+      {/* ── Modal Agregar / Editar ────────────────────── */}
+      <Modal show={mostrarFormModal} onHide={() => setMostrarFormModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {tipoEditando ? "Editar Tipo de Trámite" : "Agregar Tipo de Trámite"}
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleGuardar}>
+          <Modal.Body>
+            {errorForm && <Alert variant="danger">{errorForm}</Alert>}
+
+            <Form.Group className="mb-3">
+              <Form.Label>
+                Nombre <span className="text-danger">*</span>
+              </Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Ej: Constancia de prefactibilidad de no inundabilidad"
+                value={formNombre}
+                onChange={(e) => setFormNombre(e.target.value)}
+                required
+                maxLength={150}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>
+                Importe ($) <span className="text-danger">*</span>
+              </Form.Label>
+              <Form.Control
+                type="number"
+                placeholder="0.00"
+                value={formImporte}
+                onChange={(e) => setFormImporte(e.target.value)}
+                required
+                min="0"
+                step="0.01"
+              />
+              <Form.Text className="text-muted">
+                Monto que abonará el presentante al iniciar este trámite.
+              </Form.Text>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setMostrarFormModal(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" disabled={guardando}>
+              {guardando ? "Guardando..." : tipoEditando ? "Guardar Cambios" : "Crear Tipo"}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* ── Modal Confirmar Eliminación ───────────────── */}
+      <Modal show={mostrarConfirmModal} onHide={() => setMostrarConfirmModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirmar eliminación</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {tipoAEliminar && (
+            <p>
+              ¿Estás seguro de que querés eliminar el tipo{" "}
+              <strong>"{tipoAEliminar.nombre}"</strong>?
+              <br />
+              <span className="text-danger">Esta acción no se puede deshacer.</span>
+            </p>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setMostrarConfirmModal(false)}>
+            Cancelar
+          </Button>
+          <Button variant="danger" onClick={handleEliminar}>
+            Sí, eliminar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
+  );
+};
+
+export default GestionarTiposTramite;

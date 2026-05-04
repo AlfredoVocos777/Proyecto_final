@@ -11,6 +11,7 @@ import rolesRoutes from "./routes/roles.js";
 import permisosRoutes from "./routes/permisos.js";
 import departamentosRoutes from "./routes/departamentos.js";
 import notificacionRoutes from "./routes/notificacion.js";
+import tiposTramiteRoutes from "./routes/tiposTramite.js";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -18,7 +19,6 @@ dotenv.config();
 import historialRoutes from "./routes/historial.js";
 import observacionesRoutes from "./routes/observacion.js";
 import recuperacionRoutes from "./routes/recuperacion.js";
-// import "./utils/whatsapp.js"; // Desactivado por solicitud del usuario
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -61,6 +61,7 @@ app.use("/departamentos", departamentosRoutes);
 app.use("/historial", historialRoutes);
 app.use("/pagos", pagosRoutes);
 app.use("/observaciones", observacionesRoutes);
+app.use("/tipos-tramite", tiposTramiteRoutes);
 
 
 /* 

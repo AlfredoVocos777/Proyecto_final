@@ -28,7 +28,8 @@ import {
   USUARIO_JURIDICO,
   USUARIO_DIRECTOR,
   RECUPERAR_CONTRASENA,
-  RESET_PASSWORD
+  RESET_PASSWORD,
+  LISTAR_TIPOS_TRAMITE
 } from "./Routers/router";
 import { RequireAdmin, RequireTecnico, RequireJuridico, RequireDirector } from "./Routers/guards";
 import LoginPage from "./Pages/LoginPage";
@@ -61,6 +62,7 @@ import UsuarioJuridicoPage from "./Pages/UsuarioJuridicoPage";
 import UsuarioDirectorPage from "./Pages/UsuarioDirectorPage";
 import RecuperarContrasena from "./Components/RecuperarContrasena";
 import ResetPasswordPage from "./Pages/ResetPasswordPage";
+import GestionarTiposTramitePage from "./Pages/GestionarTiposTramitePage";
 
 function App() {
   /*
@@ -109,6 +111,7 @@ function App() {
         <Route path="/pago-fallido" element={<div className="container mt-5"><h1>Pago Fallido</h1><p>El pago no pudo ser procesado. Por favor, intente nuevamente.</p></div>} />
         <Route path="/pago-pendiente" element={<div className="container mt-5"><h1>Pago Pendiente</h1><p>Su pago está pendiente de confirmación.</p></div>} />
         <Route path={RECUPERAR_CONTRASENA} element={<RecuperarContrasena />} />
+        <Route path={LISTAR_TIPOS_TRAMITE} element={<RequireAdmin><GestionarTiposTramitePage /></RequireAdmin>} />
         <Route path={RESET_PASSWORD} element={<ResetPasswordPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>

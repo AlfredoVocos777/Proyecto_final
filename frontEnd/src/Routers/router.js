@@ -28,4 +28,5 @@ export const EXPEDIENTES_FINALIZADOS = '/ExpedientesFinalizados';
 export const EXPEDIENTES_ARCHIVADOS = '/ExpedientesArchivados';
 export const EXPEDIENTES_EN_REVISION = '/ExpedientesEnRevision';
 export const CONSULTA_EXPEDIENTES_ESTADO = '/consulta-expedientes-estado';
+export const LISTAR_TIPOS_TRAMITE = '/GestionarTiposTramite';
 

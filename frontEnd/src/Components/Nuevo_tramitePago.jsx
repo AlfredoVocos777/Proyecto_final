@@ -29,6 +29,7 @@ const NuevoTramitePago = () => {
     ubicacion: "",
     descripcion: "",
     prioridad: "",
+    importe: 0,
   };
 
   const [usuario, setUsuario] = useState(initialUsuario);
@@ -76,7 +77,7 @@ const NuevoTramitePago = () => {
         // Llamar al backend para crear la preferencia de pago
         const payload = {
           title: `Trámite SIGEDEX - ${datosExpediente.tipo_expediente}`,
-          price: 0.05,
+          price: datosExpediente.importe ?? 0.05,
           quantity: 1
         };
 
@@ -146,7 +147,7 @@ const NuevoTramitePago = () => {
           id_usuario: datosUsuario.id_usuario,
         },
         pago: {
-          monto: 0.05,
+          monto: datosExpediente.importe ?? 0.05,
           metodo_pago: "mercadopago",
           referencia_pasarela: `MP-${numeroComprobante}`,
         },
@@ -266,6 +267,7 @@ const NuevoTramitePago = () => {
           ubicacion: datosExpediente.ubicacion || "",
           descripcion: datosExpediente.descripcion || "",
           prioridad: datosExpediente.prioridad || "",
+          importe: datosExpediente.importe ?? 0,
         });
       } else {
         navigate("/Nuevo_tramiteDatos");
@@ -312,7 +314,7 @@ const NuevoTramitePago = () => {
               </div>
               <div className="filaPago">
                 <label className="labelPagoTatal">Total a Pagar</label>
-                <label> - <strong>$0.05</strong> - </label>
+                <label> - <strong>${Number(tramite.importe ?? 0).toFixed(2)}</strong> - </label>
               </div>
             </div>
           </div>

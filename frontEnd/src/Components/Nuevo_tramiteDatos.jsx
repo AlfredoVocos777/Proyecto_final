@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_USUARIOS, URL_EXPEDIENTES } from "../Constants/endpoints";
+import { URL_USUARIOS, URL_EXPEDIENTES, URL_TIPOS_TRAMITE } from "../Constants/endpoints";
 import { Container, Form, Button } from "react-bootstrap";
 
 import "../CSS/NuevoTramite_datos.css";
@@ -11,6 +11,8 @@ import lineaTiempo1 from "../assets/linea de tiempo 1.png";
 
 const NuevoTramiteDatos = () => {
   const navigate = useNavigate();
+
+  const [tiposTramite, setTiposTramite] = useState([]);
 
   const initialUsuario = {
     nombre: "",
@@ -40,6 +42,12 @@ const NuevoTramiteDatos = () => {
       const datosUsuario = JSON.parse(usuarioGuardado);
       setUsuario(datosUsuario);
     }
+  }, []);
+
+  useEffect(() => {
+    axios.get(URL_TIPOS_TRAMITE)
+      .then(({ data }) => setTiposTramite(data))
+      .catch((err) => console.error("Error al cargar tipos de trámite:", err));
   }, []);
 
   const handleChangeExpediente = (e) => {
@@ -150,7 +158,12 @@ if (!validarFormulario()) return;
   // menú desplegable tipo de tramite se guardan en la tabla tramite
   const handleTipoExpedienteChange = (e) => {
     const tipo = e.target.value;
-    const tipoExpedienteDatos = { ...expediente, tipo_expediente: tipo };
+    const tipoSeleccionado = tiposTramite.find((t) => t.nombre === tipo);
+    const tipoExpedienteDatos = {
+      ...expediente,
+      tipo_expediente: tipo,
+      importe: tipoSeleccionado ? tipoSeleccionado.importe : 0,
+    };
     setExpediente(tipoExpedienteDatos);
 
     // Guardar también en localStorage (para mostrar en pasos siguientes)
@@ -189,11 +202,11 @@ if (!validarFormulario()) return;
               required
             >
               <option value="">Seleccione el tipo de expediente</option>
-              <option value="Obra nueva">Obra nueva</option>
-              <option value="Constancia de prefactibilidad de no inundabilidad">
-                Constancia de prefactibilidad de no inundabilidad
-              </option>
-              <option value="Línea de ribera">Línea de ribera</option>
+              {tiposTramite.map((t) => (
+                <option key={t.id_tipo} value={t.nombre}>
+                  {t.nombre}
+                </option>
+              ))}
             </Form.Select>
 
             {/*<Form.Group className="mb-3" controlId="formPrioridad">
