@@ -615,7 +615,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
               <button
                 onClick={() => setMostrarPickerFecha(v => !v)}
                 title={fechaDesde || fechaHasta ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
-                className="btn w-100 d-flex align-items-center justify-content-center gap-2"
+                className="btn w-100 d-flex align-items-center justify-content-center"
                 style={{
                   background: "#fff",
                   color: "#333",
@@ -623,15 +623,11 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                   borderRadius: "0.375rem",
                   height: "38px",
                   fontSize: "0.9rem",
-                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                  fontWeight: 500,
                 }}
               >
-                📅
-                {(fechaDesde || fechaHasta) && (
-                  <span style={{ fontSize: "0.8rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {fechaDesde ? (fechaHasta ? "Rango" : "Desde") : "Hasta"}
-                  </span>
-                )}
+                {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
               </button>
 
               {mostrarPickerFecha && (
@@ -646,8 +642,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                     border: "1px solid #e5e7eb",
                   }}
                 >
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h6 className="mb-0" style={{ fontWeight: 700, color: "#111827" }}>Filtrar por fecha</h6>
+                  <div className="d-flex justify-content-end align-items-center mb-3">
                     <button 
                       className="btn-close" 
                       style={{ fontSize: "0.75rem" }} 
@@ -656,7 +651,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                   </div>
                   
                   <div className="mb-3">
-                    <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Desde:</label>
+                    <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Fecha de inicio:</label>
                     <input
                       type="date"
                       className="form-control form-control-sm"

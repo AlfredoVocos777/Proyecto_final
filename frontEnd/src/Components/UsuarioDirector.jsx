@@ -91,6 +91,7 @@ export default function UsuarioDirector() {
   const [expedientesTodos, setExpedientesTodos] = useState([]);
   const [loadingTodos, setLoadingTodos] = useState(false);
   const [filtroConsulta, setFiltroConsulta] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("en revisión");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [mostrarPickerFecha, setMostrarPickerFecha] = useState(false);
@@ -922,43 +923,73 @@ export default function UsuarioDirector() {
         };
         const expedientesFiltrados = expedientesTodos.filter(exp => {
           const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
-          return texto.includes(filtroConsulta.toLowerCase());
+          const coincideTexto = texto.includes(filtroConsulta.toLowerCase());
+          const coincideEstado = !filtroEstado || (exp.estado_actual || exp.estado || "").toLowerCase() === filtroEstado.toLowerCase();
+          return coincideTexto && coincideEstado;
         });
         const totalPaginasConsulta = Math.max(1, Math.ceil(expedientesFiltrados.length / 6));
         const expPagConsulta = expedientesFiltrados.slice((paginaConsulta - 1) * 6, paginaConsulta * 6);
         return (
           <div className="seccion-contenido seccion-consulta">
             <h2>Consulta de Expedientes</h2>
-            <div className="consulta-toolbar mb-3">
-              <div className="consulta-search-wrap">
-                <span className="consulta-search-icon">🔍</span>
-                <input
-                  className="consulta-search-input"
-                  type="text"
-                  placeholder="Buscar por número, estado o usuario…"
-                  value={filtroConsulta}
-                  onChange={e => { setFiltroConsulta(e.target.value); setPaginaConsulta(1); }}
-                  disabled={loadingTodos}
-                />
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "1rem" }}>
+              <div className="consulta-toolbar" style={{ flex: 1 }}>
+                <div className="consulta-search-wrap">
+                  <span className="consulta-search-icon">🔍</span>
+                  <input
+                    className="consulta-search-input"
+                    type="text"
+                    placeholder="Buscar por número, estado o usuario…"
+                    value={filtroConsulta}
+                    onChange={e => { setFiltroConsulta(e.target.value); setPaginaConsulta(1); }}
+                    disabled={loadingTodos}
+                  />
+                </div>
               </div>
 
-              {/* Filtro por rango de fechas */}
-              <div style={{ position: "relative", display: "inline-block" }}>
+              {/* Filtro por estado */}
+              <select
+                value={filtroEstado}
+                onChange={e => { setFiltroEstado(e.target.value); setPaginaConsulta(1); }}
+                disabled={loadingTodos}
+                style={{
+                  height: "38px",
+                  borderRadius: "0.375rem",
+                  border: "1px solid #ced4da",
+                  padding: "0 10px",
+                  fontSize: "0.9rem",
+                  background: "#fff",
+                  color: "#333",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <option value="en revisión">En revisión</option>
+                <option value="aprobado">Aprobado</option>
+                <option value="rechazado">Rechazado</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="archivado">Archivado</option>
+              </select>
+
+              {/* Filtro por rango de fechas - fuera del toolbar para evitar clipping */}
+              <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
                 <button
                   onClick={() => setMostrarPickerFecha(v => !v)}
                   title={(fechaDesde || fechaHasta) ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
+                  className="btn d-flex align-items-center justify-content-center gap-2"
                   style={{
-                    display: "flex", alignItems: "center", gap: "6px",
-                    background: (fechaDesde || fechaHasta) ? "#2563eb" : "#f3f4f6",
-                    color: (fechaDesde || fechaHasta) ? "#fff" : "#374151",
-                    border: "1px solid #d1d5db", borderRadius: "7px",
-                    height: "34px", padding: "0 12px", fontSize: "1rem", cursor: "pointer",
+                    background: "#fff",
+                    color: "#333",
+                    border: "1px solid #ced4da",
+                    borderRadius: "0.375rem",
+                    height: "38px",
+                    padding: "0 14px",
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  📅
-                  {(fechaDesde || fechaHasta) && (
-                    <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>{fechaDesde || "…"} — {fechaHasta || "…"}</span>
-                  )}
+                  {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
                 </button>
                 {mostrarPickerFecha && (
                   <div style={{
@@ -967,9 +998,8 @@ export default function UsuarioDirector() {
                     boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
                     padding: "16px 20px", minWidth: "260px", border: "1px solid #e5e7eb",
                   }}>
-                    <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#1e3a5f", fontSize: "0.9rem" }}>Rango de fechas</p>
                     <div style={{ marginBottom: "10px" }}>
-                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Desde</label>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Fecha de inicio</label>
                       <input type="date" value={fechaDesde} max={fechaHasta || undefined}
                         onChange={(e) => setFechaDesde(e.target.value)}
                         style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }} />

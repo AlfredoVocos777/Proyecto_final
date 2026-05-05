@@ -824,25 +824,20 @@ export default function ExpedientesEnRevisionPage() {
                   onClick={() => setMostrarPickerFecha(v => !v)}
                   title={fechaDesde || fechaHasta ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
                   style={{
-                    display: "flex", alignItems: "center", gap: "6px",
-                    background: (fechaDesde || fechaHasta) ? "rgba(37,99,235,0.7)" : "rgba(255,255,255,0.15)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "rgba(255,255,255,0.15)",
                     color: "#fff",
-                    border: (fechaDesde || fechaHasta) ? "1.5px solid rgba(99,160,255,0.7)" : "1.5px solid rgba(255,255,255,0.35)",
+                    border: "1.5px solid rgba(255,255,255,0.35)",
                     borderRadius: "8px",
                     height: "36px",
-                    padding: "0 12px",
-                    fontSize: "1rem",
+                    padding: "0 14px",
+                    fontSize: "0.9rem",
                     cursor: "pointer",
-                    transition: "all 0.15s",
                     whiteSpace: "nowrap",
+                    fontWeight: 500,
                   }}
                 >
-                  📅
-                  {(fechaDesde || fechaHasta) && (
-                    <span style={{ fontSize: "0.75rem", fontWeight: 600, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {fechaDesde || "…"} — {fechaHasta || "…"}
-                    </span>
-                  )}
+                  {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
                 </button>
 
                 {mostrarPickerFecha && (
@@ -857,9 +852,8 @@ export default function ExpedientesEnRevisionPage() {
                       border: "1px solid #e5e7eb",
                     }}
                   >
-                    <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#1e3a5f", fontSize: "0.9rem" }}>Rango de fechas</p>
                     <div style={{ marginBottom: "10px" }}>
-                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Desde</label>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Fecha de inicio</label>
                       <input
                         type="date"
                         value={fechaDesde}
