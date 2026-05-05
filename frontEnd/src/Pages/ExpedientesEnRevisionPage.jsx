@@ -812,7 +812,6 @@ export default function ExpedientesEnRevisionPage() {
                   cursor: "pointer",
                 }}
               >
-                <option value="" style={{ color: "#333" }}>Todos los estados</option>
                 <option value="en revisión" style={{ color: "#333" }}>En revisión</option>
                 <option value="pendiente" style={{ color: "#333" }}>Pendiente</option>
                 <option value="aprobado" style={{ color: "#333" }}>Aprobado</option>

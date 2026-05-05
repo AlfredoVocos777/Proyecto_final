@@ -38,7 +38,7 @@ function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada", ocultarPrior
   const [paginaActual, setPaginaActual] = useState(1);
   const porPagina = 10;
   const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState(soloEstado || "");
+  const [filtroEstado, setFiltroEstado] = useState(soloEstado || "en revisión");
   const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroAsignado, setFiltroAsignado] = useState("");
@@ -559,7 +559,6 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value)}
               >
-                <option value="">Estado (todos)</option>
                 {[
                   "en revisión",
                   "aprobado",
@@ -703,7 +702,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 variant="outline-primary"
                 onClick={() => {
                   setBusqueda("");
-                  setFiltroEstado(soloEstado || "");
+                  setFiltroEstado(soloEstado || "en revisión");
                   setFiltroPrioridad("");
                   setFiltroTipo("");
                   setFiltroAsignado("");
