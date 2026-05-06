@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_FIRMAS, URL_SUBIR_DOCUMENTO, URL_UPLOADS, URL_OBSERVACIONES } from "../Constants/endpoints";
+import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_SUBIR_DOCUMENTO, URL_UPLOADS, URL_OBSERVACIONES } from "../Constants/endpoints";
 import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
 import "../CSS/UsuarioDirector.css";
 import BotonesReporte from "./BotonesReporte";
@@ -78,14 +78,6 @@ export default function UsuarioDirector() {
   const [archivosRevision, setArchivosRevision] = useState([]);
   const [comentarioDocRevision, setComentarioDocRevision] = useState("");
   const [historialRevision, setHistorialRevision] = useState([]);
-
-  // Estados para firmar documento
-  const [showModalFirma, setShowModalFirma] = useState(false);
-  const [documentoAFirmar, setDocumentoAFirmar] = useState(null);
-  const [firmasDisponibles, setFirmasDisponibles] = useState([]);
-  const [firmaSeleccionada, setFirmaSeleccionada] = useState("");
-  const [procesandoFirma, setProcesandoFirma] = useState(false);
-  const [mensajeFirma, setMensajeFirma] = useState({ tipo: "", texto: "" });
 
   // Estados para consulta general
   const [expedientesTodos, setExpedientesTodos] = useState([]);
@@ -197,27 +189,75 @@ export default function UsuarioDirector() {
     try {
       const doc = new jsPDF();
       const fecha = new Date().toLocaleString("es-AR");
-      doc.setFontSize(14);
-      doc.text("Reporte de Bandeja - Dirección Provincial del Agua", 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Fecha: ${fecha}`, 14, 22);
-      const columns = [
-        { header: "N° Expediente", dataKey: "numero" },
-        { header: "Tipo", dataKey: "tipo" },
-        { header: "Descripción", dataKey: "descripcion" },
-        { header: "Estado", dataKey: "estado" },
-        { header: "Fecha Pase", dataKey: "fecha_pase" },
-        { header: "Origen", dataKey: "origen" },
-      ];
-      const rows = expedientesPendientes.map(e => ({
-        numero: e.numero_expediente ?? "",
-        tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
-        descripcion: e.descripcion ?? "",
-        estado: e.estado ?? e.estado_actual ?? "",
-        fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
-        origen: e.desde_usuario ?? e.desde_departamento ?? "",
-      }));
-      autoTable(doc, { columns, body: rows, startY: 28 });
+
+      if (seccionActiva === "consultar-expediente") {
+        // Reporte de la consulta filtrada actual
+        const filtrados = expedientesTodos.filter(exp => {
+          const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+          const coincideTexto = texto.includes(filtroConsulta.toLowerCase());
+          const coincideEstado = !filtroEstado || (exp.estado_actual || exp.estado || "").toLowerCase() === filtroEstado.toLowerCase();
+          return coincideTexto && coincideEstado;
+        });
+        doc.setFontSize(14);
+        doc.text("Consulta de Expedientes - Dirección Provincial del Agua", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}${filtroConsulta ? `  |  Filtro: "${filtroConsulta}"` : ""}${filtroEstado ? `  |  Estado: "${filtroEstado}"` : ""}`, 14, 22);
+        doc.text(`Total: ${filtrados.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "N° Expediente", dataKey: "numero" },
+            { header: "Presentante", dataKey: "presentante" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Descripción", dataKey: "descripcion" },
+            { header: "Prioridad", dataKey: "prioridad" },
+            { header: "Ubicación", dataKey: "ubicacion" },
+            { header: "Estado", dataKey: "estado" },
+            { header: "Fecha", dataKey: "fecha" },
+          ],
+          body: filtrados.map(e => ({
+            numero: e.numero_expediente ?? "",
+            presentante: e.usuario_presentante_nombre ? `${e.usuario_presentante_nombre} ${e.usuario_presentante_apellido}` : "N/A",
+            tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+            descripcion: e.descripcion ?? "",
+            prioridad: e.prioridad ?? "",
+            ubicacion: e.ubicacion ?? "",
+            estado: e.estado_actual ?? e.estado ?? "",
+            fecha: e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString("es-AR") : "",
+          })),
+        });
+
+      } else {
+        // Bandeja de entrada (default — también para "resolver" y "reportes")
+        const expedientesUnicos = Array.from(
+          new Map(expedientesPendientes.map(e => [e.id_expediente, e])).values()
+        );
+        doc.setFontSize(14);
+        doc.text("Bandeja de Entrada - Dirección Provincial del Agua", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}`, 14, 22);
+        doc.text(`Total: ${expedientesUnicos.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "N° Expediente", dataKey: "numero" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Descripción", dataKey: "descripcion" },
+            { header: "Estado", dataKey: "estado" },
+            { header: "Fecha Pase", dataKey: "fecha_pase" },
+            { header: "Origen", dataKey: "origen" },
+          ],
+          body: expedientesUnicos.map(e => ({
+            numero: e.numero_expediente ?? "",
+            tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+            descripcion: e.descripcion ?? "",
+            estado: e.estado ?? e.estado_actual ?? "",
+            fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
+            origen: e.desde_usuario ?? e.desde_departamento ?? "",
+          })),
+        });
+      }
+
       return doc.output('bloburl');
     } catch (err) {
       alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
@@ -679,74 +719,6 @@ export default function UsuarioDirector() {
 
   
 
-  const abrirModalFirma = async (documento) => {
-    setDocumentoAFirmar(documento);
-    setShowModalFirma(true);
-    setFirmaSeleccionada("");
-    setMensajeFirma({ tipo: "", texto: "" });
-    
-    // Cargar firmas disponibles del usuario
-    try {
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-      const res = await axios.get(`${URL_FIRMAS}/usuario/${usuarioLogueado.id_usuario}`);
-      setFirmasDisponibles(res.data || []);
-    } catch (error) {
-      console.error("Error al cargar firmas:", error);
-      setMensajeFirma({ tipo: "warning", texto: "No se pudieron cargar las firmas disponibles" });
-    }
-  };
-
-  const cerrarModalFirma = () => {
-    setShowModalFirma(false);
-    setDocumentoAFirmar(null);
-    setFirmaSeleccionada("");
-    setMensajeFirma({ tipo: "", texto: "" });
-    setFirmasDisponibles([]);
-  };
-
-  const confirmarFirma = async () => {
-    if (!firmaSeleccionada) {
-      setMensajeFirma({ tipo: "warning", texto: "Debe seleccionar una firma" });
-      return;
-    }
-
-    try {
-      setProcesandoFirma(true);
-      setMensajeFirma({ tipo: "", texto: "" });
-
-      // Aquí deberías implementar la lógica de firmado en el backend
-      // Por ahora simularemos el proceso
-      await axios.post(`${URL_FIRMAS}/firmar-documento`, {
-        id_documento: documentoAFirmar.id_documento,
-        id_firma: firmaSeleccionada
-      });
-
-      setMensajeFirma({
-        tipo: "success",
-        texto: "Documento firmado exitosamente"
-      });
-
-      // Recargar documentos
-      if (expedienteDoc) {
-        const res = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-        setDocumentosDoc(res.data || []);
-      }
-
-      setTimeout(() => {
-        cerrarModalFirma();
-      }, 2000);
-
-    } catch (error) {
-      console.error("Error al firmar documento:", error);
-      setMensajeFirma({
-        tipo: "danger",
-        texto: error.response?.data?.error || "Error al firmar el documento"
-      });
-    } finally {
-      setProcesandoFirma(false);
-    }
-  };
-
   const renderContenido = () => {
     switch (seccionActiva) {
       case "bandeja": {
@@ -1107,14 +1079,6 @@ export default function UsuarioDirector() {
           </div>
         );
 
-      case "firmar-documentos":
-        return (
-          <div className="seccion-contenido">
-            <h2>Firmar Documentos</h2>
-            <p>Firme digitalmente resoluciones y documentos oficiales.</p>
-          </div>
-        );
-
       case "reportes":
         return (
           <div className="seccion-contenido">
@@ -1430,20 +1394,17 @@ export default function UsuarioDirector() {
                                   <div className="d-flex gap-2">
                                     <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
                                     {!modalSoloVer && (
-                                      <>
-                                        <button className="btn btn-outline-success btn-sm" onClick={() => abrirModalFirma(doc)} title="Firmar documento">✍️</button>
-                                        <button className="btn btn-outline-danger btn-sm" onClick={async () => {
-                                          if (!window.confirm('¿Eliminar este documento?')) return;
-                                          try {
-                                            await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                            const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                            setDocumentosDoc(resp.data || []);
-                                          } catch (err) {
-                                            console.error('Error al eliminar documento:', err);
-                                            setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                                          }
-                                        }} title="Eliminar documento">🗑️</button>
-                                      </>
+                                      <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                                        if (!window.confirm('¿Eliminar este documento?')) return;
+                                        try {
+                                          await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                          const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                          setDocumentosDoc(resp.data || []);
+                                        } catch (err) {
+                                          console.error('Error al eliminar documento:', err);
+                                          setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
+                                        }
+                                      }} title="Eliminar documento">🗑️</button>
                                     )}
                                   </div>
                                 </td>
@@ -1728,71 +1689,7 @@ export default function UsuarioDirector() {
         </Modal.Footer>
       </Modal>
 
-      {/* Modal de Firma Digital */}
-      <Modal show={showModalFirma} onHide={cerrarModalFirma} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>✍️ Firmar Documento Digitalmente</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {mensajeFirma.tipo && mensajeFirma.texto && (
-            <Alert variant={mensajeFirma.tipo}>{mensajeFirma.texto}</Alert>
-          )}
-
-          {documentoAFirmar && (
-            <>
-              <div className="mb-3">
-                <strong>Documento:</strong> {documentoAFirmar.nombre_archivo}
-                <br />
-                <strong>Tipo:</strong> {documentoAFirmar.tipo}
-                <br />
-                <strong>Fecha subida:</strong> {documentoAFirmar.fecha_subida 
-                  ? new Date(documentoAFirmar.fecha_subida).toLocaleString() 
-                  : '-'}
-              </div>
-
-              <Form.Group className="mb-3">
-                <Form.Label><strong>Seleccione su firma digital *</strong></Form.Label>
-                <Form.Select
-                  value={firmaSeleccionada}
-                  onChange={(e) => setFirmaSeleccionada(e.target.value)}
-                  disabled={procesandoFirma || firmasDisponibles.length === 0}
-                >
-                  <option value="">Seleccione una firma...</option>
-                  {firmasDisponibles.map(firma => (
-                    <option key={firma.id_firma} value={firma.id_firma}>
-                      {firma.nombre_firma} - {firma.tipo_firma}
-                    </option>
-                  ))}
-                </Form.Select>
-                {firmasDisponibles.length === 0 && (
-                  <Form.Text className="text-danger">
-                    No tiene firmas digitales registradas. Debe crear una en el sistema.
-                  </Form.Text>
-                )}
-              </Form.Group>
-
-              <Alert variant="info">
-                <small>
-                  La firma digital se aplicará al documento seleccionado y quedará registrada 
-                  en el sistema como parte del expediente oficial.
-                </small>
-              </Alert>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={cerrarModalFirma} disabled={procesandoFirma}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary"
-            onClick={confirmarFirma}
-            disabled={procesandoFirma || !firmaSeleccionada || firmasDisponibles.length === 0}
-          >
-            {procesandoFirma ? 'Firmando...' : '✍️ Firmar Documento'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* Modal de Firma Digital eliminado - funcionalidad no implementada */}
     </div>
   );
 }

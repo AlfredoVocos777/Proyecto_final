@@ -17,11 +17,9 @@ import {
   CREAR_ROL,
   CREAR_PERMISO,
   CREAR_DEPARTAMENTO,
-  CREAR_FIRMA,
   LISTAR_ROLES,
   LISTAR_PERMISOS,
   LISTAR_DEPARTAMENTOS,
-  LISTAR_FIRMAS,
   LISTAR_USUARIOS,
   EDITAR_USUARIO,
   USUARIO_TECNICO,
@@ -50,11 +48,9 @@ import PagoExitosoPage from "./Pages/PagoExitosoPage";
 import CrearRolPage from "./Pages/CrearRolPage";
 import CrearPermisoPage from "./Pages/CrearPermisoPage";
 import CrearDepartamentoPage from "./Pages/CrearDepartamentoPage";
-import CrearFirmaPage from "./Pages/CrearFirmaPage";
 import ListarRolesPage from "./Pages/ListarRolesPage";
 import ListarPermisosPage from "./Pages/ListarPermisosPage";
 import ListarDepartamentosPage from "./Pages/ListarDepartamentosPage";
-import ListarFirmasPage from "./Pages/ListarFirmasPage";
 import ListarUsuariosPage from "./Pages/ListarUsuariosPage";
 import EditarUsuarioPage from "./Pages/EditarUsuarioPage";
 import UsuarioTecnicoPage from "./Pages/UsuarioTecnicoPage";
@@ -93,11 +89,9 @@ function App() {
         <Route path={CREAR_ROL} element={<RequireAdmin><CrearRolPage /></RequireAdmin>} />
         <Route path={CREAR_PERMISO} element={<RequireAdmin><CrearPermisoPage /></RequireAdmin>} />
         <Route path={CREAR_DEPARTAMENTO} element={<RequireAdmin><CrearDepartamentoPage /></RequireAdmin>} />
-        <Route path={CREAR_FIRMA} element={<RequireAdmin><CrearFirmaPage /></RequireAdmin>} />
         <Route path={LISTAR_ROLES} element={<RequireAdmin><ListarRolesPage /></RequireAdmin>} />
         <Route path={LISTAR_PERMISOS} element={<RequireAdmin><ListarPermisosPage /></RequireAdmin>} />
         <Route path={LISTAR_DEPARTAMENTOS} element={<RequireAdmin><ListarDepartamentosPage /></RequireAdmin>} />
-        <Route path={LISTAR_FIRMAS} element={<RequireAdmin><ListarFirmasPage /></RequireAdmin>} />
         <Route path={LISTAR_USUARIOS} element={<RequireAdmin><ListarUsuariosPage /></RequireAdmin>} />
         <Route path={EDITAR_USUARIO} element={<RequireAdmin><EditarUsuarioPage /></RequireAdmin>} />
         <Route path={USUARIO_TECNICO} element={<RequireTecnico><UsuarioTecnicoPage /></RequireTecnico>} />

@@ -15,7 +15,6 @@ import tiposTramiteRoutes from "./routes/tiposTramite.js";
 import dotenv from 'dotenv';
 dotenv.config();
 
-// import firmasRoutes from "./routes/firmas.js";
 import historialRoutes from "./routes/historial.js";
 import observacionesRoutes from "./routes/observacion.js";
 import recuperacionRoutes from "./routes/recuperacion.js";

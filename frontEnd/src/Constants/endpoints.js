@@ -9,7 +9,7 @@ export const URL_LOGIN = "http://localhost:8000/usuarios/login";
 export const URL_ROLES = "http://localhost:8000/roles";
 export const URL_PERMISOS = "http://localhost:8000/permisos";
 export const URL_DEPARTAMENTOS = "http://localhost:8000/departamentos";
-export const URL_FIRMAS = "http://localhost:8000/firmas";
+
 export const URL_EXPEDIENTES_PASES = "http://localhost:8000/expedientes/pases/usuario";
 export const URL_HISTORIAL = "http://localhost:8000/historial";
 
