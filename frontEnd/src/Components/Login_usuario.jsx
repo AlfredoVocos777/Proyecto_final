@@ -24,6 +24,10 @@ function Login_usuario() {
     */
     useEffect(() => {
       localStorage.removeItem("usuarioLogueado");
+      setUsuario("");
+      setContraseña("");
+      setError("");
+      setExito(false);
     }, []);
   const [usuario, setUsuario] = useState("");
   const [contraseña, setContraseña] = useState("");
@@ -153,6 +157,7 @@ function Login_usuario() {
             placeholder="Usuario"
             value={usuario}
             onChange={(e) => setUsuario(e.target.value)}
+            autoComplete="off"
             required
           />
         </div>
@@ -163,6 +168,7 @@ function Login_usuario() {
             placeholder="Contraseña"
             value={contraseña}
             onChange={(e) => setContraseña(e.target.value)}
+            autoComplete="new-password"
             required
           />
         </div>
