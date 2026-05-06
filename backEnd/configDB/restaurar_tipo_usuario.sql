@@ -17,7 +17,6 @@ SET u.tipo_usuario = CASE
     WHEN r.nombre = 'Técnico' THEN 'tecnico'
     WHEN r.nombre = 'Jurídico' THEN 'juridico'
     WHEN r.nombre = 'Presentante' THEN 'presentante'
-    WHEN r.nombre = 'Admin TI' THEN 'admin_TI'
     ELSE 'comun'
 END;
 
@@ -30,7 +29,7 @@ VALUES (
     'Sistema',
     '12345678',
     'admin@dpa.gob.ar',
-    'Dirección Provincial del Agua - Mendoza',
+    'Dirección Provincial del Agua - Tucumán',
     '2614000000',
     'admin',
     'admin123',

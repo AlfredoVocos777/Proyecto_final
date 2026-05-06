@@ -5,6 +5,8 @@ import {
   URL_DOCUMENTOS,
   URL_SUBIR_DOCUMENTO,
   URL_OBSERVACIONES,
+  URL_HISTORIAL,
+  URL_USUARIOS
 } from "../Constants/endpoints";
 import { useNavigate } from "react-router-dom";
 import {
@@ -17,8 +19,9 @@ import {
   Alert,
 } from "react-bootstrap";
 import "../CSS/Consulta.css";
+import "../CSS/PerfilUsuario.css";
 
-function ConsultaExpedientes() {
+function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada", ocultarPrioridad = false, compacto = false }) {
   const [expedientes, setExpedientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,9 +38,13 @@ function ConsultaExpedientes() {
   const [paginaActual, setPaginaActual] = useState(1);
   const porPagina = 10;
   const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState(soloEstado || "en revisión");
   const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
+  const [filtroAsignado, setFiltroAsignado] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [mostrarPickerFecha, setMostrarPickerFecha] = useState(false);
 
   // estados de los roles
   const [observacionesAdmin, setObservacionesAdmin] = useState([]);
@@ -45,19 +52,92 @@ const [observacionesTecnico, setObservacionesTecnico] = useState([]);
 const [observacionesJuridico, setObservacionesJuridico] = useState([]);
 const [observacionesDirector, setObservacionesDirector] = useState([]);
 
+  // historial de recepción y pases
+  const [historialModal, setHistorialModal] = useState([]);
+
 
   // nuevos estados para subir documentos en el modal ver
 
   const [modalFiles, setModalFiles] = useState([]);
   const [modalUploadedFiles, setModalUploadedFiles] = useState([]);
 
+  // Estados para Perfil de Usuario
+  const [showModalPerfil, setShowModalPerfil] = useState(false);
+  const [perfilData, setPerfilData] = useState({
+    nombre: "",
+    apellido: "",
+    email: "",
+    telefono: "",
+    direccion: "",
+    usuario: "",
+    contraseña: "",
+  });
+  const [editandoPerfil, setEditandoPerfil] = useState(false);
+  const [mensajePerfil, setMensajePerfil] = useState({ tipo: "", texto: "" });
+
+  // --- Funciones para Perfil de Usuario ---
+  const abrirModalPerfil = async () => {
+    try {
+      const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      if (!u?.id_usuario) return;
+      const res = await axios.get(`${URL_USUARIOS}/${u.id_usuario}`);
+      const data = res.data;
+      // Añadimos campo contraseña vacío para edición opcional
+      setPerfilData({ ...data, contraseña: "" });
+      setShowModalPerfil(true);
+      setMensajePerfil({ tipo: "", texto: "" });
+    } catch (err) {
+      alert("Error al cargar los datos del perfil.");
+    }
+  };
+
+  const guardarPerfil = async (e) => {
+    e.preventDefault();
+    setEditandoPerfil(true);
+    setMensajePerfil({ tipo: "", texto: "" });
+    try {
+      const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      
+      // Preparamos datos: si la contraseña está vacía, no la enviamos para no sobreescribir con vacío
+      const dataEnviar = { ...perfilData };
+      if (!dataEnviar.contraseña) {
+        delete dataEnviar.contraseña;
+      }
+
+      await axios.put(`${URL_USUARIOS}/${u.id_usuario}`, dataEnviar);
+      
+      const usuarioActualizado = { ...u, ...dataEnviar };
+      // Quitamos la contraseña del localStorage por seguridad (si estuviera)
+      delete usuarioActualizado.contraseña;
+
+      localStorage.setItem("usuarioLogueado", JSON.stringify(usuarioActualizado));
+      setUsuarioLog(usuarioActualizado);
+
+      setMensajePerfil({ tipo: "success", texto: "Perfil actualizado correctamente ✅" });
+      setTimeout(() => setShowModalPerfil(false), 1500);
+    } catch (err) {
+      setMensajePerfil({ tipo: "danger", texto: err.response?.data?.error || "Error al actualizar el perfil." });
+    } finally {
+      setEditandoPerfil(false);
+    }
+  };
+
   const navigate = useNavigate();
 
-  // Obtener expedientes (filtrando por presentante si corresponde)
+  /*
+    BLOQUE: FETCH Y FILTRADO INICIAL DE EXPEDIENTES
+    Esta función asíncrona hace un GET a la ruta de expedientes del Backend.
+    Dependiendo del 'Rol' guardado en LocalStorage (Usuario Presentante vs Admin/Técnico), 
+    filtra qué recursos puede ver el usuario por parámetros de seguridad front-end.
+  */
   const obtenerExpedientes = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(URL_EXPEDIENTES);
+      const params = {};
+      if (fechaDesde) params.desde = fechaDesde;
+      if (fechaHasta) params.hasta = fechaHasta;
+
+      const response = await axios.get(URL_EXPEDIENTES, { params });
       const data = response.data || [];
       const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
       if (usuario?.tipo_usuario?.toLowerCase() === "presentante") {
@@ -81,16 +161,35 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     }
   };
 
+
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
     setUsuarioLog(u || null);
-    obtenerExpedientes();
+
+    // Por defecto, filtrar el último mes si no hay fechas seteadas
+    const hoy = new Date();
+    const haceUnMes = new Date();
+    haceUnMes.setMonth(hoy.getMonth() - 1);
+    
+    // Formato YYYY-MM-DD para el input type="date"
+    const desdeStr = haceUnMes.toISOString().split('T')[0];
+    setFechaDesde(desdeStr);
+    
+    // El primer fetch se disparará por el cambio de fechaDesde en el useEffect de abajo
+    // pero como necesitamos cargar el usuarioLogueado, lo dejamos así.
+    // Para evitar doble carga, solo llamamos si no vamos a cambiar el estado de fechaDesde
+    // o simplemente dejamos que los efectos se encarguen.
   }, []);
+
+  // Efecto para recargar cuando cambian fechas o filtros básicos (que el backend soporta)
+  useEffect(() => {
+    obtenerExpedientes();
+  }, [fechaDesde, fechaHasta]);
 
   // Resetear a primera página cuando cambian filtros/búsqueda
   useEffect(() => {
     setPaginaActual(1);
-  }, [busqueda, filtroEstado, filtroPrioridad, filtroTipo]);
+  }, [busqueda, filtroEstado, filtroPrioridad, filtroTipo, filtroAsignado, fechaDesde, fechaHasta]);
 
   //-------------------------------------------------------------
   //-------------------------------------------------------------
@@ -118,11 +217,21 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
         docs.map((d) => ({
           id_documento: d.id_documento,
           nombre: d.nombre_archivo,
+          subido_por_nombre: d.subido_por_nombre || null,
+          rol_nombre: d.rol_nombre || null,
         }))
       );
 
       // Cargar observación
       await cargarObservaciones(expediente.id_expediente);
+
+      // Cargar historial (recepción y pases)
+      try {
+        const resHist = await axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`);
+        setHistorialModal(resHist.data || []);
+      } catch (e) {
+        setHistorialModal([]);
+      }
     } else {
       setShowModal(true);
     }
@@ -239,7 +348,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   const cargarObservaciones = async (idExpediente) => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/observaciones/${idExpediente}`
+        `${URL_OBSERVACIONES}/${idExpediente}`
       );
       const data = res.data;
 
@@ -253,7 +362,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
       setObservacionesJuridico(data.Jurídico || []);
 
       // Director
-      ssetObservacionesDirector(data.Director || []);
+      setObservacionesDirector(data.Director || []);
     } catch (error) {
       console.error("Error al cargar observaciones", error);
     }
@@ -360,9 +469,12 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     const coincidePrioridad =
       !filtroPrioridad ||
       (e.prioridad || "").toLowerCase() === filtroPrioridad.toLowerCase();
+    const coincideAsignado =
+      !filtroAsignado ||
+      `${e.usuario_asignado_nombre || ""} ${e.usuario_asignado_apellido || ""}`.toLowerCase().includes(filtroAsignado.toLowerCase());
 
     return (
-      coincideBusqueda && coincideTipo && coincideEstado && coincidePrioridad
+      coincideBusqueda && coincideTipo && coincideEstado && coincidePrioridad && coincideAsignado
     );
   });
 
@@ -377,9 +489,21 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     <Container fluid className="consulta-expedientes-container">
       <div className="consulta-header">
         <h2>Consulta de Expedientes</h2>
-        <Button variant="secondary" onClick={() => navigate("/Portada")}>
-          Volver a Portada
-        </Button>
+        <div className="d-flex gap-2">
+          <Button
+            variant="outline-primary"
+            onClick={abrirModalPerfil}
+            className="d-flex align-items-center gap-1"
+          >
+            👤 Mis Datos
+          </Button>
+          <Button variant="outline-primary" onClick={obtenerExpedientes} disabled={loading}>
+            {loading ? "Cargando..." : "Actualizar"}
+          </Button>
+          <Button variant="secondary" onClick={() => navigate(rutaVolver)}>
+            Volver a Portada
+          </Button>
+        </div>
       </div>
 
       {/* Subtítulo contextual para presentante */}
@@ -398,10 +522,10 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
           No hay expedientes registrados en el sistema.
         </Alert>
       ) : (
-        <div className="tabla-container">
+        <div className={`tabla-container${compacto ? " tabla-container--compacto" : ""}`}>
           {/* Barra de filtros */}
           <div className="row g-2 mb-3">
-            <div className="col-md-4">
+            <div className="col-md-3">
               <input
                 type="text"
                 className="form-control"
@@ -428,13 +552,13 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 ))}
               </select>
             </div>
+            {!soloEstado && (
             <div className="col-md-2">
               <select
                 className="form-select"
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value)}
               >
-                <option value="">Estado (todos)</option>
                 {[
                   "en revisión",
                   "aprobado",
@@ -448,6 +572,8 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 ))}
               </select>
             </div>
+            )}
+            {!ocultarPrioridad && (
             <div className="col-md-2">
               <select
                 className="form-select"
@@ -462,17 +588,125 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 ))}
               </select>
             </div>
-            <div className="col-md-1 d-grid">
-              <Button
-                variant="outline-secondary"
-                onClick={() => {
-                  setBusqueda("");
-                  setFiltroEstado("");
-                  setFiltroPrioridad("");
-                  setFiltroTipo("");
+            )}
+            {ocultarPrioridad && (
+            <div className="col-md-2">
+              <select
+                className="form-select"
+                value={filtroAsignado}
+                onChange={(e) => setFiltroAsignado(e.target.value)}
+              >
+                <option value="">Asignado (todos)</option>
+                {Array.from(
+                  new Set(
+                    expedientes
+                      .map((e) => e.usuario_asignado_nombre ? `${e.usuario_asignado_nombre} ${e.usuario_asignado_apellido || ""}`.trim() : null)
+                      .filter(Boolean)
+                  )
+                ).map((nombre) => (
+                  <option key={nombre} value={nombre}>{nombre}</option>
+                ))}
+              </select>
+            </div>
+            )}
+            
+            {/* Filtro fecha rango */}
+            <div className="col-md-2" style={{ position: "relative" }}>
+              <button
+                onClick={() => setMostrarPickerFecha(v => !v)}
+                title={fechaDesde || fechaHasta ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
+                className="btn w-100 d-flex align-items-center justify-content-center"
+                style={{
+                  background: "#fff",
+                  color: "#333",
+                  border: "1px solid #ced4da",
+                  borderRadius: "0.375rem",
+                  height: "38px",
+                  fontSize: "0.9rem",
+                  whiteSpace: "nowrap",
+                  fontWeight: 500,
                 }}
               >
-                Limpiar
+                {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
+              </button>
+
+              {mostrarPickerFecha && (
+                <div
+                  style={{
+                    position: "absolute", top: "44px", left: "50%", transform: "translateX(-50%)", zIndex: 1050,
+                    background: "#fff",
+                    borderRadius: "12px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                    padding: "16px 20px",
+                    minWidth: "280px",
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  <div className="d-flex justify-content-end align-items-center mb-3">
+                    <button 
+                      className="btn-close" 
+                      style={{ fontSize: "0.75rem" }} 
+                      onClick={() => setMostrarPickerFecha(false)}
+                    ></button>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Fecha de inicio:</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={fechaDesde}
+                      onChange={(e) => setFechaDesde(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="mb-3">
+                    <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Hasta:</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={fechaHasta}
+                      onChange={(e) => setFechaHasta(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="d-flex gap-2">
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="text-decoration-none p-0 ms-auto"
+                      onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
+                      style={{ fontSize: "0.8rem", color: "#6b7280" }}
+                    >
+                      Limpiar fechas
+                    </Button>
+                    <Button 
+                      variant="primary" 
+                      size="sm"
+                      onClick={() => setMostrarPickerFecha(false)}
+                      style={{ borderRadius: "6px", padding: "4px 12px" }}
+                    >
+                      Aplicar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="col-md-2 d-grid">
+              <Button
+                variant="outline-primary"
+                onClick={() => {
+                  setBusqueda("");
+                  setFiltroEstado(soloEstado || "en revisión");
+                  setFiltroPrioridad("");
+                  setFiltroTipo("");
+                  setFiltroAsignado("");
+                  setFechaDesde("");
+                  setFechaHasta("");
+                }}
+                style={{ whiteSpace: "nowrap", backgroundColor: "#f8f6f0" }}
+              >
+                Limpiar filtros
               </Button>
             </div>
           </div>
@@ -513,9 +747,8 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 <th>Tipo</th>
                 <th>Descripción</th>
                 <th>Estado</th>
-                <th>Confirmar Pago</th>
-                <th>Prioridad</th>
                 <th>Fecha Creación</th>
+                {ocultarPrioridad ? <th>Asignado a</th> : <th>Prioridad</th>}
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -531,17 +764,29 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       {expediente.estado_actual || "N/A"}
                     </Badge>
                   </td>
+                  <td>{formatearFecha(expediente.fecha_creacion)}</td>
+                  {ocultarPrioridad ? (
                   <td>
-                    <Badge bg={getEstadoBadge(expediente.confirmar_pago)}>
-                      {expediente.confirmar_pago || "N/A"}
-                    </Badge>
+                    {expediente.usuario_asignado_nombre
+                      ? (() => {
+                          const nombre = `${expediente.usuario_asignado_nombre} ${expediente.usuario_asignado_apellido || ''}`.trim();
+                          const tipo = (expediente.usuario_asignado_tipo ?? '').toLowerCase();
+                          
+                          if (tipo === 'técnico' || tipo === 'tecnico') return <>{nombre} <strong>(Técnico)</strong></>;
+                          if (tipo === 'jurídico' || tipo === 'juridico') return <>{nombre} <strong>(Jurídico)</strong></>;
+                          if (tipo === 'director') return <>{nombre} <strong>(Director)</strong></>;
+                          if (tipo === 'administrador' || tipo === 'administrativo') return <>{nombre} <strong>(Administrador)</strong></>;
+                          return nombre;
+                        })()
+                      : <span className="text-muted">Sin asignar</span>}
                   </td>
+                  ) : (
                   <td>
                     <Badge bg={getPrioridadBadge(expediente.prioridad)}>
                       {expediente.prioridad || "N/A"}
                     </Badge>
                   </td>
-                  <td>{formatearFecha(expediente.fecha_creacion)}</td>
+                  )}
                   <td className="acciones-cell">
                     {/*boton ver*/}
                     <Button
@@ -553,7 +798,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                       Ver
                     </Button>
 
-                    {usuarioLog?.tipo_usuario?.toLowerCase() !==
+                    {!ocultarPrioridad && usuarioLog?.tipo_usuario?.toLowerCase() !==
                       "presentante" && (
                       <>
                         <Button
@@ -648,14 +893,18 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 <Form.Group>
                   <Form.Label>Fecha</Form.Label>
                   <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.fecha_creacion}
+                    {expedienteSeleccionado.fecha_creacion
+                      ? new Date(expedienteSeleccionado.fecha_creacion).toLocaleString("es-AR")
+                      : "—"}
                   </Form.Label>
                 </Form.Group>
 
                 <Form.Group>
                   <Form.Label>Usuario Presentante</Form.Label>
                   <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.id_usuario_presentante}
+                    {expedienteSeleccionado.usuario_presentante_apellido && expedienteSeleccionado.usuario_presentante_nombre
+                      ? `${expedienteSeleccionado.usuario_presentante_nombre} ${expedienteSeleccionado.usuario_presentante_apellido}`
+                      : expedienteSeleccionado.usuario_presentante_nombre || expedienteSeleccionado.id_usuario_presentante}
                   </Form.Label>
                 </Form.Group>
 
@@ -665,120 +914,161 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                     {expedienteSeleccionado.estado_actual}
                   </Form.Label>
                 </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Tipo</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.tipo_expediente || "Sin especificar"}
+                  </Form.Label>
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Prioridad</Form.Label>
+                  <Form.Label className="expediente-label">
+                    {expedienteSeleccionado.prioridad || "Sin especificar"}
+                  </Form.Label>
+                </Form.Group>
+
+                <Form.Group style={{ gridColumn: "1 / -1" }}>
+                  <Form.Label>Descripción</Form.Label>
+                  <Form.Label className="expediente-label" style={{ whiteSpace: "pre-wrap" }}>
+                    {expedienteSeleccionado.descripcion || "Sin descripción"}
+                  </Form.Label>
+                </Form.Group>
               </div>
 
               {/*------Observaciones de los distintos roles---------- */}
 
               <div className="observaciones-box">
                 <h5>Observaciones</h5>
-                <div className="observacion-item">
-                  <h5>Administrativo</h5>
-                  
-                  <div className="observaciones-scroll">
+                
+                {/* Administrativo */}
+                <div className="observacion-item mb-3">
+                  <h6 className="text-primary fw-bold">Administrativo</h6>
+                  <div className="observaciones-scroll p-2 border rounded" style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#f9f9f9' }}>
                     {observacionesAdmin.length > 0 ? (
                       observacionesAdmin.map((obs, i) => (
-                        <Form.Control
-                          key={i}
-                          as="textarea"
-                          rows={3}
-                          className="mb-2"
-                          disabled
-                          value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
-                        />
+                        <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
+                          <span className="me-2" style={{ color: '#007bff' }}>•</span>
+                          <div>
+                            <div>{obs.observacion}</div>
+                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                              {new Date(obs.fecha_hora).toLocaleString('es-AR')}
+                            </small>
+                          </div>
+                        </div>
                       ))
                     ) : (
-                      <Form.Control
-                        as="textarea"
-                        rows={3}
-                        disabled
-                        value="Sin observaciones"
-                      />
+                      <p className="text-muted small mb-0">Sin observaciones</p>
                     )}
-                    </div>
+                  </div>
                 </div>
 
-
-                <div className="observacion-item">
-                  <h5>Técnico</h5>
-
-                  <div className="observaciones-scroll">
-                  {observacionesTecnico.length > 0 ? (
-                    observacionesTecnico.map((obs, i) => (
-                      <Form.Control
-                        key={i}
-                        as="textarea"
-                        rows={2}
-                        className="mb-2"
-                        disabled
-                        value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
-                      />
-                    ))
-                  ) : (
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      disabled
-                      value="Sin observaciones"
-                    />
-                  )}
-                </div>
+                {/* Técnico */}
+                <div className="observacion-item mb-3">
+                  <h6 className="text-success fw-bold">Técnico</h6>
+                  <div className="observaciones-scroll p-2 border rounded" style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#f9f9f9' }}>
+                    {observacionesTecnico.length > 0 ? (
+                      observacionesTecnico.map((obs, i) => (
+                        <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
+                          <span className="me-2" style={{ color: '#28a745' }}>•</span>
+                          <div>
+                            <div>{obs.observacion}</div>
+                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                              {new Date(obs.fecha_hora).toLocaleString('es-AR')}
+                            </small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted small mb-0">Sin observaciones</p>
+                    )}
+                  </div>
                 </div>
 
-
-                <div className="observacion-item">
-                  <h5>Jurídico</h5>
-
-                  <div className="observaciones-scroll">
-                  {observacionesJuridico.length > 0 ? (
-                    observacionesJuridico.map((obs, i) => (
-                      <Form.Control
-                        key={i}
-                        as="textarea"
-                        rows={2}
-                        className="mb-2"
-                        disabled
-                        value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
-                      />
-                    ))
-                  ) : (
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      disabled
-                      value="Sin observaciones"
-                    />
-                  )}
-                </div>
+                {/* Jurídico */}
+                <div className="observacion-item mb-3">
+                  <h6 className="text-info fw-bold">Jurídico</h6>
+                  <div className="observaciones-scroll p-2 border rounded" style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#f9f9f9' }}>
+                    {observacionesJuridico.length > 0 ? (
+                      observacionesJuridico.map((obs, i) => (
+                        <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
+                          <span className="me-2" style={{ color: '#17a2b8' }}>•</span>
+                          <div>
+                            <div>{obs.observacion}</div>
+                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                              {new Date(obs.fecha_hora).toLocaleString('es-AR')}
+                            </small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted small mb-0">Sin observaciones</p>
+                    )}
+                  </div>
                 </div>
 
-
-                <div className="observacion-item">
-                <h5>Director</h5>
-                
-                <div className="observaciones-scroll">
-                {observacionesDirector.length > 0 ? (
-                  observacionesDirector.map((obs, i) => (
-                    <Form.Control
-                      key={i}
-                      as="textarea"
-                      rows={2}
-                      className="mb-2"
-                      disabled
-                      value={`• ${obs.observacion}\n(${obs.fecha_hora})`}
-                    />
-                  ))
-                ) : (
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    disabled
-                    value="Sin observaciones"
-                  />
-                )}
-              </div>
+                {/* Director */}
+                <div className="observacion-item mb-3">
+                  <h6 className="text-danger fw-bold">Director</h6>
+                  <div className="observaciones-scroll p-2 border rounded" style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#fff0f0' }}>
+                    {observacionesDirector.length > 0 ? (
+                      observacionesDirector.map((obs, i) => (
+                        <div key={i} className="mb-2 d-flex align-items-start" style={{ fontSize: '0.85rem', color: '#333' }}>
+                          <span className="me-2" style={{ color: '#dc3545' }}>•</span>
+                          <div>
+                            <div>{obs.observacion}</div>
+                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                              {new Date(obs.fecha_hora).toLocaleString('es-AR')}
+                            </small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted small mb-0">Sin observaciones</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              </div>
+              {/* Recepción y pases */}
+              {modalType === "ver" && (
+                <div className="mb-4">
+                  <h5 className="mb-3">📬 Recepción</h5>
+                  {(() => {
+                    const recepcion = [...historialModal]
+                      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+                      .find(h => h.accion?.toLowerCase().includes('recepci'));
+                    return recepcion ? (
+                      <p className="mb-1">
+                        <strong>Recepcionado por:</strong> {recepcion.usuario_nombre} {recepcion.usuario_apellido}<br />
+                        <strong>Fecha y hora:</strong> {new Date(recepcion.fecha).toLocaleString('es-AR')}
+                      </p>
+                    ) : (
+                      <p className="text-muted">Aún no fue recepcionado.</p>
+                    );
+                  })()}
+
+                  <h5 className="mt-3 mb-2">🔁 Orden de pases</h5>
+                  {(() => {
+                    const pases = [...historialModal]
+                      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+                      .filter(h => h.tipo_accion === 'asignación');
+                    return pases.length > 0 ? (
+                      <ol className="ps-3">
+                        {pases.map((p, i) => (
+                          <li key={i}>
+                            <strong>{p.usuario_nombre} {p.usuario_apellido}</strong> — {new Date(p.fecha).toLocaleString('es-AR')}
+                            {p.comentario && <span className="text-muted"> ({p.comentario})</span>}
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="text-muted">Sin pases registrados.</p>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/*Agregar documentos en el modal ver*/}
 
@@ -832,7 +1122,14 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                         key={i}
                         className="d-flex align-items-center justify-content-between mb-2"
                       >
-                        <span>✓ {f.nombre}</span>
+                        <span>
+                          {f.nombre}
+                          {(f.rol_nombre || f.subido_por_nombre) && (
+                            <span className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
+                              — {f.rol_nombre || ''}{f.subido_por_nombre ? ` (${f.subido_por_nombre})` : ''}
+                            </span>
+                          )}
+                        </span>
 
                         <Button
                           variant="outline-primary"
@@ -877,6 +1174,124 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
           )}
         </Modal.Body>
       </Modal>
+      {/* Modal Perfil de Usuario */}
+      <Modal 
+        show={showModalPerfil} 
+        onHide={() => setShowModalPerfil(false)} 
+        centered
+        className="modal-perfil"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>👤 Mis Datos Personales</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form onSubmit={guardarPerfil}>
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Nombre</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={perfilData.nombre || ""} 
+                    onChange={e => setPerfilData({...perfilData, nombre: e.target.value})}
+                    required
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Apellido</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={perfilData.apellido || ""} 
+                    onChange={e => setPerfilData({...perfilData, apellido: e.target.value})}
+                    required
+                  />
+                </Form.Group>
+              </div>
+            </div>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control 
+                type="email" 
+                value={perfilData.email || ""} 
+                onChange={e => setPerfilData({...perfilData, email: e.target.value})}
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Teléfono</Form.Label>
+              <Form.Control 
+                type="text" 
+                value={perfilData.telefono || ""} 
+                onChange={e => setPerfilData({...perfilData, telefono: e.target.value})}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Dirección</Form.Label>
+              <Form.Control 
+                type="text" 
+                value={perfilData.direccion || ""} 
+                onChange={e => setPerfilData({...perfilData, direccion: e.target.value})}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>DNI</Form.Label>
+              <Form.Control 
+                type="text" 
+                value={perfilData.dni || ""} 
+                onChange={e => setPerfilData({...perfilData, dni: e.target.value})}
+                required
+              />
+            </Form.Group>
+
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Usuario</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={perfilData.usuario || ""} 
+                    onChange={e => setPerfilData({...perfilData, usuario: e.target.value})}
+                    required
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Nueva Contraseña (opcional)</Form.Label>
+                  <Form.Control 
+                    type="password" 
+                    placeholder="Dejar vacío para no cambiar"
+                    value={perfilData.contraseña || ""} 
+                    onChange={e => setPerfilData({...perfilData, contraseña: e.target.value})}
+                  />
+                </Form.Group>
+              </div>
+            </div>
+
+            {mensajePerfil.texto && (
+              <Alert variant={mensajePerfil.tipo} className="mt-2 py-2">
+                {mensajePerfil.texto}
+              </Alert>
+            )}
+
+            <div className="modal-footer">
+              <button type="button" className="btn-cancel" onClick={() => setShowModalPerfil(false)}>
+                Cancelar
+              </button>
+              <button type="submit" className="btn-save text-white" disabled={editandoPerfil}>
+                {editandoPerfil ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
     </Container>
   );
 }

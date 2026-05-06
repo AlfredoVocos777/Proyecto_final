@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_USUARIOS, URL_EXPEDIENTES } from "../Constants/endpoints";
+import { URL_USUARIOS, URL_EXPEDIENTES, URL_TIPOS_TRAMITE } from "../Constants/endpoints";
 import { Container, Form, Button } from "react-bootstrap";
 
 import "../CSS/NuevoTramite_datos.css";
@@ -11,6 +11,8 @@ import lineaTiempo1 from "../assets/linea de tiempo 1.png";
 
 const NuevoTramiteDatos = () => {
   const navigate = useNavigate();
+
+  const [tiposTramite, setTiposTramite] = useState([]);
 
   const initialUsuario = {
     nombre: "",
@@ -34,13 +36,30 @@ const NuevoTramiteDatos = () => {
   const [usuario, setUsuario] = useState(initialUsuario);
   const [expediente, setExpediente] = useState(initialExpediente);
 
-  const handleChangeUsuario = (e) => {
-    setUsuario({ ...usuario, [e.target.name]: e.target.value });
-  };
+  useEffect(() => {
+    const usuarioGuardado = localStorage.getItem("usuarioLogueado");
+    if (usuarioGuardado) {
+      const datosUsuario = JSON.parse(usuarioGuardado);
+      setUsuario(datosUsuario);
+    }
+  }, []);
+
+  useEffect(() => {
+    axios.get(URL_TIPOS_TRAMITE)
+      .then(({ data }) => setTiposTramite(data))
+      .catch((err) => console.error("Error al cargar tipos de trámite:", err));
+  }, []);
 
   const handleChangeExpediente = (e) => {
     setExpediente({ ...expediente, [e.target.name]: e.target.value });
   };
+  /*
+    BLOQUE: PASO 1 - RECOPILACIÓN DE DATOS (NO INSERTA AÚN)
+    Esta función es el cierre de la primera pantalla del 'Trámite'.
+    Es vital entender que NO envía los datos a la base de datos todavía.
+    Valida el input y guarda temporalmente en LocalStorage ('expedientePendiente') 
+    para pasárselos a la pantall de Documentos y posteriormente a la de Pagos.
+  */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -60,7 +79,35 @@ const NuevoTramiteDatos = () => {
       alert("Por favor, ingrese la ubicación del proyecto");
       return;
     }
+/*
+Crear una función de validación.
 
+const validarFormulario = () => {
+  if (!expediente.tipo_expediente) {
+    alert("Seleccione un tipo de expediente");
+    return false;
+  }
+
+  if (!expediente.ubicacion) {
+    alert("Ingrese la ubicación");
+    return false;
+  }
+
+  if (!expediente.descripcion) {
+    alert("Ingrese la descripción");
+    return false;
+  }
+
+  return true;
+};
+Y usarla así:
+if (!validarFormulario()) return;
+*/
+
+ // Cargar datos del usuario logueado desde el localStorage para mostrar en el formulario
+  
+
+  
     // Verificar que el usuario esté logueado
     const idUsuario = usuario?.id_usuario || usuario?.id;
     console.log("ID del usuario:", idUsuario);
@@ -74,10 +121,7 @@ const NuevoTramiteDatos = () => {
     }
 
     try {
-      const expedienteData = {
-        ...expediente,
-        id_usuario_presentante: idUsuario,
-        fecha_creacion: new Date().toISOString(),
+      const expedienteData = { ...expediente, id_usuario_presentante: idUsuario, fecha_creacion: new Date().toISOString(),
       };
 
       console.log("Guardando datos del expediente:", expedienteData);
@@ -109,19 +153,17 @@ const NuevoTramiteDatos = () => {
   {
     //
   }
-  // Cargar datos del usuario logueado desde el localStorage para mostrar en el formulario
-  useEffect(() => {
-    const usuarioGuardado = localStorage.getItem("usuarioLogueado");
-    if (usuarioGuardado) {
-      const datosUsuario = JSON.parse(usuarioGuardado);
-      setUsuario(datosUsuario);
-    }
-  }, []);
+ 
 
   // menú desplegable tipo de tramite se guardan en la tabla tramite
   const handleTipoExpedienteChange = (e) => {
     const tipo = e.target.value;
-    const tipoExpedienteDatos = { ...expediente, tipo_expediente: tipo };
+    const tipoSeleccionado = tiposTramite.find((t) => t.nombre === tipo);
+    const tipoExpedienteDatos = {
+      ...expediente,
+      tipo_expediente: tipo,
+      importe: tipoSeleccionado ? tipoSeleccionado.importe : 0,
+    };
     setExpediente(tipoExpedienteDatos);
 
     // Guardar también en localStorage (para mostrar en pasos siguientes)
@@ -160,11 +202,11 @@ const NuevoTramiteDatos = () => {
               required
             >
               <option value="">Seleccione el tipo de expediente</option>
-              <option value="Obra nueva">Obra nueva</option>
-              <option value="Constancia de prefactibilidad de no inundabilidad">
-                Constancia de prefactibilidad de no inundabilidad
-              </option>
-              <option value="Línea de ribera">Línea de ribera</option>
+              {tiposTramite.map((t) => (
+                <option key={t.id_tipo} value={t.nombre}>
+                  {t.nombre}
+                </option>
+              ))}
             </Form.Select>
 
             {/*<Form.Group className="mb-3" controlId="formPrioridad">

@@ -16,6 +16,19 @@ import {
 } from "../Routers/router";
 
 function Login_usuario() {
+    /*
+      BLOQUE 1: DEPURACIÓN INICIAL
+      El useEffect vacío '[]' se ejecuta solo una vez cuando la página de Login se abre.
+      Borramos cualquier usuario guardado previamente en el caché (localStorage) 
+      para evitar que un nuevo usuario inicie sesión sobre los datos de un usuario anterior.
+    */
+    useEffect(() => {
+      localStorage.removeItem("usuarioLogueado");
+      setUsuario("");
+      setContraseña("");
+      setError("");
+      setExito(false);
+    }, []);
   const [usuario, setUsuario] = useState("");
   const [contraseña, setContraseña] = useState("");
   const [error, setError] = useState("");
@@ -27,15 +40,19 @@ function Login_usuario() {
 
   // funcion que maneja el envio de datos
 
+  /*
+    BLOQUE 2: LÓGICA CORE DEL ACCESO
+    Aquí capturamos el evento 'submit' del formulario enviando el usuario y contraseña hacia el Backend.
+  */
   const manejarEnvio = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Evita que la página intente "recargarse" de manera nativa
     setError("");
     try {
-      // 1) Login
+      // 1) Login: Hacemos Fetch a nuestra API
       const resp = await axios.post(URL_LOGIN, { usuario, contraseña });
       const datosUsuario = resp.data.usuario;
 
-      // 2) Obtener rol desde la tabla roles usando id_rol
+      // 2) Obtener rol desde la tabla roles usando su id_rol en la BD
       const idRol = datosUsuario?.id_rol;
       if (!idRol) {
         setError(
@@ -66,11 +83,17 @@ function Login_usuario() {
       setExito(true);
 
       // Redirigir después de 1.5 segundos para que se vea el mensaje
+      /*
+        BLOQUE 3: REDIRECCIÓN DINÁMICA POR ROL
+        Revisamos en qué categoría cayó el usuario (Admin, Técnico, Jurídico)
+        y lo mandamos específicamente a su propia bandeja de entrada correspondiente.
+        Esto previene que un Alumno vea las herramientas de un Director.
+      */
       setTimeout(() => {
-        // 4) Redirección según rol solamente
+        // Redirección según el nombre del rol...
         const rolLower = (rolNombre || "").toLowerCase();
 
-        if (["administrativo", "admin ti"].includes(rolLower)) {
+        if (["administrativo"].includes(rolLower)) {
           userNavigate(PORTADA_ADMINISTRATIVO);
           return;
         }
@@ -134,6 +157,7 @@ function Login_usuario() {
             placeholder="Usuario"
             value={usuario}
             onChange={(e) => setUsuario(e.target.value)}
+            autoComplete="off"
             required
           />
         </div>
@@ -144,6 +168,7 @@ function Login_usuario() {
             placeholder="Contraseña"
             value={contraseña}
             onChange={(e) => setContraseña(e.target.value)}
+            autoComplete="new-password"
             required
           />
         </div>
@@ -155,6 +180,11 @@ function Login_usuario() {
         <p>¿No tienes una cuenta?</p>
         <Link to="/Registro_usuario" className="link-crear-cuenta">
           Crear cuenta
+        </Link>
+      </div>
+      <div className="recuperar-contrasena">
+        <Link to="/recuperar-contrasena" className="link-recuperar-contrasena">
+          Recuperar contraseña
         </Link>
       </div>
     </div>

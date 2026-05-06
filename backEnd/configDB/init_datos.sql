@@ -69,10 +69,6 @@ INSERT INTO roles (nombre, descripcion)
 SELECT 'Presentante', 'Usuario básico - puede crear trámites y consultar sus expedientes'
 WHERE NOT EXISTS (SELECT 1 FROM roles WHERE nombre = 'Presentante');
 
-INSERT INTO roles (nombre, descripcion)
-SELECT 'Admin TI', 'Administrador de sistemas - gestiona aspectos técnicos del sistema'
-WHERE NOT EXISTS (SELECT 1 FROM roles WHERE nombre = 'Admin TI');
-
 -- ========================================
 -- 3. ASIGNAR PERMISOS A ROLES
 -- ========================================
@@ -83,7 +79,6 @@ SET @id_director = (SELECT id_rol FROM roles WHERE nombre = 'Director' LIMIT 1);
 SET @id_tecnico = (SELECT id_rol FROM roles WHERE nombre = 'Técnico' LIMIT 1);
 SET @id_juridico = (SELECT id_rol FROM roles WHERE nombre = 'Jurídico' LIMIT 1);
 SET @id_presentante = (SELECT id_rol FROM roles WHERE nombre = 'Presentante' LIMIT 1);
-SET @id_admin_ti = (SELECT id_rol FROM roles WHERE nombre = 'Admin TI' LIMIT 1);
 
 -- ROL: Administrativo (TODOS los permisos)
 INSERT INTO rol_permisos (id_rol, id_permiso)
@@ -115,12 +110,6 @@ SELECT @id_presentante, id_permiso
 FROM permisos
 WHERE nombre IN ('crear_tramite', 'ver_expedientes');
 
--- ROL: Admin TI (Configuración del sistema)
-INSERT INTO rol_permisos (id_rol, id_permiso)
-SELECT @id_admin_ti, id_permiso
-FROM permisos
-WHERE nombre IN ('configurar_sistema', 'crear_usuario', 'ver_usuarios', 'ver_reportes', 'gestionar_roles', 'gestionar_permisos');
-
 -- ========================================
 -- 4. CREAR DEPARTAMENTOS
 -- ========================================
@@ -146,7 +135,7 @@ VALUES (
     'Sistema',
     12345678,
     'admin@dpa.gob.ar',
-    'Dirección Provincial del Agua - Mendoza',
+    'Dirección Provincial del Agua - Tucumán',
     '2614000000',
     'admin',
     'admin123', -- El sistema la hasheará automáticamente en el primer login

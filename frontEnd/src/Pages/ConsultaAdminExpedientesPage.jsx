@@ -7,7 +7,6 @@ export default function ConsultaAdminExpedientesPage() {
   return (
     <div>
       <Header_1 />
-      <BackButton />
       <main className="page-content">
         <ConsultaAdminExpedientes />
       </main>

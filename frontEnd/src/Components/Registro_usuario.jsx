@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_USUARIOS, URL_ROLES, URL_DEPARTAMENTOS } from "../Constants/endpoints";
+import { URL_USUARIOS } from "../Constants/endpoints";
 import { Container, Form, Button } from "react-bootstrap";
 
 import "../CSS/registroUsuario.css";
@@ -18,47 +18,42 @@ const RegistroUsuario = () => {
     telefono: "",
     usuario: "",
     contraseña: "",
-    id_rol: 1, // Rol por defecto: Presentante (asumiendo id_rol=1)
-    id_departamento: null,
   };
   const [usuario, setUsuario] = useState(initialState);
-  const [roles, setRoles] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
-
-  // Cargar roles y departamentos al montar el componente
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const [rolesRes, deptoRes] = await Promise.all([
-          axios.get(URL_ROLES),
-          axios.get(URL_DEPARTAMENTOS)
-        ]);
-        setRoles(rolesRes.data || []);
-        setDepartamentos(deptoRes.data || []);
-      } catch (error) {
-        console.error("Error al cargar roles o departamentos:", error);
-      }
-    };
-    cargarDatos();
-  }, []);
-
-  {
-    //---------------------------------------------------------
-  }
+  // ---------------------------------------------------------
   const handleChange = (e) => {
     setUsuario({ ...usuario, [e.target.name]: e.target.value });
   };
-  {
-    //---------------------------------------------------------
-  }
+  // ---------------------------------------------------------
 
+  /*
+    BLOQUE: CREACIÓN CENTRAL DE PERFIL
+    Manejamos el 'submit' del formulario asíncronamente interceptando el evento clásico
+    (e.preventDefault) y haciendo un POST hacia nuestra API (Backend) con el objeto de estado reactivo 'usuario'
+    que contiene DNI, Email, Password. Si la BD responde con un 200, parseamos la respuesta
+    para saludar al usuario de manera dinámica.
+  */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const response = await axios.post(URL_USUARIOS, usuario);
-      setUsuario(response.data);
 
-      setUsuario(initialState); // aqui limpiamos los datos del formulario, para ello deb
+      // 1. Usamos response.data para obtener el nombre que confirmó el servidor
+      // para mostrar un cartel de bienvenido 
+
+      /* 
+      const nombreRecibido = response.data.nombre;
+      const apellidoRecibido = response.data.apellido;
+      */
+
+      // se puede estructurar directamente así:
+      const { nombre, apellido } = response.data;
+
+      // 2. Mostramos el mensaje personalizado
+      alert(`¡Registro exitoso! Bienvenido/a ${nombre} ${apellido}.`);
+
+      setUsuario(initialState); // aqui limpiamos los datos del formulario
+      // si la respuesta es exitosa, redirigimos al usuario a la página de inicio o a donde quieras
       if (response) {
         navigate("/"); // Redirige al usuario a la página de inicio después de crear el mismo
         console.log("Usuario creado exitosamente:", response.data);
@@ -78,174 +73,163 @@ const RegistroUsuario = () => {
   return (
     <div className="containerUsuario">
       <h2 className="titulo">Carga de datos del Usuario</h2>
-
       <div className="contenedorFlex">
         <img src={cargaUsuario} alt="Usuario" className="ImgcargaUsuario" />
         <div className="contenedorFormUsuario">
           <Container className="mt-5">
-            <Form onSubmit={handleSubmit}>
+            <Form onSubmit={handleSubmit} autoComplete="off">
+              <p className="text-muted mb-3">
+                Registrate como usuario comun o usuario profesional segun corresponda.
+              </p>
+              <p className="leyenda-obligatorio">
+                <span className="campo-requerido">*</span> Todos los campos son obligatorios
+              </p>
               <div className="contenedorLabel">
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlInput1"
-                >
-                  <Form.Label>Nombre</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Nombre"
-                    name="nombre"
-                    value={usuario.nombre}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
+                <div className="row">
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nombre <span className="campo-requerido">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Nombre"
+                        name="nombre"
+                        value={usuario.nombre}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Apellido <span className="campo-requerido">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Apellido"
+                        name="apellido"
+                        value={usuario.apellido}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlInput1"
-                >
-                  <Form.Label>Apellido</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Apellido"
-                    name="apellido"
-                    value={usuario.apellido}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>DNI</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="ingresa tu DNI"
-                    name="dni"
-                    value={usuario.dni}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="ingresa tu email"
-                    name="email"
-                    value={usuario.email}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Dirección</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="ingresa la direccíon"
-                    name="direccion"
-                    value={usuario.direccion}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
+                <div className="row">
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>DNI <span className="campo-requerido">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="ingresa tu DNI"
+                        name="dni"
+                        value={usuario.dni}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email <span className="campo-requerido">*</span></Form.Label>
+                      <Form.Control
+                        type="email"
+                        placeholder="ingresa tu email"
+                        name="email"
+                        value={usuario.email}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Teléfono</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="ingresa su n° de teléfono"
-                    name="telefono"
-                    value={usuario.telefono}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
+                <div className="row">
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Dirección <span className="campo-requerido">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="ingresa la dirección"
+                        name="direccion"
+                        value={usuario.direccion}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Teléfono <span className="campo-requerido">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="ingresa su n° de teléfono"
+                        name="telefono"
+                        value={usuario.telefono}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Usuario</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="ingresa el nombre de usuario"
-                    name="usuario"
-                    value={usuario.usuario}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea1"
-                >
-                  <Form.Label>Contraseña</Form.Label>
-                  <Form.Control
-                    type="password"
-                    placeholder="ingresa la contraseña"
-                    name="contraseña"
-                    value={usuario.contraseña}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea2"
-                >
-                  <Form.Label>Rol</Form.Label>
-                  <Form.Select
-                    name="id_rol"
-                    value={usuario.id_rol || ''}
-                    onChange={handleChange}
-                  >
-                    <option value="">Seleccionar rol</option>
-                    {roles.map(r => (
-                      <option key={r.id_rol} value={r.id_rol}>{r.nombre}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-
-                <Form.Group
-                  className="mb-3"
-                  controlId="exampleForm.ControlTextarea3"
-                >
-                  <Form.Label>Departamento (opcional)</Form.Label>
-                  <Form.Select
-                    name="id_departamento"
-                    value={usuario.id_departamento || ''}
-                    onChange={handleChange}
-                  >
-                    <option value="">Sin departamento</option>
-                    {departamentos.map(d => (
-                      <option key={d.id_departamento} value={d.id_departamento}>{d.nombre}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
+                <div className="row">
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Usuario <span className="campo-requerido">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="ingresa el nombre de usuario"
+                        name="usuario"
+                        value={usuario.usuario}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group className="mb-3">
+                      <Form.Label>Contraseña <span className="campo-requerido">*</span></Form.Label>
+                      <Form.Control
+                        type="password"
+                        placeholder="ingresa la contraseña"
+                        name="contraseña"
+                        value={usuario.contraseña}
+                        onChange={handleChange}
+                        autoComplete="new-password"
+                        required
+                      />
+                    </Form.Group>
+                  </div>
+                </div>
               </div>
               <div className="contenedorBotonRegistro">
                 <Button
-                  size="sm"
-                  className="btnRegistro"
                   variant="primary"
                   type="submit"
-                  
+                  style={{
+                    width: "180px",
+                    height: "46px",
+                    fontWeight: "700",
+                    borderRadius: "8px",
+                    padding: "0",
+                    lineHeight: "46px",
+                  }}
                 >
                   Guardar
                 </Button>
 
                 <Button
-                  size="sm"
-                  className="btnRegistro"
                   variant="secondary"
                   type="button"
                   onClick={() => navigate(-1)}
+                  style={{
+                    width: "180px",
+                    height: "46px",
+                    fontWeight: "700",
+                    borderRadius: "8px",
+                    padding: "0",
+                    lineHeight: "46px",
+                  }}
                 >
                   Cancelar
                 </Button>

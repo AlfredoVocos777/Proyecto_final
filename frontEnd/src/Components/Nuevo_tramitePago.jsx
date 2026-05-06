@@ -29,12 +29,17 @@ const NuevoTramitePago = () => {
     ubicacion: "",
     descripcion: "",
     prioridad: "",
+    importe: 0,
   };
 
   const [usuario, setUsuario] = useState(initialUsuario);
   const [tramite, setTramite] = useState(initialTramite);
   const [loading, setLoading] = useState(false);
   const [documentos, setDocumentos] = useState([]);
+  
+  // Estados para el flujo manual de Mercado Pago
+  const [pagoIniciado, setPagoIniciado] = useState(false);
+  const [numeroComprobante, setNumeroComprobante] = useState("");
 
   // Función para convertir la ruta del backend en URL accesible por el navegador
   const toFileUrl = (ruta) => {
@@ -47,14 +52,16 @@ const NuevoTramitePago = () => {
     return ruta;
   };
 
-  // Función para manejar el pago
+  /*
+    FLUJO 1 DE PAGO: INICIO DE LA PREFERENCIA DE PAGO
+    Esta funcion se detona cuando el Alumno/Presentante da click en "Mercado Pago".
+  */
   const handlePago = async (metodo) => {
     const URL_FORMALIZACION = "http://localhost:8000/pagos";
 
     if (metodo === "mercadopago") {
       try {
         const expedientePendiente = localStorage.getItem("expedientePendiente");
-        const storedFiles = localStorage.getItem("expedienteFiles");
         const usuarioGuardado = localStorage.getItem("usuarioLogueado");
 
         if (!expedientePendiente || !usuarioGuardado) {
@@ -64,60 +71,36 @@ const NuevoTramitePago = () => {
         }
 
         const datosExpediente = JSON.parse(expedientePendiente);
-        const datosUsuario = JSON.parse(usuarioGuardado);
-        const archivosTemporales = storedFiles
-          ? JSON.parse(storedFiles).resultados || JSON.parse(storedFiles)
-          : [];
 
         setLoading(true);
 
+        // Llamar al backend para crear la preferencia de pago
         const payload = {
-          expediente: {
-            ...datosExpediente,
-            id_usuario: datosUsuario.id_usuario,
-          },
-          pago: {
-            monto: 5000,
-            metodo_pago: "mercadopago",
-            referencia_pasarela: `SIMULADO-MP-${Date.now()}`,
-          },
-          archivos: archivosTemporales,
+          title: `Trámite SIGEDEX - ${datosExpediente.tipo_expediente}`,
+          price: datosExpediente.importe ?? 0.05,
+          quantity: 1
         };
 
-        console.log("Enviando datos para formalización y pago:", payload);
-
-        const responseFormalizacion = await axios.post(
-          URL_FORMALIZACION,
+        const response = await axios.post(
+          "http://localhost:8000/api/crear-preferencia",
           payload
         );
-        const dataFormalizacion = responseFormalizacion.data;
 
-        const expedienteFormalizado = {
-          ...datosExpediente,
-          id: dataFormalizacion.id_expediente,
-          numero_expediente: dataFormalizacion.numero_expediente,
-          fecha_creacion: dataFormalizacion.fecha_creacion,
-        };
-        localStorage.setItem(
-          "expedienteCreado",
-          JSON.stringify(expedienteFormalizado)
-        );
+        const { init_point } = response.data;
 
-        alert(
-          `¡Tu pago fue exitoso! El número de tu expediente es: ${expedienteFormalizado.numero_expediente}. Serás redirigido a la confirmación.`
-        );
-        window.open("https://www.mercadopago.com.ar", "_blank");
-
-        localStorage.removeItem("expedientePendiente");
-        localStorage.removeItem("expedienteFiles");
-        localStorage.removeItem("archivosSeleccionados");
-
-        navigate("/Nuevo_tramiteExpediente");
+        /* 
+           INTEGRACIÓN TERCERIZADA (Mercado Pago)
+           Al haberle ordenado a nuestro backend crear la preferencia de pago, nos devuelve un init_point (URL).
+           Abrimos esa URL en una pestaña emergente "_blank" para que el usuario proceda a pagar sin salir de nuestra app.
+        */
+        window.open(init_point, "_blank");
+        
+        // Habilitar la vista de carga de comprobante manual
+        setPagoIniciado(true);
+        setLoading(false);
       } catch (error) {
-        console.error("Error al formalizar el trámite y pago:", error);
-        const errorMsg = error.response?.data?.error || error.message;
-        alert("Error al procesar el pago y crear el expediente: " + errorMsg);
-      } finally {
+        console.error("Error al iniciar el pago con Mercado Pago:", error);
+        alert("Error al procesar el pago con Mercado Pago.");
         setLoading(false);
       }
     } else if (metodo === "tarjeta") {
@@ -126,6 +109,79 @@ const NuevoTramitePago = () => {
       alert("Próximamente: Pago en efectivo");
     } else {
       alert("Método de pago no reconocido");
+    }
+  };
+
+  /*
+    FLUJO 2 DE PAGO: FORMALIZACIÓN (PAGO MANUAL)
+    Se detona cuando el usuario introdujo manualmente su N° de Operación o de Comprobante tras pagar por Mercado Pago
+    y le da a "Confirmar". Transmitirá todos los documentos, credenciales y número al backend para el registro definitivo en DB.
+  */
+  const handleConfirmarPago = async () => {
+    if (!numeroComprobante || numeroComprobante.trim() === "") {
+      alert("Por favor ingrese el número de comprobante o de operación.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const expedientePendiente = localStorage.getItem("expedientePendiente");
+      const storedFiles = localStorage.getItem("expedienteFiles");
+      const usuarioGuardado = localStorage.getItem("usuarioLogueado");
+
+      if (!expedientePendiente || !usuarioGuardado) {
+        alert("Error: Faltan datos esenciales del expediente o usuario.");
+        navigate("/Nuevo_tramiteDatos");
+        return;
+      }
+
+      const datosExpediente = JSON.parse(expedientePendiente);
+      const datosUsuario = JSON.parse(usuarioGuardado);
+      const archivosTemporales = storedFiles
+        ? JSON.parse(storedFiles).resultados || JSON.parse(storedFiles)
+        : [];
+
+      const payload = {
+        expediente: {
+          ...datosExpediente,
+          id_usuario: datosUsuario.id_usuario,
+        },
+        pago: {
+          monto: datosExpediente.importe ?? 0.05,
+          metodo_pago: "mercadopago",
+          referencia_pasarela: `MP-${numeroComprobante}`,
+        },
+        archivos: archivosTemporales,
+      };
+
+      const responseFormalizacion = await axios.post(
+        "http://localhost:8000/pagos",
+        payload
+      );
+      
+      const dataFormalizacion = responseFormalizacion.data;
+
+      const expedienteFormalizado = {
+        ...datosExpediente,
+        id: dataFormalizacion.id_expediente,
+        numero_expediente: dataFormalizacion.numero_expediente,
+        fecha_creacion: dataFormalizacion.fecha_creacion,
+      };
+      
+      // Guardar para la página de éxito
+      localStorage.setItem("expedienteCreado", JSON.stringify(expedienteFormalizado));
+      
+      // Limpiar temporales
+      localStorage.removeItem('expedientePendiente');
+      localStorage.removeItem('expedienteFiles');
+      localStorage.removeItem('archivosSeleccionados');
+
+      navigate("/Nuevo_tramiteExpediente");
+
+    } catch (error) {
+      console.error("Error al formalizar:", error);
+      alert("Hubo un error al validar el expediente. Inténtelo de nuevo.");
+      setLoading(false);
     }
   };
 
@@ -211,6 +267,7 @@ const NuevoTramitePago = () => {
           ubicacion: datosExpediente.ubicacion || "",
           descripcion: datosExpediente.descripcion || "",
           prioridad: datosExpediente.prioridad || "",
+          importe: datosExpediente.importe ?? 0,
         });
       } else {
         navigate("/Nuevo_tramiteDatos");
@@ -257,7 +314,7 @@ const NuevoTramitePago = () => {
               </div>
               <div className="filaPago">
                 <label className="labelPagoTatal">Total a Pagar</label>
-                <label> - <strong>$5.000</strong> - </label>
+                <label> - <strong>${Number(tramite.importe ?? 0).toFixed(2)}</strong> - </label>
               </div>
             </div>
           </div>
@@ -300,65 +357,101 @@ const NuevoTramitePago = () => {
             )}
           </div>
 
-          {/* Medios de pago */}
+          {/* Medios de pago / Ingreso de comprobante */}
           <div className="contenedorFormMedioPago">
-            <div className="contenedorFormMedioPago2">
-              <h1 className="tituloMedioPago">Pago seguro</h1>
-              <h4 className="subtituloMedioPago">
-                Complete el pago para finalizar la presentación de su expediente
-              </h4>
-            </div>
-            <hr />
-            <div className="contenedorFormMedioPago2">
-              <h2 className="tituloMedioPago2">Seleccione el medio de pago</h2>
-            </div>
+            {!pagoIniciado ? (
+              <>
+                <div className="contenedorFormMedioPago2">
+                  <h1 className="tituloMedioPago">Pago seguro</h1>
+                  <h4 className="subtituloMedioPago">
+                    Complete el pago para finalizar la presentación de su expediente
+                  </h4>
+                </div>
+                <hr />
+                <div className="contenedorFormMedioPago2">
+                  <h2 className="tituloMedioPago2">Seleccione el medio de pago</h2>
+                </div>
 
-            <div className="opcionesMedioPago">
-              <button
-                className="opcionMedioPago"
-                onClick={() => handlePago("mercadopago")}
-                disabled={loading}
-              >
-                <img
-                  className="iconomercadopago"
-                  src={mercadopagoIcono}
-                  alt="mercadopago"
-                  width="90"
-                  height="40"
-                />
-                {loading ? "Procesando..." : "Mercado Pago (Simulado)"}
-              </button>
+                <div className="opcionesMedioPago">
+                  <button
+                    className="opcionMedioPago"
+                    onClick={() => handlePago("mercadopago")}
+                    disabled={loading}
+                  >
+                    <img
+                      className="iconomercadopago"
+                      src={mercadopagoIcono}
+                      alt="mercadopago"
+                      width="90"
+                      height="40"
+                    />
+                    {loading ? "Procesando..." : "Mercado Pago"}
+                  </button>
 
-              <button
-                className="opcionMedioPago"
-                onClick={() => handlePago("tarjeta")}
-                disabled={loading}
-              >
-                <img
-                  className="iconoTarjeta"
-                  src={tarjetaIcono}
-                  alt="tarjeta"
-                  width="90"
-                  height="40"
-                />
-                Tarjeta de Crédito
-              </button>
+                  <button
+                    className="opcionMedioPago"
+                    onClick={() => handlePago("tarjeta")}
+                    disabled={loading}
+                  >
+                    <img
+                      className="iconoTarjeta"
+                      src={tarjetaIcono}
+                      alt="tarjeta"
+                      width="90"
+                      height="40"
+                    />
+                    Tarjeta de Crédito
+                  </button>
 
-              <button
-                className="opcionMedioPago"
-                onClick={() => handlePago("efectivo")}
-                disabled={loading}
-              >
-                <img
-                  className="iconoPagofacil"
-                  src={pagofacilIcono}
-                  alt="pago facil"
-                  width="100"
-                  height="50"
-                />
-                Pago en efectivo
-              </button>
-            </div>
+                  <button
+                    className="opcionMedioPago"
+                    onClick={() => handlePago("efectivo")}
+                    disabled={loading}
+                  >
+                    <img
+                      className="iconoPagofacil"
+                      src={pagofacilIcono}
+                      alt="pago facil"
+                      width="100"
+                      height="50"
+                    />
+                    Pago en efectivo
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="contenedorValidacionPago" style={{ padding: "20px", textAlign: "center" }}>
+                <h2 className="tituloDatos2">Validación de Pago</h2>
+                <p>
+                  Has iniciado el proceso de pago. En la ventana de Mercado Pago que se acaba de abrir, al finalizar verás un texto que dice <strong>"Operación #123456789"</strong>.
+                </p>
+                <div style={{ margin: "20px 0" }}>
+                  <label htmlFor="numOperacion" style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
+                    Ingrese el N° de Operación o Comprobante:
+                  </label>
+                  <input
+                    id="numOperacion"
+                    type="text"
+                    className="form-control"
+                    placeholder="Ej: 1346144669"
+                    value={numeroComprobante}
+                    onChange={(e) => setNumeroComprobante(e.target.value)}
+                    style={{ maxWidth: "300px", margin: "0 auto" }}
+                  />
+                </div>
+                <Button
+                  variant="success"
+                  onClick={handleConfirmarPago}
+                  disabled={loading || !numeroComprobante}
+                  style={{ marginTop: "10px" }}
+                >
+                  {loading ? "Verificando..." : "Confirmar y Generar Expediente"}
+                </Button>
+                <div style={{ marginTop: "15px" }}>
+                  <Button variant="link" onClick={() => setPagoIniciado(false)}>Volver a medios de pago</Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Botón atrás */}

@@ -1,390 +1,586 @@
-/* Layout general para usuario Técnico con sidebar */
+/* ============================================================
+   USUARIO TÉCNICO — Enterprise SaaS UI
+   Inspirado en Stripe · Vercel · Linear
+   ============================================================ */
+
+/* ── Tokens locales ─────────────────────────────────────── */
+.tecnico-layout,
+.tecnico-layout * {
+  --t-brand:        var(--color-azul-acento);   /* #5aa1e3 */
+  --t-brand-light:  var(--color-azul-claro);    /* #a7c7f0 */
+  --t-brand-dark:   #2d7dc8;
+  --t-surface:      #ffffff;
+  --t-surface-2:    #f8fafc;
+  --t-surface-3:    #f1f5f9;
+  --t-border:       #e2e8f0;
+  --t-text-1:       #0f172a;
+  --t-text-2:       #475569;
+  --t-text-3:       #94a3b8;
+  --t-red:          #ef4444;
+  --t-radius-s:     6px;
+  --t-radius-m:     10px;
+  --t-shadow-s:     0 1px 2px 0 rgba(0,0,0,0.05);
+  --t-shadow-m:     0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.04);
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
 .tecnico-layout {
   display: flex;
-  min-height: calc(100vh - 80px - 220px);
-  padding-top: 80px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e3f2fd 100%);
-  padding-bottom: 0;
-}
-
-/* Sidebar lateral fijo */
-.tecnico-sidebar {
-  position: fixed;
-  top: 80px;
-  left: 0;
-  bottom: 0;
-  width: 260px;
-  background: linear-gradient(180deg, #ffffff 0%, #f1f8ff 100%);
-  border-right: 2px solid #90caf9;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
-  transition: transform 0.3s ease, width 0.3s ease;
-  z-index: 100;
-  overflow-y: auto;
-  padding-bottom: 20px;
-}
-
-.tecnico-sidebar.closed {
-  width: 60px;
-}
-
-.tecnico-sidebar.closed .tecnico-menu-btn .tecnico-label {
-  display: none;
-}
-
-.tecnico-sidebar.closed .tecnico-menu-btn {
-  justify-content: center;
-}
-
-/* Botón toggle para cerrar/abrir sidebar */
-.tecnico-toggle {
-  width: 100%;
-  padding: 12px;
-  background: var(--color-azul-acento);
-  color: #fff;
-  border: none;
-  font-size: 1.2rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.tecnico-toggle:hover {
-  background: var(--primary-hover);
-}
-
-/* Menú de navegación vertical */
-.tecnico-menu {
-  display: flex;
   flex-direction: column;
-  padding: 12px 8px;
-  gap: 8px;
+  min-height: calc(100vh - 80px);
+  padding-top: 80px;
+  background: var(--t-surface-2);
 }
 
-.tecnico-menu-btn {
+/* Sidebar desactivado (reemplazado por nav horizontal) */
+.tecnico-sidebar { display: none; }
+
+/* ── Barra de navegación horizontal ─────────────────────── */
+.user-nav-bar {
+  position: sticky;
+  top: 80px;
+  z-index: 99;
+  padding: 0 28px;
+  background: var(--t-surface);
+  border-bottom: 1px solid var(--t-border);
+  box-shadow: var(--t-shadow-s);
+}
+
+/* Anula colores heredados del nav juridico/director/tecnico */
+.user-nav-tecnico,
+.user-nav-juridico,
+.user-nav-director {
+  background: var(--t-surface) !important;
+  border-bottom: 1px solid var(--t-border) !important;
+  box-shadow: var(--t-shadow-s) !important;
+}
+
+.user-nav-bar .nav-pills {
+  gap: 2px;
+  padding: 8px 0;
+}
+
+.user-nav-bar .nav-link {
+  color: var(--t-text-2);
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-radius: var(--t-radius-s);
+  padding: 6px 14px;
+  line-height: 1.5;
+  transition: background 0.1s ease, color 0.1s ease;
+  border: none !important;
+}
+
+.user-nav-bar .nav-link:hover:not(.active) {
+  background: var(--t-surface-2);
+  color: var(--t-text-1);
+}
+
+.user-nav-bar .nav-link.active {
+  background: var(--t-brand) !important;
+  color: #fff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(90,161,227,0.4);
+}
+
+.user-nav-bar .salir-link {
+  color: var(--t-red) !important;
+  font-weight: 500;
+}
+
+.user-nav-bar .salir-link:hover {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+/* ── Botón Reporte en navbar ─────────────────────────────── */
+.nav-reporte-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 13px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--t-text-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--t-radius-s);
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.nav-reporte-btn:hover:not(:disabled) {
+  background: var(--t-surface-2);
+  color: var(--t-text-1);
+}
+
+.nav-reporte-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Modal vista previa PDF ──────────────────────────────── */
+.pdf-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f5faff 100%);
-  border: 1px solid #d6e8ff;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #2c3e50;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  text-align: left;
+  justify-content: center;
+  animation: fadeInOverlay 0.15s ease;
 }
 
-.tecnico-menu-btn:hover {
-  transform: translateY(-2px);
-  background: #eef6ff;
-  border-color: #c7dfff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-.tecnico-menu-btn.active {
-  background: var(--color-azul-acento);
-  color: #fff;
-  border-color: var(--color-azul-acento);
-  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+.pdf-preview-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 94vw;
+  max-width: 1100px;
+  height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  animation: slideUpModal 0.18s ease;
 }
 
-.tecnico-icon {
-  font-size: 1.3rem;
+@keyframes slideUpModal {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.pdf-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--t-border);
+  background: var(--t-surface-2);
   flex-shrink: 0;
 }
 
-.tecnico-label {
+.pdf-preview-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--t-text-1);
+}
+
+.pdf-preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: var(--t-radius-s);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.1s ease;
+}
+
+.pdf-btn-download {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+}
+
+.pdf-btn-download:hover { opacity: 0.85; color: #fff; }
+
+.pdf-btn-close {
+  background: var(--t-surface);
+  color: var(--t-text-2);
+  border: 1px solid var(--t-border);
+}
+
+.pdf-btn-close:hover {
+  background: var(--t-surface-3);
+  color: var(--t-text-1);
+}
+
+.pdf-preview-frame {
   flex: 1;
-  white-space: nowrap;
+  width: 100%;
+  border: none;
 }
 
-/* Botón Salir - estilo especial */
-.tecnico-menu-btn.tecnico-salir {
-  margin-top: auto;
-  background: linear-gradient(180deg, #fff5f5 0%, #ffe8e8 100%);
-  border-color: #ffcdd2;
-  color: #c62828;
-}
+/* ── Menú lateral (legacy) ──────────────────────────────── */
+.tecnico-menu { display: none; }
+.tecnico-toggle { display: none; }
 
-.tecnico-menu-btn.tecnico-salir:hover {
-  background: #ffebee;
-  border-color: #ef9a9a;
-  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.2);
-}
-
-/* Contenido principal */
+/* ── Área de contenido principal ────────────────────────── */
 .tecnico-main {
   flex: 1;
-  margin-left: 260px;
-  padding: 32px;
-  padding-bottom: 60px; /* espacio adicional para el footer */
-  transition: margin-left 0.3s ease;
-  width: calc(100% - 260px); /* asegurar que no exceda el viewport */
+  margin-left: 0 !important;
+  width: 100% !important;
+  padding: 28px 28px 80px;
 }
 
-.tecnico-sidebar.closed ~ .tecnico-main {
-  margin-left: 60px;
-  width: calc(100% - 60px);
-}
-
-/* Secciones de contenido */
+/* ── Card de sección ─────────────────────────────────────── */
 .seccion-contenido {
-  background: #fff;
-  padding: 32px;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  max-width: 1000px;
-  margin: 0 auto;
+  background: var(--t-surface);
+  padding: 28px 32px;
+  border-radius: var(--t-radius-m);
+  border: 1px solid var(--t-border);
+  box-shadow: var(--t-shadow-s);
+  max-width: 100%;
 }
 
 .seccion-contenido h2 {
-  color: var(--color-azul-acento);
-  margin-bottom: 16px;
-  font-size: 1.8rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--t-text-1);
+  letter-spacing: -0.02em;
+  margin: 0 0 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--t-border);
 }
 
 .seccion-contenido p {
-  color: #555;
-  line-height: 1.6;
+  color: var(--t-text-2);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  margin: 0;
 }
 
 .seccion-inicio {
   text-align: center;
+  padding-top: 8px;
+  padding-bottom: 4px;
 }
 
 .seccion-inicio h1 {
-  color: var(--text-color);
-  margin-bottom: 12px;
-  font-size: 2.2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--t-brand);
+  margin-bottom: 6px;
+  letter-spacing: -0.025em;
 }
 
-/* Estilos para tabla de expedientes pendientes */
-.expedientes-pendientes {
-  margin-top: 40px;
-  text-align: left;
+.seccion-inicio > p {
+  color: var(--t-text-2);
+  font-size: 0.9375rem;
+  margin: 0 auto 24px;
+  max-width: 480px;
 }
 
-.expedientes-pendientes h2 {
-  color: var(--color-azul-acento);
-  margin-bottom: 20px;
-  font-size: 1.6rem;
-  text-align: center;
-}
-
-.acciones-seleccion {
+/* ── Toolbar: buscador + paginación en fila ─────────────── */
+/* (inline flex ya en el JSX con d-flex) */
+.tabla-toolbar {
   display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  margin-bottom: 15px;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
-.acciones-seleccion .btn {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.acciones-seleccion .btn-primary {
-  background: var(--color-azul-acento);
-  color: white;
-}
-
-.acciones-seleccion .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
-}
-
-.acciones-seleccion .btn-primary:disabled {
-  background: #cccccc;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.acciones-seleccion .btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.acciones-seleccion .btn-secondary:hover {
-  background: #5a6268;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
-}
-
-.sin-datos {
-  text-align: center;
-  color: #999;
-  padding: 30px;
-  font-size: 1.1rem;
-}
-
+/* ── Contenedor de tabla ─────────────────────────────────── */
 .tabla-container {
+  width: 100%;
   overflow-x: auto;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: var(--t-radius-s);
+  border: 1px solid var(--t-border);
+  background: var(--t-surface);
+}
+
+.tabla-container table,
+.tabla-container .table {
+  width: 100%;
+  min-width: unset;
+  margin-bottom: 0;
+}
+
+/* ── Cabecera de tabla ───────────────────────────────────── */
+.tabla-container .table thead tr th,
+.tabla-expedientes thead th {
+  background: var(--t-surface-3);
+  color: var(--t-text-2);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--t-border);
+  border-top: none;
+  white-space: nowrap;
+}
+
+/* ── Filas de tabla ──────────────────────────────────────── */
+.tabla-container .table tbody tr td,
+.tabla-expedientes td {
+  font-size: 0.875rem;
+  color: var(--t-text-1);
+  padding: 11px 16px;
+  border-color: var(--t-surface-3);
+  vertical-align: middle;
+}
+
+.tabla-container .table tbody tr:hover,
+.tabla-expedientes tbody tr:hover {
+  background: var(--t-surface-2);
 }
 
 .tabla-expedientes {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
-  font-size: 0.9rem;
-}
-
-.tabla-expedientes thead {
-  background: linear-gradient(135deg, var(--color-azul-acento) 0%, #5a9fd4 100%);
-  color: #fff;
-}
-
-.tabla-expedientes th {
-  padding: 14px 12px;
-  text-align: left;
-  font-weight: 700;
-  font-size: 0.95rem;
-  white-space: nowrap;
-}
-
-.tabla-expedientes td {
-  padding: 12px;
-  border-bottom: 1px solid #e9ecef;
-  color: #333;
-  vertical-align: top;
-}
-
-.tabla-expedientes tbody tr:hover {
-  background-color: #f8f9fa;
-}
-
-.tabla-expedientes tbody tr.fila-seleccionada {
-  background-color: #e3f2fd;
-  border-left: 4px solid var(--color-azul-acento);
-}
-
-.tabla-expedientes tbody tr.fila-seleccionada:hover {
-  background-color: #bbdefb;
+  background: var(--t-surface);
 }
 
 .tabla-expedientes tbody tr:last-child td {
   border-bottom: none;
 }
 
+.tabla-expedientes tbody tr.fila-seleccionada {
+  background: #eff6ff;
+  box-shadow: inset 3px 0 0 var(--t-brand);
+}
+
+.tabla-expedientes tbody tr.fila-seleccionada:hover {
+  background: #dbeafe;
+}
+
 .tabla-expedientes input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--t-brand);
   cursor: pointer;
 }
 
+/* ── Badges ──────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.badge-alta           { background: #fee2e2; color: #991b1b; }
+.badge-media          { background: #fff7ed; color: #9a3412; }
+.badge-baja,
+.badge-normal         { background: #f0fdf4; color: #166534; }
+.badge-aprobado       { background: #f0fdf4; color: #166534; }
+.badge-rechazado      { background: #fee2e2; color: #991b1b; }
+.badge-archivado      { background: var(--t-surface-3); color: var(--t-text-2); border: 1px solid var(--t-border); }
+.badge-en.revisión,
+.badge-en\ revisión   { background: #fefce8; color: #854d0e; }
+
+/* ── Paginación ──────────────────────────────────────────── */
+.paginacion {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.paginacion-info {
+  font-size: 0.75rem;
+  color: var(--t-text-3);
+  font-weight: 500;
+  white-space: nowrap;
+  margin-left: 10px;
+  letter-spacing: 0.01em;
+}
+
+.paginacion-botones {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Reset total de Bootstrap sobre los botones de paginación */
+.paginacion .btn,
+.paginacion .btn:focus,
+.paginacion .btn:active {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--t-text-2);
+  background: transparent;
+  transition: background 0.12s ease, color 0.12s ease;
+  line-height: 1;
+  user-select: none;
+}
+
+.paginacion .btn:hover {
+  background: var(--t-surface-3);
+  color: var(--t-text-1);
+}
+
+.paginacion .btn.btn-primary {
+  background: var(--t-brand) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.paginacion .btn.btn-primary:hover {
+  background: var(--t-brand-dark) !important;
+}
+
+.paginacion .btn:disabled,
+.paginacion .btn[disabled] {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+/* Flecha ‹ › — más pequeña y ligera */
+.paginacion .btn.btn-outline-secondary {
+  font-size: 1rem;
+  color: var(--t-text-3);
+}
+
+.paginacion .btn.btn-outline-secondary:hover {
+  color: var(--t-text-1);
+  background: var(--t-surface-3);
+}
+
+/* ── Botones de acción en cabecera ───────────────────────── */
+.acciones-seleccion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.acciones-seleccion .btn {
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: var(--t-radius-s);
+  padding: 7px 16px;
+  transition: all 0.15s ease;
+}
+
+.acciones-seleccion .btn-primary {
+  background: var(--t-brand);
+  border-color: var(--t-brand);
+  color: #fff;
+}
+
+.acciones-seleccion .btn-primary:hover:not(:disabled) {
+  background: var(--t-brand-dark);
+  border-color: var(--t-brand-dark);
+  box-shadow: 0 4px 8px rgba(90,161,227,0.3);
+}
+
+.acciones-seleccion .btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.acciones-seleccion .btn-secondary {
+  background: var(--t-surface);
+  color: var(--t-text-2);
+  border-color: var(--t-border);
+}
+
+.acciones-seleccion .btn-secondary:hover {
+  background: var(--t-surface-2);
+  color: var(--t-text-1);
+}
+
+/* ── Estado vacío ────────────────────────────────────────── */
+.sin-datos,
+.sin-expedientes > p {
+  text-align: center;
+  color: var(--t-text-3);
+  padding: 56px 16px;
+  font-size: 0.9375rem;
+}
+
+/* ── Truncado de celdas ──────────────────────────────────── */
 .descripcion-cell {
-  max-width: 250px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .observaciones-cell {
-  max-width: 200px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-style: italic;
-  color: #666;
+  color: var(--t-text-3);
 }
 
-/* Badges para estados y prioridades */
-.badge {
-  display: inline-block;
-  padding: 5px 10px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: capitalize;
-  white-space: nowrap;
+/* ── Sub-encabezado de sección (ej: "Expedientes pendientes") */
+.expedientes-pendientes {
+  margin-top: 20px;
 }
 
-.badge-en.revisión,
-.badge-en\ revisión {
-  background-color: #ffc107;
-  color: #333;
+.expedientes-pendientes h2 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--t-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+  border: none;
+  padding: 0;
 }
 
-.badge-aprobado {
-  background-color: #28a745;
-  color: #fff;
-}
-
-.badge-rechazado {
-  background-color: #dc3545;
-  color: #fff;
-}
-
-.badge-archivado {
-  background-color: #6c757d;
-  color: #fff;
-}
-
-.badge-alta {
-  background-color: #dc3545;
-  color: #fff;
-}
-
-.badge-media {
-  background-color: #ffc107;
-  color: #333;
-}
-
-.badge-baja {
-  background-color: #28a745;
-  color: #fff;
-}
-
-/* Estilos para modal de consulta de expediente */
+/* ── Detalle y historial de expediente (modal) ───────────── */
 .expediente-detalle {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+  background: var(--t-surface-2);
+  padding: 18px;
+  border-radius: var(--t-radius-s);
+  border: 1px solid var(--t-border);
 }
 
-.expediente-detalle h5 {
-  color: var(--color-azul-acento);
-  border-bottom: 2px solid var(--color-azul-acento);
-  padding-bottom: 8px;
+.expediente-detalle h5,
+.historial-expediente h5 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--t-text-1);
+  border-bottom: 1px solid var(--t-border);
+  padding-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .expediente-detalle .row > div {
-  padding: 5px 15px;
+  padding: 4px 12px;
 }
 
 .historial-expediente {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
-}
-
-.historial-expediente h5 {
-  color: var(--color-azul-acento);
-  border-bottom: 2px solid var(--color-azul-acento);
-  padding-bottom: 8px;
+  background: var(--t-surface);
+  padding: 18px;
+  border-radius: var(--t-radius-s);
+  border: 1px solid var(--t-border);
 }
 
 .tabla-historial-container {
-  max-height: 400px;
+  max-height: 380px;
   overflow-y: auto;
-  border-radius: 6px;
+  border-radius: var(--t-radius-s);
 }
 
 .tabla-historial-container table {
   margin-bottom: 0;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .tabla-historial-container thead {
@@ -397,29 +593,22 @@
   vertical-align: middle;
 }
 
-/* Responsive */
+/* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .tecnico-sidebar {
-    width: 220px;
-  }
-  .tecnico-sidebar.closed {
-    width: 50px;
-  }
   .tecnico-main {
-    margin-left: 220px;
-  }
-  .tecnico-sidebar.closed ~ .tecnico-main {
-    margin-left: 50px;
+    padding: 14px 14px 60px;
   }
   .seccion-contenido {
-    padding: 24px;
+    padding: 18px 16px;
   }
-  .tabla-expedientes {
-    font-size: 0.8rem;
-  }
-  .tabla-expedientes th,
+  .tabla-container .table tbody tr td,
   .tabla-expedientes td {
-    padding: 8px 6px;
+    font-size: 0.8125rem;
+    padding: 8px 10px;
+  }
+  .tabla-container .table thead tr th,
+  .tabla-expedientes thead th {
+    padding: 8px 10px;
   }
 }
 
@@ -427,22 +616,118 @@
   .tecnico-layout {
     padding-top: 70px;
   }
-  .tecnico-sidebar {
-    top: 70px;
-    width: 100%;
-    position: static;
-  }
-  .tecnico-sidebar.closed {
-    display: none;
+  .user-nav-bar {
+    padding: 0 12px;
   }
   .tecnico-main {
-    margin-left: 0;
-    padding: 16px;
-  }
-  .tecnico-sidebar.closed ~ .tecnico-main {
-    margin-left: 0;
+    padding: 12px 10px 50px;
   }
   .tabla-container {
     overflow-x: scroll;
   }
 }
+
+/* ── Toolbar de consulta: buscador + paginación en línea ─── */
+.consulta-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--t-shadow-s);
+  height: 38px;
+  max-width: 680px;
+}
+
+.consulta-search-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+  gap: 8px;
+  border-right: 1px solid var(--t-border);
+  height: 100%;
+}
+
+.consulta-search-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  opacity: 0.45;
+}
+
+.consulta-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  color: var(--t-text-1);
+  font-family: inherit;
+}
+
+.consulta-search-input::placeholder {
+  color: var(--t-text-3);
+}
+
+.consulta-search-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Paginación dentro del toolbar */
+.consulta-pag {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 8px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.cpag-btn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--t-text-2);
+  transition: background 0.1s ease, color 0.1s ease;
+  user-select: none;
+}
+
+.cpag-btn:hover {
+  background: var(--t-surface-3);
+  color: var(--t-text-1);
+}
+
+.cpag-btn:disabled {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.cpag-btn.cpag-active {
+  background: var(--t-brand);
+  color: #fff;
+  font-weight: 600;
+}
+
+.cpag-info {
+  font-size: 0.75rem;
+  color: var(--t-text-3);
+  white-space: nowrap;
+  padding-left: 6px;
+  border-left: 1px solid var(--t-border);
+  margin-left: 4px;
+  height: 16px;
+  line-height: 16px;
+}
+

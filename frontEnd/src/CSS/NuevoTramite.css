@@ -89,8 +89,7 @@
     justify-content: center;
     align-items: center;
     margin-top: 30px;
-    gap: 700px !important;
-    
+    gap: 500px;
 }
 
 /* Estilos para la lista de documentos interactiva */
@@ -130,6 +129,7 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     min-height: 400px;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
 }
@@ -153,6 +153,52 @@
     }
 }
 
+.controlesArchivo {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
 
+.archivoSubidoTexto {
+    font-size: 0.9rem;
+    color: #198754;
+    font-weight: bold;
+}
 
+/* Puedes cambiar estos valores para modificar el color y tamaño de los botones azules */
+.boton-accion-pestañas {
+    background-color: #7991bb !important; /* Color de fondo (azul por defecto) */
+    border-color: #0d6efd !important;     /* Color del borde */
+    color: white !important;              /* Color del texto */
+    font-size: 16px !important;           /* Tamaño del texto */
+    padding: 10px 20px !important;        /* Espaciado interno (arriba/abajo izquierda/derecha) */
+    border-radius: 6px !important;        /* Bordes redondeados */
+    transition: all 0.3s ease !important; /* Animación suave al pasar el mouse */
+}
 
+/* Efecto al pasar el mouse por encima (hover) */
+.boton-accion-pestañas:hover {
+    background-color: #5c75a0 !important; /* Un azul un poco más oscuro */
+    border-color: #0a58ca !important;
+    transform: translateY(-2px);          /* Pequeño efecto de levantarse */
+}
+
+/* Color y estilo para el botón de "Subir Archivos y Continuar al PAGO" */
+.boton-subir-pago {
+    background-color: #0d6efd !important; /* Color principal */
+    border-color: #0d6efd !important;
+    color: white !important;
+    font-size: 16px !important;
+    padding: 10px 20px !important;
+    border-radius: 6px !important;
+    transition: all 0.3s ease !important;
+     width: 300px !important; /* ancho deseado */
+  height: auto;  
+}
+
+.boton-subir-pago:hover {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+    transform: translateY(-2px);
+}

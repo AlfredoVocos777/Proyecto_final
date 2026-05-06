@@ -6,12 +6,13 @@ import {
   LISTAR_ROLES,
   LISTAR_PERMISOS,
   LISTAR_DEPARTAMENTOS,
-  LISTAR_FIRMAS,
   LISTAR_USUARIOS,
   PORTADA,
   LOGIN_USUARIO,
   EXPEDIENTES_FINALIZADOS,
   EXPEDIENTES_ARCHIVADOS,
+  CONSULTA_EXPEDIENTES_ESTADO,
+  LISTAR_TIPOS_TRAMITE,
 } from "../Routers/router";
 import "../CSS/PortadaAdministrativo.css";
 
@@ -19,6 +20,13 @@ const PortadaAdministrativo = () => {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
 
+  /*
+    BLOQUE: PROTECCIÓN DE RUTAS (GUARD FRONT-END)
+    Este useEffect se dispara antes de pintar la pantalla del Administrador.
+    Funciona como un escudo (Guard): escanea el localStorage buscando un 'usuarioLogueado'.
+    Si no existe la firma, patea al usuario inmediatamente al Login. 
+    Si existe, verifica que su rol sea estrictamente 'administrativo' o 'avanzado'.
+  */
   useEffect(() => {
     const raw = localStorage.getItem("usuarioLogueado");
     if (!raw) {
@@ -50,8 +58,11 @@ const PortadaAdministrativo = () => {
             <button className="admin-btn primary" onClick={() => navigate(NUEVO_TRAMITE_DATOS)}>
               Crear Nuevo Trámite
             </button>
-            <button className="admin-btn info" onClick={() => navigate(CONSULTA_ADMIN)}>
+            <button className="admin-btn info" onClick={() => navigate(CONSULTA_EXPEDIENTES_ESTADO)}>
               Consultar y Asignar Expedientes
+            </button>
+            <button className="admin-btn secondary" onClick={() => navigate(LISTAR_TIPOS_TRAMITE)}>
+              Gestionar Trámites
             </button>
             <button className="admin-btn success" onClick={() => navigate(LISTAR_USUARIOS)}>
               Gestionar Usuarios
@@ -65,15 +76,7 @@ const PortadaAdministrativo = () => {
             <button className="admin-btn muted" onClick={() => navigate(LISTAR_DEPARTAMENTOS)}>
               Gestionar Departamentos
             </button>
-            <button className="admin-btn dark" onClick={() => navigate(LISTAR_FIRMAS)}>
-              Gestionar Firmas
-            </button>
-            <button className="admin-btn finalizados" onClick={() => navigate(EXPEDIENTES_FINALIZADOS)}>
-              Expedientes Finalizados
-            </button>
-            <button className="admin-btn archivados" onClick={() => navigate(EXPEDIENTES_ARCHIVADOS)}>
-              Expedientes Archivados
-            </button>
+            {/* Botones eliminados: Gestionar Firmas, Expedientes Finalizados, Expedientes Archivados */}
           </div>
         </div>
       </div>

@@ -1,7 +1,15 @@
+import connection from "../configDB/dataBase.js";
+import bcrypt from "bcryptjs";
+
 // Obtener usuarios jurídicos para pase
 export const obtenerUsuariosJuridicos = (req, res) => {
-  // Puedes filtrar por departamento, expediente, etc. si lo necesitas
-  const sql = `SELECT id_usuario, nombre, apellido, tipo_usuario FROM usuario WHERE tipo_usuario = 'jurídico'`;
+  const sql = `
+    SELECT u.id_usuario, u.nombre, u.apellido, u.tipo_usuario, r.nombre AS rol
+    FROM usuario u
+    LEFT JOIN roles r ON r.id_rol = u.id_rol
+    WHERE r.nombre = 'Jurídico'
+       OR LOWER(u.tipo_usuario) = 'jurídico'
+  `;
   connection.query(sql, (err, results) => {
     if (err) {
       return res.status(500).json({ error: "Error al obtener usuarios jurídicos" });
@@ -9,8 +17,6 @@ export const obtenerUsuariosJuridicos = (req, res) => {
     res.json(results);
   });
 };
-import connection from "../configDB/dataBase.js";
-import bcrypt from "bcryptjs";
 
 // Obtener todos los usuarios de la base de datos
 export const obtenerUsuarios = (req, res) => {
@@ -38,11 +44,9 @@ export const crearUsuario = async (req, res) => {
     telefono,
     usuario,
     contraseña,
-    tipo_usuario, // 'presentante','administrativo','técnico','jurídico','director','admin_TI'
-    id_rol = null,
   } = req.body;
   
-  if (!nombre || !apellido || !dni || !email || !direccion || !telefono || !usuario || !contraseña || !tipo_usuario) {
+  if (!nombre || !apellido || !dni || !email || !direccion || !telefono || !usuario || !contraseña ) {
         return res.status(400).json({
     error: 'Faltan datos requeridos para crear el usuario',
         });
@@ -54,18 +58,23 @@ export const crearUsuario = async (req, res) => {
     const hash = await bcrypt.hash(contraseña, salt);
 
     const sql = `INSERT INTO usuario 
-    (nombre, apellido, dni, email, direccion, telefono, usuario, contraseña, tipo_usuario, id_rol)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    (nombre, apellido, dni, email, direccion, telefono, usuario, contraseña, id_rol)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     connection.query(
       sql,
-      [nombre, apellido, dni, email, direccion, telefono, usuario, hash, tipo_usuario, id_rol],
+      [nombre, apellido, dni, email, direccion, telefono, usuario, hash, 32], // 32 is 'Presentante'
       (err, result) => {
         if (err) {
           console.error(err);
-          return res.status(500).json({ error: "Error al crear el usuario" });
+          if (err.code === 'ER_DUP_ENTRY') {
+            if (err.sqlMessage?.includes('dni')) return res.status(400).json({ error: 'Ya existe un usuario con ese DNI.' });
+            if (err.sqlMessage?.includes('email')) return res.status(400).json({ error: 'Ya existe un usuario con ese email.' });
+            return res.status(400).json({ error: 'Ya existe un usuario con esos datos.' });
+          }
+          return res.status(500).json({ error: `Error al crear el usuario: ${err.sqlMessage || err.message}` });
         }
-        res.json({ mensaje: "Usuario creado exitosamente", id: result.insertId });
+        res.json({ mensaje: "Usuario creado exitosamente", id: result.insertId, nombre, apellido });
       }
     );
   } catch (e) {
@@ -194,6 +203,9 @@ export const actualizarUsuario = async (req, res) => {
     values.push(id);
     connection.query(sql, values, (err, result) => {
       if (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ error: "El correo electrónico o nombre de usuario ya está registrado." });
+        }
         console.error(err);
         return res.status(500).json({ error: "Error al actualizar usuario" });
       }

@@ -29,7 +29,7 @@ VALUES (
     'Sistema',
     '12345678',
     'admin@dpa.gob.ar',
-    'Dirección Provincial del Agua - Mendoza',
+    'Dirección Provincial del Agua - Tucumán',
     '2614000000',
     'admin',
     'admin123',

@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS,URL_OBSERVACIONES } from "../Constants/endpoints";
-import { Modal, Button, Form, Alert } from "react-bootstrap";
+import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
 import "../CSS/UsuarioTecnico.css";
+import BotonesReporte from "./BotonesReporte";
 
 export default function UsuarioTecnico() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [seccionActiva, setSeccionActiva] = useState("inicio");
+  const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+  const [seccionActiva, setSeccionActiva] = useState("bandeja");
+  const [generandoPDF, setGenerandoPDF] = useState(false);
   const [permisosUsuario, setPermisosUsuario] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expedientesPendientes, setExpedientesPendientes] = useState([]);
@@ -32,6 +36,9 @@ export default function UsuarioTecnico() {
   const [expedientesTodos, setExpedientesTodos] = useState([]);
   const [filtroConsulta, setFiltroConsulta] = useState("");
   const [loadingTodos, setLoadingTodos] = useState(false);
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [mostrarPickerFecha, setMostrarPickerFecha] = useState(false);
 
   // Estados para subir documentación
   const [showModalDoc, setShowModalDoc] = useState(false);
@@ -52,21 +59,55 @@ export default function UsuarioTecnico() {
   const [mensajeVer, setMensajeVer] = useState({ tipo: "", texto: "" });
   const [destinatarioPase, setDestinatarioPase] = useState("");
   const [usuariosPase, setUsuariosPase] = useState([]);
+  const [cargandoDestinatarios, setCargandoDestinatarios] = useState(null); 
+  const [pasesPorExp, setPasesPorExp] = useState({}); // id_expediente -> true/false
+  const [modalDeshacer, setModalDeshacer] = useState(null); // expediente para deshacer
+  const [informeTecnico, setInformeTecnico] = useState("");
 
   //observaciones generales modal ver
   const [observacionTecnico, setObservacionTecnico] = useState("");
   const [errorObs, setErrorObs] = useState("");
+  const [successObs, setSuccessObs] = useState("");
+  const [modalSoloVer, setModalSoloVer] = useState(false);
+  const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
+  const [subiendoObs, setSubiendoObs] = useState(false); // Nuevo estado para bloqueo de botón
+
+  const cargarObservaciones = async (idExp) => {
+    try {
+      const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
+      const data = res.data || {};
+      const todas = [
+        ...(data.Técnico || []).map(o => ({ ...o, rol: 'Técnico' }))
+      ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
+      setObservacionesExps(todas);
+    } catch (err) {
+      console.error("Error al cargar observaciones:", err);
+    }
+  };
+  // Paginación (3 por página)
+  const [paginaConsulta, setPaginaConsulta] = useState(1);
+  const [paginaPase, setPaginaPase] = useState(1);
+  const [paginaBandeja, setPaginaBandeja] = useState(1);
+
+  // Vista previa PDF desde navbar
+  const [navPreviewUrl, setNavPreviewUrl] = useState(null);
 
   useEffect(() => {
         // Cargar todos los expedientes para la consulta general
         setLoadingTodos(true);
-        axios.get(URL_EXPEDIENTES)
-          .then(res => setExpedientesTodos(res.data || []))
-          .catch(() => setExpedientesTodos([]))
-          .finally(() => setLoadingTodos(false));
+        const cargarTodos = (desde, hasta) => {
+          setLoadingTodos(true);
+          const params = {};
+          if (desde) params.desde = desde;
+          if (hasta) params.hasta = hasta;
+          axios.get(URL_EXPEDIENTES, { params })
+            .then(res => setExpedientesTodos(res.data || []))
+            .catch(() => setExpedientesTodos([]))
+            .finally(() => setLoadingTodos(false));
+        };
+        cargarTodos("", "");
     try {
-      const raw = localStorage.getItem("usuarioLogueado");
-      const user = raw ? JSON.parse(raw) : null;
+      const user = usuarioLogueado;
       const idRol = user?.id_rol;
       const idUsuario = user?.id_usuario;
       
@@ -84,56 +125,238 @@ export default function UsuarioTecnico() {
         .catch(() => {})
         .finally(() => setLoading(false));
       
-      // Cargar expedientes asignados
-      if (idUsuario) {
-        setLoadingExpedientes(true);
-        axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`)
-          .then(async res => {
-            const expedientes = res.data || [];
-            // Verificar cuáles expedientes ya fueron recepcionados por este usuario
-            const expedientesConEstado = await Promise.all(
-              expedientes.map(async exp => {
-                try {
-                  const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                  
-                  // Buscar si este usuario recepcionó el expediente
-                  const recepcionPorUsuario = historial.data.find(h => 
-                    h.id_usuario_responsable === idUsuario && 
-                    h.accion?.toLowerCase().includes('recepción')
-                  );
-                  
-                  // Buscar la última recepción (cualquier usuario)
-                  const ultimaRecepcion = historial.data
-                    .filter(h => h.accion?.toLowerCase().includes('recepción'))
-                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-                  
-                  // El usuario puede hacer pase solo si él fue quien recepcionó
-                  const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
-                  
-                  return { 
-                    ...exp, 
-                    recepcionado: !!recepcionPorUsuario,
-                    puedeHacerPase: puedeHacerPase,
-                    recepcionadoPor: ultimaRecepcion?.id_usuario_responsable
-                  };
-                } catch {
-                  return { ...exp, recepcionado: false, puedeHacerPase: false };
-                }
-              })
-            );
-            setExpedientesPendientes(expedientesConEstado);
-          })
-          .catch(err => {
-            console.error("Error al cargar expedientes con pase:", err);
-          })
-          .finally(() => setLoadingExpedientes(false));
-      }
+      // Cargar expedientes iniciales
+      recargarExpedientes();
     } catch {
       setLoading(false);
     }
   }, []);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  /*
+    BLOQUE: GESTIÓN DE BANDEJA Y MÁQUINA DE ESTADOS (TÉCNICO)
+    Esta función es el corazón del flujo. No trae todos los expedientes a lo loco, sino que:
+    1. Consigue los expedientes que ya fueron "Pasados" explícitamente a este usuario.
+    2. Cruza esto contra la tabla "Historial" (Trazabilidad).
+    3. Construye un estado vivo (`puedeHacerPase`, `recepcionado`) para que un técnico no pueda
+       enviar un expediente si no lo recepcionó primero, o deshacer pase si el receptor ya lo agarró.
+  */
+  const recargarExpedientes = () => {
+    const idUsuario = usuarioLogueado?.id_usuario;
+    if (!idUsuario) return;
+    
+    setLoadingExpedientes(true);
+    // Traemos los asignados a mí Y todos los en revisión/asignados para buscar los que yo mandé
+    Promise.all([
+      axios.get(`${URL_EXPEDIENTES_PASES}/${idUsuario}`),
+      axios.get(URL_EXPEDIENTES, { params: { estado: 'asignado' } }),
+      axios.get(URL_EXPEDIENTES, { params: { estado: 'en revisión' } })
+    ]).then(async ([resAsignados, resAsignadosGral, resEnRevision]) => {
+        const listAsignados = resAsignados.data || [];
+        const listGral = resAsignadosGral.data || [];
+        const listEnRevision = resEnRevision.data || [];
+        
+        // Unificamos (evitando duplicados)
+        const mapUnico = new Map();
+        listAsignados.forEach(e => mapUnico.set(e.id_expediente, e));
+        listGral.forEach(e => mapUnico.set(e.id_expediente, e));
+        listEnRevision.forEach(e => mapUnico.set(e.id_expediente, e));
+        
+        const expedientes = Array.from(mapUnico.values());
+        const mapaPases = {};
+
+        const expedientesConEstado = await Promise.all(
+          expedientes.map(async exp => {
+            try {
+              const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
+              const historialData = historial.data || [];
+
+              // Detectar si yo fui el último en realizar una asignación (reversible)
+              const pasesReversibles = historialData.filter(h => 
+                (h.tipo_accion ?? "").toLowerCase() === "asignación" ||
+                ((h.accion ?? "").toLowerCase().includes("pase") && !(h.accion ?? "").toLowerCase().includes("anulado"))
+              );
+              const ultimoPase = pasesReversibles[0];
+              const penultimoPase = pasesReversibles[1];
+
+              // Es reversible si yo lo tenía antes y ahora lo tiene otro
+              const esReversible = ultimoPase && 
+                                  ultimoPase.id_usuario_responsable !== idUsuario && 
+                                  penultimoPase && penultimoPase.id_usuario_responsable === idUsuario;
+
+              mapaPases[exp.id_expediente] = !!esReversible;
+
+              // Buscar si este usuario recepcionó el expediente
+              const recepcionPorUsuario = historialData.find(h =>
+                h.id_usuario_responsable === idUsuario &&
+                h.accion?.toLowerCase().includes('recepción')
+              );
+              // Buscar la última recepción (cualquier usuario)
+              const ultimaRecepcion = historialData
+                .filter(h => h.accion?.toLowerCase().includes('recepción'))
+                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+              // El usuario puede hacer pase solo si él fue quien recepcionó
+              const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === idUsuario;
+
+              // --- Datos del último pase/asignación a este usuario ---
+              const historialAsc = [...historialData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+              const ultimoAsignadoAUsuario = historialData
+                .filter(h => h.id_usuario_responsable === idUsuario)
+                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+
+              let fechaPase = exp.fecha_creacion;
+              let observacionesPase = '';
+              let desdeUsuario = '-';
+
+              if (ultimoAsignadoAUsuario) {
+                fechaPase = ultimoAsignadoAUsuario.fecha;
+                observacionesPase = ultimoAsignadoAUsuario.comentario || '';
+                const idxEnAsc = historialAsc.findIndex(h => h.id_historial === ultimoAsignadoAUsuario.id_historial);
+                if (idxEnAsc > 0) {
+                  const entradaAnterior = historialAsc[idxEnAsc - 1];
+                  desdeUsuario = `${entradaAnterior.usuario_nombre || ''} ${entradaAnterior.usuario_apellido || ''}`.trim() || '-';
+                }
+              }
+
+              return {
+                ...exp,
+                tipo: exp.tipo_expediente || exp.tipo_tramite || exp.tipo || 'N/A',
+                descripcion: exp.descripcion || exp.detalle || '-',
+                estado: exp.estado_actual || exp.estado || 'N/A',
+                fecha_pase: fechaPase,
+                desde_usuario: desdeUsuario,
+                observaciones_pase: observacionesPase,
+                recepcionado: !!recepcionPorUsuario,
+                puedeHacerPase: puedeHacerPase,
+                recepcionadoPor: ultimaRecepcion?.id_usuario_responsable
+              };
+            } catch {
+              return { ...exp, tipo: exp.tipo_expediente || 'N/A', descripcion: '-', estado: exp.estado_actual || 'N/A', recepcionado: false, puedeHacerPase: false };
+            }
+          })
+        );
+        setPasesPorExp(mapaPases);
+        setExpedientesPendientes(expedientesConEstado);
+      })
+      .catch(err => {
+        console.error("Error al cargar expedientes con pase:", err);
+      })
+      .finally(() => setLoadingExpedientes(false));
+  };
+
+  const exportarPDF = () => {
+    setGenerandoPDF(true);
+    try {
+      const doc = new jsPDF();
+      const fecha = new Date().toLocaleString("es-AR");
+
+      if (seccionActiva === "consultar-expediente") {
+        // Reporte de la consulta filtrada actual
+        const filtrados = expedientesTodos.filter(exp => {
+          const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+          return texto.includes(filtroConsulta.toLowerCase());
+        });
+        doc.setFontSize(14);
+        doc.text("Consulta de Expedientes - Área Técnica", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}${filtroConsulta ? `  |  Filtro: "${filtroConsulta}"` : ""}`, 14, 22);
+        doc.text(`Total: ${filtrados.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "Nº Expediente", dataKey: "numero" },
+            { header: "Presentante", dataKey: "presentante" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Descripción", dataKey: "descripcion" },
+            { header: "Prioridad", dataKey: "prioridad" },
+            { header: "Ubicación", dataKey: "ubicacion" },
+            { header: "Fecha", dataKey: "fecha" },
+            { header: "Asignado a", dataKey: "asignado" },
+          ],
+          body: filtrados.map(e => ({
+            numero: e.numero_expediente ?? "",
+            presentante: e.usuario_presentante_nombre ? `${e.usuario_presentante_nombre} ${e.usuario_presentante_apellido}` : "N/A",
+            tipo: e.tipo_expediente ?? "",
+            descripcion: e.descripcion ?? "",
+            prioridad: e.prioridad ?? "",
+            ubicacion: e.ubicacion ?? "",
+            fecha: e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString("es-AR") : "",
+            asignado: e.usuario_asignado_nombre ? `${e.usuario_asignado_nombre} ${e.usuario_asignado_apellido}` : "Sin asignar",
+          })),
+        });
+
+      } else if (seccionActiva === "realizar-pase") {
+        // Reporte de expedientes disponibles para pase
+        const expedientesRecepcionados = Array.from(
+          new Map(
+            expedientesPendientes
+              .filter(exp => exp.recepcionado && exp.puedeHacerPase)
+              .map(exp => [exp.id_expediente, exp])
+          ).values()
+        );
+        doc.setFontSize(14);
+        doc.text("Expedientes para Realizar Pase - Área Técnica", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}`, 14, 22);
+        doc.text(`Total: ${expedientesRecepcionados.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "Nº Expediente", dataKey: "numero" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Estado", dataKey: "estado" },
+            { header: "Fecha Pase", dataKey: "fecha_pase" },
+            { header: "Origen", dataKey: "origen" },
+            { header: "Observaciones", dataKey: "obs" },
+          ],
+          body: expedientesRecepcionados.map(e => ({
+            numero: e.numero_expediente ?? "",
+            tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+            estado: e.estado ?? e.estado_actual ?? "",
+            fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
+            origen: e.desde_usuario ?? e.desde_departamento ?? "",
+            obs: e.observaciones_pase ?? "",
+          })),
+        });
+
+      } else {
+        // Bandeja de entrada (default)
+        const expedientesUnicos = Array.from(
+          new Map(expedientesPendientes.map(e => [e.id_expediente, e])).values()
+        );
+        doc.setFontSize(14);
+        doc.text("Bandeja de Entrada - Área Técnica", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}`, 14, 22);
+        doc.text(`Total: ${expedientesUnicos.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "Nº Expediente", dataKey: "numero" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Estado", dataKey: "estado" },
+            { header: "Fecha Pase", dataKey: "fecha_pase" },
+            { header: "Origen", dataKey: "origen" },
+            { header: "Observaciones", dataKey: "obs" },
+          ],
+          body: expedientesUnicos.map(e => ({
+            numero: e.numero_expediente ?? "",
+            tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+            estado: e.estado ?? e.estado_actual ?? "",
+            fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
+            origen: e.desde_usuario ?? e.desde_departamento ?? "",
+            obs: e.observaciones_pase ?? "",
+          })),
+        });
+      }
+
+      return doc.output('bloburl');
+    } catch (err) {
+      alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
+      return null;
+    } finally {
+      setGenerandoPDF(false);
+    }
+  };
 
   const handleSalir = () => {
     localStorage.removeItem("usuarioLogueado");
@@ -212,25 +435,57 @@ export default function UsuarioTecnico() {
                 expedientes.map(async exp => {
                   try {
                     const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                    
-                    const recepcionPorUsuario = historial.data.find(h => 
-                      h.id_usuario_responsable === usuarioLogueado.id_usuario && 
+                    const historialData = historial.data || [];
+
+                    const recepcionPorUsuario = historialData.find(h =>
+                      h.id_usuario_responsable === usuarioLogueado.id_usuario &&
                       h.accion?.toLowerCase().includes('recepción')
                     );
-                    
-                    const ultimaRecepcion = historial.data
+
+                    const ultimaRecepcion = historialData
                       .filter(h => h.accion?.toLowerCase().includes('recepción'))
                       .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-                    
+
                     const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === usuarioLogueado.id_usuario;
-                    
-                    return { 
-                      ...exp, 
+
+                    // --- Datos del último pase/asignación a este usuario ---
+                    const historialAsc = [...historialData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                    const ultimoAsignadoAUsuario = historialData
+                      .filter(h => h.id_usuario_responsable === usuarioLogueado.id_usuario)
+                      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+
+                    let fechaPase = exp.fecha_creacion;
+                    let observacionesPase = '';
+                    let desdeUsuario = '-';
+
+                    if (ultimoAsignadoAUsuario) {
+                      fechaPase = ultimoAsignadoAUsuario.fecha;
+                      observacionesPase = ultimoAsignadoAUsuario.comentario || '';
+                      const idxEnAsc = historialAsc.findIndex(h => h.id_historial === ultimoAsignadoAUsuario.id_historial);
+                      if (idxEnAsc > 0) {
+                        const entradaAnterior = historialAsc[idxEnAsc - 1];
+                        desdeUsuario = `${entradaAnterior.usuario_nombre || ''} ${entradaAnterior.usuario_apellido || ''}`.trim() || '-';
+                      }
+                    }
+
+                    return {
+                      ...exp,
+                      tipo_tramite: exp.tipo_expediente,
+                      estado: exp.estado_actual,
+                      fecha_pase: fechaPase,
+                      desde_usuario: desdeUsuario,
+                      observaciones_pase: observacionesPase,
                       recepcionado: !!recepcionPorUsuario,
-                      puedeHacerPase: puedeHacerPase 
+                      puedeHacerPase: puedeHacerPase
                     };
                   } catch {
-                    return { ...exp, recepcionado: false, puedeHacerPase: false };
+                    return {
+                      ...exp,
+                      tipo_tramite: exp.tipo_expediente,
+                      estado: exp.estado_actual,
+                      recepcionado: false,
+                      puedeHacerPase: false
+                    };
                   }
                 })
               );
@@ -295,13 +550,16 @@ export default function UsuarioTecnico() {
     }
   };
 
-  const abrirModalDoc = (expediente) => {
+  const abrirModalDoc = (expediente, soloVer = false) => {
     setExpedienteDoc(expediente);
     setShowModalDoc(true);
+    setModalSoloVer(soloVer);
     setArchivosStaged([]);
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
+    setObservacionTecnico(""); // Reset de observación para el nuevo expediente
+    cargarObservaciones(expediente.id_expediente);
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
       .catch(err => console.error('Error al cargar documentos:', err))
@@ -317,6 +575,7 @@ export default function UsuarioTecnico() {
     setSubiendoVer(true);
     setMensajeVer({ tipo: '', texto: '' });
     try {
+      // 1. Registrar el pase en el historial
       const resp = await axios.post('http://localhost:8000/historial', {
         id_expediente: expedienteVer.id_expediente ?? '',
         id_usuario_responsable: destinatarioPase ?? '',
@@ -331,25 +590,40 @@ export default function UsuarioTecnico() {
         setSubiendoVer(false);
         return;
       }
+
+      // 2. Actualizar el expediente con el nuevo usuario asignado
+      await axios.put(`http://localhost:8000/expedientes/${expedienteVer.id_expediente}`, {
+        id_profesional_asignado: destinatarioPase
+      });
+
+      setMensajeVer({ tipo: 'success', texto: 'Pase realizado con éxito.' });
+
+      // 4. Subir documentos si corresponde (Restaurado)
       if (archivosVer.length > 0) {
         const formData = new FormData();
         archivosVer.forEach((file) => {
           formData.append('files', file);
         });
         formData.append('id_expediente', expedienteVer.id_expediente);
-        formData.append('subido_por', usuarioActual.id_usuario);
-        const respDoc = await axios.post('http://localhost:8000/expedientes/documentos/subirYRegistrar', formData, {
+        formData.append('subido_por', usuarioLogueado.id_usuario);
+        const respDoc = await axios.post('http://localhost:8000/api/documentos/subirYRegistrar', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         if (respDoc.status !== 201) {
           setMensajeVer({ tipo: 'warning', texto: respDoc.data?.error || 'Pase realizado pero algunos documentos no se guardaron.' });
         }
       }
-      setMensajeVer({ tipo: 'success', texto: 'Pase realizado y documentos guardados.' });
+
       setArchivosVer([]);
+      const idPasado = expedienteVer.id_expediente;
       setTimeout(() => {
         cerrarModalVer();
-        recargarExpedientes();
+        setExpedientesPendientes((prev) => prev.filter((e) => e.id_expediente !== idPasado));
+        setPasesPorExp((prev) => {
+          const next = { ...prev };
+          delete next[idPasado];
+          return next;
+        });
       }, 1200);
     } catch (err) {
       console.error('Error pase:', err);
@@ -373,42 +647,125 @@ export default function UsuarioTecnico() {
     : menuItems;
 
   const renderContenido = () => {
-  switch (seccionActiva) {
-        case "consultar-expediente": {
-          // Filtro simple por número, estado o texto
-          const expedientesFiltrados = expedientesTodos.filter(exp => {
-            const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
-            return texto.includes(filtroConsulta.toLowerCase());
-          });
-          return (
-            <div className="seccion-contenido seccion-consulta">
-              <h2>Consulta de Expedientes</h2>
-              <Form.Group className="mb-3" style={{maxWidth: 400}}>
-                <Form.Label>Filtrar por número, estado o usuario</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Buscar..."
-                  value={filtroConsulta}
-                  onChange={e => setFiltroConsulta(e.target.value)}
-                  disabled={loadingTodos}
-                />
-              </Form.Group>
-              {loadingTodos ? (
-                <p>Cargando expedientes...</p>
-              ) : (
-                <div className="tabla-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+    switch (seccionActiva) {
+      case "consultar-expediente": {
+        const recargarTodos = () => {
+          setLoadingTodos(true);
+          const params = {};
+          if (fechaDesde) params.desde = fechaDesde;
+          if (fechaHasta) params.hasta = fechaHasta;
+          axios.get(URL_EXPEDIENTES, { params })
+            .then(res => setExpedientesTodos(res.data || []))
+            .catch(() => setExpedientesTodos([]))
+            .finally(() => setLoadingTodos(false));
+        };
+        // Filtro simple por número, estado o texto
+        const expedientesFiltrados = expedientesTodos.filter(exp => {
+          const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+          return texto.includes(filtroConsulta.toLowerCase());
+        });
+        const totalPaginasConsulta = Math.max(1, Math.ceil(expedientesFiltrados.length / 6));
+        const expPagConsulta = expedientesFiltrados.slice((paginaConsulta - 1) * 6, paginaConsulta * 6);
+        return (
+          <div className="seccion-contenido seccion-consulta">
+            <h2>Consulta de Expedientes</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "1rem" }}>
+              <div className="consulta-toolbar" style={{ flex: 1 }}>
+                <div className="consulta-search-wrap">
+                  <span className="consulta-search-icon">🔍</span>
+                  <input
+                    className="consulta-search-input"
+                    type="text"
+                    placeholder="Buscar por número, estado o usuario…"
+                    value={filtroConsulta}
+                    onChange={e => { setFiltroConsulta(e.target.value); setPaginaConsulta(1); }}
+                    disabled={loadingTodos}
+                  />
+                </div>
+              </div>
+
+              {/* Filtro por rango de fechas - fuera del toolbar para evitar clipping */}
+              <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+                <button
+                  onClick={() => setMostrarPickerFecha(v => !v)}
+                  title={(fechaDesde || fechaHasta) ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
+                  className="btn d-flex align-items-center justify-content-center gap-2"
+                  style={{
+                    background: "#fff",
+                    color: "#333",
+                    border: "1px solid #ced4da",
+                    borderRadius: "0.375rem",
+                    height: "38px",
+                    padding: "0 14px",
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
+                </button>
+                {mostrarPickerFecha && (
+                  <div style={{
+                    position: "absolute", top: "40px", left: 0, zIndex: 9999,
+                    background: "#fff", borderRadius: "12px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                    padding: "16px 20px", minWidth: "260px", border: "1px solid #e5e7eb",
+                  }}>
+                    <div style={{ marginBottom: "10px" }}>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Fecha de inicio</label>
+                      <input type="date" value={fechaDesde} max={fechaHasta || undefined}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                        style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }} />
+                    </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Hasta</label>
+                      <input type="date" value={fechaHasta} min={fechaDesde || undefined}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                        style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }} />
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
+                        style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "1px solid #d1d5db", background: "#f9fafb", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600, color: "#6b7280" }}>
+                        Limpiar</button>
+                      <button onClick={() => { recargarTodos(); setMostrarPickerFecha(false); }}
+                        style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", background: "#2563eb", color: "#fff", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600 }}>
+                        Aplicar</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!loadingTodos && (
+                <div className="consulta-pag">
+                  <button className="cpag-btn" disabled={paginaConsulta === 1} onClick={() => setPaginaConsulta(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasConsulta}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaConsulta === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaConsulta(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaConsulta === totalPaginasConsulta} onClick={() => setPaginaConsulta(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expedientesFiltrados.length} resultados</span>
+                </div>
+              )}
+            </div>
+            {loadingTodos ? (
+              <p>Cargando expedientes...</p>
+            ) : (
+              <>
+                <div className="tabla-container">
                   <table className="table table-sm table-bordered">
                     <thead>
                       <tr>
                         <th>Nº Expediente</th>
-                        <th>Estado</th>
+                        <th>Presentante</th>
+                        <th>Tipo</th>
                         <th>Descripción</th>
-                        <th>Usuario Asignado</th>
+                        <th>Prioridad</th>
+                        <th>Ubicación</th>
+                        <th>Fecha</th>
+                        <th>Asignado a</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {expedientesFiltrados.map(exp => {
-                        // Lógica para mostrar 'Pendiente de recepción' si no fue recepcionado
+                      {expPagConsulta.map(exp => {
                         let usuarioAsignado = 'Sin asignar';
                         if (exp.usuario_asignado_nombre) {
                           usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
@@ -419,8 +776,12 @@ export default function UsuarioTecnico() {
                         return (
                           <tr key={exp.id_expediente}>
                             <td>{exp.numero_expediente}</td>
-                            <td>{exp.estado_actual}</td>
-                            <td>{exp.descripcion}</td>
+                            <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                            <td>{exp.tipo_expediente || 'N/A'}</td>
+                            <td>{exp.descripcion || 'N/A'}</td>
+                            <td>{exp.prioridad || 'N/A'}</td>
+                            <td>{exp.ubicacion || 'N/A'}</td>
+                            <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
                             <td>{usuarioAsignado}</td>
                           </tr>
                         );
@@ -429,62 +790,110 @@ export default function UsuarioTecnico() {
                   </table>
                   {expedientesFiltrados.length === 0 && <p>No se encontraron expedientes.</p>}
                 </div>
-              )}
-            </div>
-          );
-        }
+              </>
+            )}
+          </div>
+        );
+      }
     case "realizar-pase": {
-      // Mostrar expedientes recepcionados por el usuario técnico y que puede hacer pase
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+      // Mostrar expedientes recepcionados por el usuario técnico que puede hacer pase
+      // Y también aquellos asignados a otro (ya pasados) para que pueda deshacer
       const expedientesMap = new Map();
       for (const exp of expedientesPendientes) {
-        if (exp.recepcionado && exp.puedeHacerPase && exp.id_profesional_asignado === usuarioLogueado.id_usuario) {
+        const tienePaseUndoble = !!pasesPorExp[exp.id_expediente];
+        // Caso 1: Yo recepcioné este expediente (puedo realizar pase)
+        if (exp.recepcionado && exp.puedeHacerPase) {
+          expedientesMap.set(exp.id_expediente, exp);
+        }
+        // Caso 2: Ya lo pasé y puedo deshacer
+        if (tienePaseUndoble && (exp.estado_actual === 'asignado' || exp.estado_actual === 'en revisión')) {
           expedientesMap.set(exp.id_expediente, exp);
         }
       }
       const expedientesRecepcionados = Array.from(expedientesMap.values());
+      const totalPaginasPase = Math.max(1, Math.ceil(expedientesRecepcionados.length / 6));
+      const expPagPase = expedientesRecepcionados.slice((paginaPase - 1) * 6, paginaPase * 6);
       return (
         <div className="seccion-contenido seccion-pase">
           <h2>Realizar Pase de Expedientes</h2>
           {expedientesRecepcionados.length === 0 ? (
             <Alert variant="info">No tienes expedientes recepcionados para realizar pase.</Alert>
           ) : (
-            <div className="tabla-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              <table className="table table-sm table-bordered">
-                <thead>
-                  <tr>
-                    <th>Nº Expediente</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expedientesRecepcionados.map(exp => (
+            <>
+              <div className="paginacion mb-2">
+                <button className="btn btn-sm btn-outline-secondary me-1" disabled={paginaPase === 1} onClick={() => setPaginaPase(p => p - 1)}>‹</button>
+                {Array.from({length: totalPaginasPase}, (_, i) => (
+                  <button key={i+1} className={`btn btn-sm me-1 ${paginaPase === i+1 ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setPaginaPase(i+1)}>{i+1}</button>
+                ))}
+                <button className="btn btn-sm btn-outline-secondary" disabled={paginaPase === totalPaginasPase} onClick={() => setPaginaPase(p => p + 1)}>›</button>
+                <span className="ms-2 text-muted" style={{fontSize:'0.85rem'}}>{expedientesRecepcionados.length} expediente(s)</span>
+              </div>
+              <div className="tabla-container">
+                <table className="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Nº Expediente</th>
+                      <th>Presentante</th>
+                      <th>Tipo</th>
+                      <th>Descripción</th>
+                      <th>Ubicación</th>
+                      <th>Fecha</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expPagPase.map(exp => (
                     <tr key={exp.id_expediente}>
                       <td><strong>{exp.numero_expediente}</strong></td>
+                      <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
                       <td>{exp.tipo_expediente || exp.tipo_tramite || 'N/A'}</td>
-                      <td>{exp.estado_actual || exp.estado || 'N/A'}</td>
+                      <td>{exp.descripcion || 'N/A'}</td>
+                      <td>{exp.ubicacion || 'N/A'}</td>
+                      <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
                       <td>
-                        <Button variant="primary" size="sm" onClick={async () => {
-                          setExpedienteVer(exp);
-                          // Cargar usuarios jurídicos como destinatarios
-                          try {
-                            const resp = await axios.get('http://localhost:8000/usuarios/juridicos');
-                            setUsuariosPase(resp.data || []);
-                          } catch (err) {
-                            setUsuariosPase([]);
-                          }
-                          setShowModalVer(true);
-                        }}>
-                          Realizar Pase
-                        </Button>
+                        <div className="d-flex gap-2">
+                          {!!pasesPorExp[exp.id_expediente] ? (
+                            <Button
+                              variant="warning"
+                              size="sm"
+                              onClick={() => setModalDeshacer(exp)}
+                            >
+                              ↩️ Deshacer Pase
+                            </Button>
+                          ) : (
+                              <Button 
+                                variant="primary" 
+                                size="sm" 
+                                disabled={cargandoDestinatarios === exp.id_expediente}
+                                onClick={async () => {
+                                  try {
+                                    setCargandoDestinatarios(exp.id_expediente);
+                                    setExpedienteVer(exp);
+                                    setArchivosVer([]);
+                                    setInformeTecnico("");
+                                    setDestinatarioPase("");
+                                    setMensajeVer({ tipo: "", texto: "" });
+                                    const resp = await axios.get('http://localhost:8000/usuarios/juridicos');
+                                    setUsuariosPase(resp.data || []);
+                                    setShowModalVer(true);
+                                  } catch (err) {
+                                    console.error("Error al preparar pase:", err);
+                                  } finally {
+                                    setCargandoDestinatarios(null);
+                                  }
+                                }}
+                              >
+                                Realizar Pase
+                              </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       );
@@ -500,6 +909,12 @@ export default function UsuarioTecnico() {
         }
       }
       const expedientesUnicos = Array.from(expedientesMap.values());
+      const totalPaginasBandeja = Math.max(1, Math.ceil(expedientesUnicos.length / 6));
+      const expPagBandeja = expedientesUnicos.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
+      // LOGS DE DEPURACIÓN
+      console.log("[BANDEJA] usuarioLogueado:", usuarioLogueado);
+      console.log("[BANDEJA] expedientesPendientes:", expedientesPendientes);
+      console.log("[BANDEJA] expedientesUnicos:", expedientesUnicos);
       return (
         <div className="seccion-contenido seccion-inicio">
           <h1>Portal de Usuario Técnico</h1>
@@ -527,6 +942,14 @@ export default function UsuarioTecnico() {
                     : "Seleccionar Todos"}
                 </Button>
               </div>
+              <div className="paginacion mb-2">
+                <button className="btn btn-sm btn-outline-secondary me-1" disabled={paginaBandeja === 1} onClick={() => setPaginaBandeja(p => p - 1)}>‹</button>
+                {Array.from({length: totalPaginasBandeja}, (_, i) => (
+                  <button key={i+1} className={`btn btn-sm me-1 ${paginaBandeja === i+1 ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setPaginaBandeja(i+1)}>{i+1}</button>
+                ))}
+                <button className="btn btn-sm btn-outline-secondary" disabled={paginaBandeja === totalPaginasBandeja} onClick={() => setPaginaBandeja(p => p + 1)}>›</button>
+                <span className="ms-2 text-muted" style={{fontSize:'0.85rem'}}>{expedientesUnicos.length} expediente(s)</span>
+              </div>
               <div className="tabla-container">
                 <table className="tabla-expedientes">
                   <thead>
@@ -544,15 +967,14 @@ export default function UsuarioTecnico() {
                       </th>
                       <th>Nº Expediente</th>
                       <th>Tipo</th>
-                      <th>Estado</th>
+                      <th>Descripción</th>
+                      <th>Nombre</th>
                       <th>Fecha Pase</th>
-                      <th>Desde</th>
-                      <th>Observaciones</th>
-                      <th>Acciones</th>
+                      <th>Documentación</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {expedientesUnicos.map(exp => (
+                    {expPagBandeja.map(exp => (
                       <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
                         <td>
                           <input
@@ -571,21 +993,16 @@ export default function UsuarioTecnico() {
                             </span>
                           )}
                         </td>
-                        <td>{exp.tipo_tramite}</td>
-                        <td>
-                          <span className={`badge-estado estado-${exp.estado}`}>
-                            {exp.estado}
-                          </span>
-                        </td>
+                        <td>{exp.tipo}</td>
+                        <td className="descripcion-cell">{exp.descripcion}</td>
+                        <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
                         <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                        <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                        <td>{exp.observaciones_pase || '-'}</td>
                         <td>
                           <button
                             className="btn btn-sm btn-info"
-                            onClick={() => abrirModalDoc(exp)}
+                            onClick={() => abrirModalDoc(exp, true)}
                           >
-                            📄 Docs
+                            📄 Ver Documentos
                           </button>
                         </td>
                       </tr>
@@ -626,8 +1043,12 @@ export default function UsuarioTecnico() {
     case "manual-usuario":
       return (
         <div className="seccion-contenido">
-          <h2>Manual de Usuario - Área Técnica</h2>
-          <p>Consulte la documentación y guías de uso del sistema para usuarios técnicos.</p>
+          <h2>📖 Manual de Usuario</h2>
+          <iframe
+            src="/Manual_Usuario_SIGEDEX.pdf"
+            title="Manual de Usuario"
+            style={{ width: "100%", height: "80vh", border: "none", borderRadius: "8px" }}
+          />
         </div>
       );
     default:
@@ -647,115 +1068,78 @@ export default function UsuarioTecnico() {
     setObservacionVer("");
     setArchivosVer([]);
     setMensajeVer({ tipo: "", texto: "" });
+    setCargandoDestinatarios(null);
+  };
+
+  const handleDeshacerExito = (id_expediente) => {
+    setExpedientesPendientes(prev =>
+      prev.map(e => e.id_expediente === id_expediente
+        ? { ...e, estado_actual: "en revisión", id_profesional_asignado: usuarioLogueado?.id_usuario, recepcionado: true, puedeHacerPase: true }
+        : e
+      )
+    );
+    setPasesPorExp(prev => ({ ...prev, [id_expediente]: false }));
+    recargarExpedientes();
+  };
+
+  const confirmarDeshacerPase = async () => {
+    if (!modalDeshacer) return;
+    try {
+      await axios.delete(`${URL_HISTORIAL}/deshacer-pase/${modalDeshacer.id_expediente}`);
+      handleDeshacerExito(modalDeshacer.id_expediente);
+      setModalDeshacer(null);
+    } catch (err) {
+      alert("Error al deshacer el pase.");
+    }
   };
 
   // Obtener usuario actual desde localStorage
-  const usuarioActual = (() => {
-    try {
-      const raw = localStorage.getItem("usuarioLogueado");
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  })();
-
-  // Recargar expedientes
-  const recargarExpedientes = () => {
-    const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-    if (usuarioLogueado?.id_usuario) {
-      setLoadingExpedientes(true);
-      axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`)
-        .then(async res => {
-          const expedientes = res.data || [];
-          const expedientesConEstado = await Promise.all(
-            expedientes.map(async exp => {
-              try {
-                const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                
-                const recepcionPorUsuario = historial.data.find(h => 
-                  h.id_usuario_responsable === usuarioLogueado.id_usuario && 
-                  h.accion?.toLowerCase().includes('recepción')
-                );
-                
-                const ultimaRecepcion = historial.data
-                  .filter(h => h.accion?.toLowerCase().includes('recepción'))
-                  .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-                
-                const puedeHacerPase = ultimaRecepcion && ultimaRecepcion.id_usuario_responsable === usuarioLogueado.id_usuario;
-                
-                return { 
-                  ...exp, 
-                  recepcionado: !!recepcionPorUsuario,
-                  puedeHacerPase: puedeHacerPase 
-                };
-              } catch {
-                return { ...exp, recepcionado: false, puedeHacerPase: false };
-              }
-            })
-          );
-          setExpedientesPendientes(expedientesConEstado);
-        })
-        .catch(err => console.error("Error al recargar expedientes:", err))
-        .finally(() => setLoadingExpedientes(false));
-    }
-  };
+  const usuarioActual = usuarioLogueado;
 
   return (
     <div className="tecnico-layout">
-      {/* Sidebar */}
-      <aside className={`tecnico-sidebar ${sidebarOpen ? "open" : "closed"}`}>
-        <button className="tecnico-toggle" onClick={toggleSidebar}>
-          {sidebarOpen ? "◀" : "▶"}
-        </button>
-        {sidebarOpen && (
-          <nav className="tecnico-menu">
+      {/* Navegación horizontal */}
+      <div className="user-nav-bar user-nav-tecnico">
+        <Nav variant="pills" className="flex-wrap gap-1 align-items-center">
+          <Nav.Item>
+            <Nav.Link active={["inicio","bandeja"].includes(seccionActiva)} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "realizar-pase"} onClick={() => setSeccionActiva("realizar-pase")}>📤 Realizar Pase</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>🔍 Consultar</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
             <button
-              className={`tecnico-menu-btn ${seccionActiva === "bandeja" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("bandeja")}
+              className="nav-reporte-btn"
+              onClick={() => { const url = exportarPDF(); if (url) setNavPreviewUrl(url); }}
+              disabled={generandoPDF}
             >
-              <span className="tecnico-icon">📥</span>
-              <span className="tecnico-label">Bandeja de Entrada</span>
+              {generandoPDF ? "⏳ Generando..." : "🖨️ Reporte"}
             </button>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "manual-usuario"} onClick={() => setSeccionActiva("manual-usuario")}>📖 Manual</Nav.Link>
+          </Nav.Item>
+        </Nav>
+      </div>
 
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "realizar-pase" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("realizar-pase")}
-            >
-              <span className="tecnico-icon">📤</span>
-              <span className="tecnico-label">Realizar Pase</span>
-            </button>
-
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "deshacer-pase" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("deshacer-pase")}
-            >
-              <span className="tecnico-icon">⏪</span>
-              <span className="tecnico-label">Deshacer Pase</span>
-            </button>
-
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "consultar-expediente" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("consultar-expediente")}
-            >
-              <span className="tecnico-icon">🔍</span>
-              <span className="tecnico-label">Consultar Expediente</span>
-            </button>
-
-            <button
-              className={`tecnico-menu-btn ${seccionActiva === "manual-usuario" ? "active" : ""}`}
-              onClick={() => setSeccionActiva("manual-usuario")}
-            >
-              <span className="tecnico-icon">📖</span>
-              <span className="tecnico-label">Manual de Usuario</span>
-            </button>
-
-            <button className="tecnico-menu-btn tecnico-salir" onClick={handleSalir}>
-              <span className="tecnico-icon">🚪</span>
-              <span className="tecnico-label">Salir</span>
-            </button>
-          </nav>
-        )}
-      </aside>
+      {/* Vista previa PDF */}
+      {navPreviewUrl && (
+        <div className="pdf-preview-overlay" onClick={e => { if (e.target === e.currentTarget) setNavPreviewUrl(null); }}>
+          <div className="pdf-preview-modal">
+            <div className="pdf-preview-header">
+              <span className="pdf-preview-title">📄 Vista previa del reporte</span>
+              <div className="pdf-preview-actions">
+                <a href={navPreviewUrl} download="reporte.pdf" className="pdf-btn pdf-btn-download">&#8595; Descargar</a>
+                <button className="pdf-btn pdf-btn-close" onClick={() => setNavPreviewUrl(null)}>✕ Cerrar</button>
+              </div>
+            </div>
+            <iframe src={navPreviewUrl} className="pdf-preview-frame" title="Vista previa reporte" />
+          </div>
+        </div>
+      )}
 
       {/* Contenido principal */}
       <main className="tecnico-main">
@@ -774,17 +1158,7 @@ export default function UsuarioTecnico() {
             </Alert>
           )}
           <p><strong>Expedientes seleccionados:</strong> {expedientesSeleccionados.length}</p>
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Observaciones</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              placeholder="Agregue observaciones técnicas sobre la recepción..."
-              value={observacionesRecepcion}
-              onChange={(e) => setObservacionesRecepcion(e.target.value)}
-              disabled={procesandoRecepcion}
-            />
-          </Form.Group>
+          
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarModalRecepcion} disabled={procesandoRecepcion}>
@@ -830,7 +1204,7 @@ export default function UsuarioTecnico() {
                   <tr><th>Tipo:</th><td>{expedienteConsultado.tipo_tramite}</td></tr>
                   <tr><th>Estado:</th><td>{expedienteConsultado.estado}</td></tr>
                   <tr><th>Descripción:</th><td>{expedienteConsultado.descripcion}</td></tr>
-                  <tr><th>Fecha Creación:</th><td>{new Date(expedienteConsultado.fecha_creacion).toLocaleDateString()}</td></tr>
+                  <tr><th>Fecha Creación:</th><td>{new Date(expedienteConsultado.fecha_creacion).toLocaleString("es-AR")}</td></tr>
                 </tbody>
               </table>
 
@@ -850,7 +1224,7 @@ export default function UsuarioTecnico() {
                       <tbody>
                         {historialExpediente.map((h, idx) => (
                           <tr key={idx}>
-                            <td>{new Date(h.fecha_accion).toLocaleString()}</td>
+                            <td>{new Date(h.fecha_accion).toLocaleString("es-AR")}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>
                             <td>{h.comentario}</td>
@@ -871,206 +1245,233 @@ export default function UsuarioTecnico() {
 
       {/* Modal de Documentos */}
       <Modal show={showModalDoc} onHide={() => setShowModalDoc(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Documentos del Expediente {expedienteDoc?.numero_expediente}</Modal.Title>
+        <Modal.Header closeButton style={{ borderBottom: '2px solid #dee2e6' }}>
+          <Modal.Title style={{ fontWeight: 600, fontSize: '1.1rem' }}>
+            📁 Expediente {expedienteDoc?.numero_expediente}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          {mensajeDoc.tipo && mensajeDoc.texto && (
-            <Alert variant={mensajeDoc.tipo}>{mensajeDoc.texto}</Alert>
-          )}
+        <Modal.Body style={{ padding: '1.5rem' }}>
 
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Seleccionar archivos</strong></Form.Label>
-            <Form.Control
-              type="file"
-              multiple
-              onChange={(e) => setArchivosStaged(Array.from(e.target.files))}
-              disabled={subiendoDoc}
-            />
-            <Form.Text>Archivos seleccionados: {archivosStaged.length}</Form.Text>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Comentario técnico</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              placeholder="Descripción técnica de los documentos..."
-              value={comentarioDoc}
-              onChange={(e) => setComentarioDoc(e.target.value)}
-              disabled={subiendoDoc}
-            />
-          </Form.Group>
-
-         
-                        {/*Observaciones grales*/}
-          
-                          <Form.Group className="mb-3">
-                            <Form.Label>
-                              <strong>Observaciones generales:</strong>
-                            </Form.Label>
-                            <Form.Control
-                              type="text"
-                              placeholder="Escriba observaciones generales del expediente..."
-                              value={observacionTecnico || ""}
-                              onChange={(e) => {
-                                setObservacionTecnico(e.target.value);
-                                setErrorObs(""); // limpia error si empieza a escribir
-                              }}
-                              
-                              isInvalid={!!errorObs}
-                              disabled={subiendoDoc}
-                            />
-          
-                            <Form.Control.Feedback type="invalid">
-                              {errorObs}
-                            </Form.Control.Feedback>
-          
-                            <Button
-                              className="mt-2"
-                              size="sm"
-                              variant="primary"
-                              onClick={async () => {
-          
-                                if (!observacionTecnico.trim()) {
-                                  setErrorObs("Debe escribir una observación antes de guardar.");
-                                  return;
-                                }
-          
-                                if (!expedienteDoc) return;
-                                  const usuario = JSON.parse(
-                                  localStorage.getItem("usuarioLogueado")
-                                );
-                                try {
-                                  await axios.post(URL_OBSERVACIONES, {
-                                    id_expediente: expedienteDoc.id_expediente,
-                                    id_usuario: usuario.id_usuario,
-                                    observacion: observacionTecnico,
-                                  });
-          
-                                  alert("Observación guardada ✅");
-                                  setObservacionTecnico(""); // opcional: limpiar input
-                                  setErrorObs("");
-          
-                                } catch (err) {
-                                  console.error(err);
-                                  alert("No se pudo guardar la observación.");
-          
-                                }
-          
-                      
-                                console.log("Enviando observación:", {
-                                id_expediente: expedienteDoc.id_expediente,
-                                id_usuario: usuario?.id_usuario,
-                                rol: usuario?.rol,
-                                observacion: observacionTecnico,
-                              });
-          
-          
-                              }}
-                            >
-                              Guardar Observación
-                            </Button>
-                          </Form.Group>
-                              <br />
-                              
-                              <br />
-
-                              {/*--------------------------------------*/}
-
-          {loadingDocs ? (
-            <p>Cargando documentos existentes...</p>
-          ) : documentosDoc.length > 0 && (
-            <div className="documentos-existentes mt-4">
-              <h6>Documentos existentes</h6>
-              <table className="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Tipo</th>
-                    <th>Tamaño</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documentosDoc.map(doc => (
-                    <tr key={doc.id_documento}>
-                      <td title={doc.nombre_archivo}>{doc.nombre_archivo}</td>
-                      <td>{doc.tipo}</td>
-                      <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString() : '-'}</td>
-                      <td>
-                        <button
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={async () => {
-                            if (!window.confirm('¿Eliminar este documento?')) return;
-                            try {
-                              await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                              const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                              setDocumentosDoc(resp.data || []);
-                            } catch (err) {
-                              console.error('Error al eliminar documento:', err);
-                              setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                            }
-                          }}
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Datos del presentante */}
+          {expedienteDoc && (
+            <div className="mb-4 p-3" style={{ background: '#f0f4ff', borderRadius: '8px', border: '1px solid #c7d4f0' }}>
+              <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Datos del presentante</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', fontSize: '0.9rem', color: '#333' }}>
+                <span><span className="text-muted">Nombre:</span> <strong>{expedienteDoc.usuario_presentante_nombre} {expedienteDoc.usuario_presentante_apellido}</strong></span>
+                <span><span className="text-muted">Teléfono:</span> <strong>{expedienteDoc.usuario_presentante_telefono || '—'}</strong></span>
+                <span><span className="text-muted">Email:</span> <strong>{expedienteDoc.usuario_presentante_email || '—'}</strong></span>
+              </div>
             </div>
           )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary"
-            disabled={archivosStaged.length === 0 || subiendoDoc}
-            onClick={async () => {
-              try {
-                if (!archivosStaged.length) return;
-                setSubiendoDoc(true);
-                setMensajeDoc({ tipo: "", texto: "" });
-                const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-                let ok = 0, fail = 0;
-                for (const f of archivosStaged) {
+
+          {/* Alerta de resultado */}
+          {mensajeDoc.tipo && mensajeDoc.texto && (
+            <Alert variant={mensajeDoc.tipo} className="py-2">{mensajeDoc.texto}</Alert>
+          )}
+
+          {/* Sección: subir archivos (solo modo completo) */}
+          {!modalSoloVer && (
+            <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Subir documentación</p>
+              <Form.Control
+                type="file"
+                multiple
+                onChange={(e) => setArchivosStaged(Array.from(e.target.files))}
+                disabled={subiendoDoc}
+                className="mb-2"
+              />
+              {archivosStaged.length > 0 && (
+                <Form.Text className="text-muted d-block mb-2">{archivosStaged.length} archivo(s) seleccionado(s)</Form.Text>
+              )}
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={archivosStaged.length === 0 || subiendoDoc}
+                onClick={async () => {
                   try {
-                    const fd = new FormData();
-                    fd.append('archivo', f);
-                    fd.append('id_expediente', expedienteDoc.id_expediente);
-                    fd.append('subido_por', user?.id_usuario);
-                    if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
-                    await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                    ok++;
-                  } catch (e) {
-                    console.error('Falló subida de', f.name, e);
-                    fail++;
+                    if (!archivosStaged.length) return;
+                    setSubiendoDoc(true);
+                    setMensajeDoc({ tipo: "", texto: "" });
+                    const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                    let ok = 0, fail = 0;
+                    for (const f of archivosStaged) {
+                      try {
+                        const fd = new FormData();
+                        fd.append('archivo', f);
+                        fd.append('id_expediente', expedienteDoc.id_expediente);
+                        fd.append('subido_por', user?.id_usuario);
+                        if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
+                        await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                        ok++;
+                      } catch (e) {
+                        console.error('Falló subida de', f.name, e);
+                        fail++;
+                      }
+                    }
+                    const msg = fail === 0 ? `Se subieron ${ok} archivo(s)` : `Subidos ${ok}, fallidos ${fail}`;
+                    setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
+                    const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                    setDocumentosDoc(resp.data || []);
+                    setArchivosStaged([]);
+                  } catch (err) {
+                    console.error('Error en guardado de documentos:', err);
+                    setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
+                  } finally {
+                    setSubiendoDoc(false);
                   }
+                }}
+              >
+                {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
+              </Button>
+            </div>
+          )}
+
+          {/* Sección: observaciones (disponible siempre) */}
+          <div className="mb-4 p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+            <h6 className="mb-3 fw-bold" style={{ color: '#495057' }}>Observaciones para el Presentante</h6>
+            <Form.Control
+              type="text"
+              placeholder="Escriba una observación para el presentante del expediente..."
+              value={observacionTecnico || ""}
+              onChange={(e) => { setObservacionTecnico(e.target.value); setErrorObs(""); }}
+              isInvalid={!!errorObs}
+              disabled={subiendoDoc || subiendoObs}
+              className="mb-2"
+            />
+            <Form.Control.Feedback type="invalid">{errorObs}</Form.Control.Feedback>
+            <Button
+              size="sm"
+              variant="outline-primary"
+              disabled={subiendoDoc || subiendoObs}
+              onClick={async () => {
+                if (!observacionTecnico.trim()) { setErrorObs("Debe escribir una observación antes de guardar."); return; }
+                if (!expedienteDoc) return;
+                const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                try {
+                  setSubiendoObs(true);
+                  await axios.post(URL_OBSERVACIONES, {
+                    id_expediente: expedienteDoc.id_expediente,
+                    id_usuario: usuario.id_usuario,
+                    observacion: observacionTecnico,
+                  });
+                  // Registrar en el historial para que sea visible en la línea de tiempo
+                  await axios.post(URL_HISTORIAL, {
+                    id_expediente: expedienteDoc.id_expediente,
+                    id_usuario_responsable: usuario.id_usuario,
+                    accion: "Observación Técnica",
+                    comentario: observacionTecnico,
+                    tipo_accion: "observación"
+                  });
+                  setSuccessObs("Observación guardada correctamente");
+                  setTimeout(() => setSuccessObs(""), 3000);
+                  setObservacionTecnico("");
+                  setErrorObs("");
+                  cargarObservaciones(expedienteDoc.id_expediente);
+                } catch (err) {
+                  console.error(err);
+                  setErrorObs("No se pudo guardar la observación.");
+                } finally {
+                  setSubiendoObs(false);
                 }
-                const msg = fail === 0
-                  ? `Se subieron ${ok} archivo(s)`
-                  : `Subidos ${ok}, fallidos ${fail}`;
-                setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
-                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                setDocumentosDoc(resp.data || []);
-                setArchivosStaged([]);
-              } catch (err) {
-                console.error('Error en guardado de documentos:', err);
-                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
-              } finally {
-                setSubiendoDoc(false);
+              }}
+            >
+              {subiendoObs ? 'Guardando...' : 'Guardar observación'}
+            </Button>
+            {observacionesExps.length > 0 ? (
+              <div className="mt-3" style={{ maxHeight: '160px', overflowY: 'auto' }}>
+                {observacionesExps.map((obs, idx) => (
+                  <div key={idx} className="d-flex align-items-start mb-2" style={{ fontSize: '0.85rem', color: '#444' }}>
+                    <span className="me-2 text-secondary">•</span>
+                    <span>
+                      {obs.rol && <strong className="me-1">[{obs.rol}]</strong>}
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{obs.observacion}</span>
+                      {obs.fecha_hora && <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>{new Date(obs.fecha_hora).toLocaleString("es-AR")}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted small mt-2 mb-0">Sin observaciones registradas.</p>
+            )}
+          </div>
+
+          {/* Sección: documentos existentes */}
+          {loadingDocs ? (
+            <p className="text-muted text-center py-3">Cargando documentos…</p>
+          ) : (() => {
+            const rolOrder = ['Presentante', 'Administrativo', 'Técnico'];
+            const grupos = {};
+            rolOrder.forEach(r => { grupos[r] = []; });
+            documentosDoc.forEach(doc => {
+              const rol = doc.rol_nombre || 'Otro';
+              if (grupos[rol]) grupos[rol].push(doc);
+              else { grupos[rol] = [doc]; }
+            });
+            const nombresPorRol = {};
+            documentosDoc.forEach(doc => {
+              if (['Administrativo', 'Técnico'].includes(doc.rol_nombre) && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
+                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
               }
-            }}
-          >
-            {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
-          </Button>
-        </Modal.Footer>
+            });
+            return (
+              <div>
+                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
+                {rolOrder.map(rol => {
+                  const docs = grupos[rol] || [];
+                  if (rol === 'Técnico' && docs.length === 0) return null;
+                  return (
+                    <div key={rol} className="mb-3">
+                      <h6 className="fw-bold" style={{ color: '#495057' }}>
+                        {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '📁'} {rol}
+                        {nombresPorRol[rol] && (
+                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
+                        )}
+                      </h6>
+                      {docs.length === 0 ? (
+                        <p className="text-muted small ms-2">Sin archivos adjuntos</p>
+                      ) : (
+                        <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                          <thead className="table-light">
+                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
+                          </thead>
+                          <tbody>
+                            {docs.map(doc => (
+                              <tr key={doc.id_documento}>
+                                <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
+                                <td>{doc.tipo}</td>
+                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
+                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
+                                <td>
+                                  <div className="d-flex gap-2">
+                                    <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                                    {!modalSoloVer && (
+                                      <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                                        if (!window.confirm('¿Eliminar este documento?')) return;
+                                        try {
+                                          await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                          const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                          setDocumentosDoc(resp.data || []);
+                                        } catch (err) {
+                                          console.error('Error al eliminar documento:', err);
+                                          setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
+                                        }
+                                      }}>Eliminar</button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+        </Modal.Body>
       </Modal>
 
       {/* Modal Ver: igual que UsuarioJuridico */}
@@ -1082,17 +1483,21 @@ export default function UsuarioTecnico() {
           {expedienteVer && (
             <>
               <p><strong>Tipo:</strong> {expedienteVer.tipo_expediente || expedienteVer.tipo_tramite || 'N/A'}</p>
-              <p><strong>Estado:</strong> {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}</p>
-              <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleDateString()}</p>
+              <p><strong>Descripción:</strong> {expedienteVer.descripcion || 'Sin descripción'}</p>
+              <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleString("es-AR")}</p>
               <hr />
-              <Form.Group controlId="formArchivosVer">
-                <Form.Label>Adjuntar Documentos</Form.Label>
-                <Form.Control type="file" multiple onChange={handleArchivosVer} />
-              </Form.Group>
-              <hr />
-              <h5>Observaciones</h5>
-              <Form.Group controlId="formObservacionVer">
-                <Form.Control as="textarea" rows={3} value={observacionVer} onChange={e => setObservacionVer(e.target.value)} placeholder="Escriba una observación..." />
+              <h5>Informe Técnico</h5>
+              <Form.Group className="mb-2">
+                <Form.Label>Adjuntar archivo</Form.Label>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={e => setArchivosVer(Array.from(e.target.files))}
+                  disabled={subiendoVer}
+                />
+                {archivosVer.length > 0 && (
+                  <Form.Text className="text-muted">{archivosVer.length} archivo(s) seleccionado(s)</Form.Text>
+                )}
               </Form.Group>
               <hr />
               <h5>Realizar Pase</h5>
@@ -1101,9 +1506,12 @@ export default function UsuarioTecnico() {
                 <Form.Select value={destinatarioPase} onChange={e => setDestinatarioPase(e.target.value)}>
                   <option value="">Seleccione destinatario</option>
                   {usuariosPase.map(u => (
-                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.tipo_usuario})</option>
+                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.rol || u.tipo_usuario})</option>
                   ))}
                 </Form.Select>
+                {usuariosPase.length === 0 && (
+                  <Form.Text className="text-danger">No hay usuarios jurídicos disponibles.</Form.Text>
+                )}
               </Form.Group>
               <Button variant="primary" className="mt-2" onClick={realizarPaseModal} disabled={!destinatarioPase || subiendoVer}>
                 {subiendoVer ? "Procesando..." : "Realizar Pase"}
@@ -1118,6 +1526,35 @@ export default function UsuarioTecnico() {
           <Button variant="secondary" onClick={cerrarModalVer}>Cerrar</Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Modal Deshacer Pase */}
+      <Modal show={!!modalDeshacer} onHide={() => setModalDeshacer(null)} centered>
+        <Modal.Header closeButton className="bg-warning">
+          <Modal.Title>⚠️ Deshacer Pase</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>¿Estás seguro de que deseas deshacer el último pase del expediente <strong>{modalDeshacer?.numero_expediente}</strong>?</p>
+          <p className="text-muted small">
+            El expediente volverá a tu bandeja y se quitará la asignación actual.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setModalDeshacer(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={confirmarDeshacerPase}>Sí, deshacer pase</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Notificación flotante de éxito para observaciones */}
+      {successObs && (
+        <div style={{
+          position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999,
+          background: '#28a745', color: 'white', padding: '12px 24px',
+          borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontWeight: '500', transition: 'opacity 0.3s ease-in-out'
+        }}>
+          ✅ {successObs}
+        </div>
+      )}
     </div>
   );
 }

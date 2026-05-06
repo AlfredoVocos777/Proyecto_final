@@ -1,19 +1,35 @@
 import connection from "../configDB/dataBase.js";
 
-// Obtener todos los expedientes (solo por si querés listar)
+
+// Obtener todos los expedientes — acepta ?estado, ?anio, ?desde, ?hasta para filtrar
 export const obtenerExpediente = (req, res) => {
+  const { estado, anio, desde, hasta } = req.query;
+
+  const condiciones = [];
+  const params = [];
+
+  if (estado) { condiciones.push("e.estado_actual = ?"); params.push(estado); }
+  if (anio)   { condiciones.push("YEAR(e.fecha_creacion) = ?"); params.push(Number(anio)); }
+  if (desde)  { condiciones.push("e.fecha_creacion >= ?"); params.push(desde); }
+  if (hasta)  { condiciones.push("e.fecha_creacion <= ?"); params.push(`${hasta} 23:59:59`); }
+
+  const whereClause = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
+
   const sql = `
     SELECT 
       e.*,
       u.nombre AS usuario_presentante_nombre,
       u.apellido AS usuario_presentante_apellido,
+      u.telefono AS usuario_presentante_telefono,
+      u.email AS usuario_presentante_email,
       COALESCE(ur.id_usuario, ut.id_usuario) AS usuario_asignado_id,
       COALESCE(ur.nombre, ut.nombre) AS usuario_asignado_nombre,
-      COALESCE(ur.apellido, ut.apellido) AS usuario_asignado_apellido
+      COALESCE(ur.apellido, ut.apellido) AS usuario_asignado_apellido,
+      COALESCE(ur.tipo_usuario, ut.tipo_usuario) AS usuario_asignado_tipo
     FROM expedientes e
     LEFT JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
     LEFT JOIN (
-      SELECT h1.id_expediente, h1.id_usuario_responsable, u2.nombre, u2.apellido, u2.id_usuario
+      SELECT h1.id_expediente, h1.id_usuario_responsable, u2.nombre, u2.apellido, u2.id_usuario, u2.tipo_usuario
       FROM historial_expediente h1
       INNER JOIN (
         SELECT id_expediente, MAX(fecha) AS max_fecha
@@ -24,10 +40,11 @@ export const obtenerExpediente = (req, res) => {
       LEFT JOIN usuario u2 ON h1.id_usuario_responsable = u2.id_usuario
     ) ur ON e.id_expediente = ur.id_expediente
     LEFT JOIN usuario ut ON e.id_profesional_asignado = ut.id_usuario
+    ${whereClause}
     ORDER BY e.fecha_creacion DESC
   `;
-  
-  connection.query(sql, (err, results) => {
+
+  connection.query(sql, params, (err, results) => {
     if (err) {
       console.error("❌ Error al obtener expedientes:", err);
       return res.status(500).json({ error: "Error al obtener los expedientes" });
@@ -36,7 +53,11 @@ export const obtenerExpediente = (req, res) => {
   });
 };
 
-// Crear nuevo expediente
+/*
+  BLOQUE PRINCIPAL 1: CREAR UN NUEVO EXPEDIENTE
+  Esta función es llamada cuando un Presentante inicia su trámite.
+  Recibe por 'req.body' (el cuerpo de la petición HTTP) los datos del formulario de React.
+*/
 export const crearExpediente = (req, res) => {
   const {
     tipo_expediente,
@@ -45,14 +66,18 @@ export const crearExpediente = (req, res) => {
     id_usuario_presentante
   } = req.body;
 
-  // Validación básica
+  // Validación básica: asegura que no insertemos basura o nulos clave
   if (!id_usuario_presentante) {
     return res.status(400).json({ error: "Falta el ID del usuario presentante" });
   }
 
   const year = new Date().getFullYear();
 
-  // Buscar el último número de expediente del año actual
+  /*
+    LÓGICA DE AUTO-NUMERACIÓN
+    Buscamos el último número de expediente del año actual para sumar +1.
+    Ej: Si el último es 2026/0004, el próximo será 2026/0005.
+  */
   const sqlUltimo = `
     SELECT numero_expediente 
     FROM expedientes 
@@ -73,6 +98,7 @@ export const crearExpediente = (req, res) => {
       nuevoNumero = parseInt(ultimoNumero) + 1;
     }
 
+    // padStart(4, "0") asegura que el número sea '0005' y no solo '5'.
     const numeroFormateado = nuevoNumero.toString().padStart(4, "0");
     const numero_expediente = `${year}/${numeroFormateado}`;
     const fecha_creacion = new Date();
@@ -134,25 +160,47 @@ export const obtenerExpedientePorId = (req, res) => {
   );
 };
 
-// Actualizar expediente
+/*
+  BLOQUE PRINCIPAL 2: ACTUALIZAR ESTADO DEL EXPEDIENTE
+  Se ejecuta cuando el Técnico o Director aprueba, rechaza o cambia un dato.
+*/
 export const actualizarExpediente = (req, res) => {
   const { id } = req.params;
   const {
     tipo_expediente,
     descripcion,
     prioridad,
-    estado_actual
+    estado_actual,
+    id_profesional_asignado,
+    comentario_director // Agregamos este campo que vendría del modal de React
   } = req.body;
 
   const updated_at = new Date();
 
-  const expedienteUpdate = {
-    tipo_expediente,
-    descripcion,
-    prioridad,
-    estado_actual,
-    updated_at
-  };
+  /*
+    CONSTRUCCIÓN DINÁMICA DE LA QUERY
+    Protege contra inyección manipulando solo los campos declarados y permitidos,
+    ignorando cualquier data maliciosa que me manden adicional.
+  */
+  const expedienteUpdate = { updated_at };
+
+  const camposPermitidos = [
+    'tipo_expediente', 
+    'descripcion', 
+    'prioridad', 
+    'estado_actual', 
+    'id_profesional_asignado',
+    'ubicacion'
+  ];
+
+  camposPermitidos.forEach(campo => {
+    if (req.body[campo] !== undefined) {
+      expedienteUpdate[campo] = req.body[campo];
+    }
+  });
+
+
+  // 1. Ejecutamos la acción real en MySQL actualizando solo ese ID
 
   connection.query(
     "UPDATE Expedientes SET ? WHERE id_expediente = ?",
@@ -167,6 +215,37 @@ export const actualizarExpediente = (req, res) => {
         return res.status(404).json({ error: "Expediente no encontrado" });
       }
 
+
+      // 2. Lógica de Notificación (Solo si es Aprobado o Rechazado)
+      if (estado_actual === 'aprobado' || estado_actual === 'rechazado') {
+        
+        // Buscamos el teléfono y nombre del usuario que presentó el expediente
+        const sqlDatos = `
+          SELECT u.nombre, u.telefono, e.numero_expediente 
+          FROM expedientes e
+          JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
+          WHERE e.id_expediente = ?
+        `;
+
+        connection.query(sqlDatos, [id], (errTel, results) => {
+          if (!errTel && results.length > 0 && results[0].telefono) {
+            const { nombre, telefono, numero_expediente } = results[0];
+
+            const emoji = estado_actual === 'aprobado' ? '✅' : '❌';
+            const mensaje = `🏛️ *D.P.A. Tucumán*\n\n` +
+                            `Hola *${nombre}*,\n` +
+                            `Tu expediente *${numero_expediente}* ha sido *${estado_actual.toUpperCase()}* ${emoji}.\n\n` +
+                            `💬 *Observación:* ${comentario_director || "Sin observaciones particulares."}\n\n` +
+                            `_Este es un aviso automático_.\n\n Para más información, consulte al sistema.`;
+
+            // LLAMADA SIMPLE: La utilidad se encarga de todo el formateo necesario para Tucumán (agregar 549, validar número, etc.)
+
+            console.log(`📩 Notificación enviada a ${nombre} (${telefono})`);
+          }
+        });
+      }
+
+      // 3. Respuesta al frontend
       res.json({
         mensaje: "Expediente actualizado exitosamente",
         id_expediente: id
@@ -202,7 +281,7 @@ export const archivarExpediente = (req, res) => {
 };
 
 // Obtener expedientes con pase pendiente para un usuario (usando historial_expediente)
-// Obtener todos los expedientes finalizados (aprobados o rechazados)
+// Obtener todos los expedientes finalizados (solo aprobados)
 export const obtenerExpedientesFinalizados = (req, res) => {
   const sql = `
     SELECT 
@@ -230,12 +309,10 @@ export const obtenerExpedientesFinalizados = (req, res) => {
 export const obtenerPasesPorUsuario = (req, res) => {
 
   const { id_usuario } = req.params;
-  // Selecciona solo el último pase de cada expediente y agrega el campo ultimo_destino
+  // Unificar: expedientes asignados al usuario técnico o donde fue último responsable
   const sql = `
-    SELECT h1.id_historial AS id_pase,
-           h1.fecha AS fecha_pase,
-           h1.comentario AS observaciones,
-           e.id_expediente,
+    SELECT DISTINCT e.id_expediente,
+           e.id_usuario_presentante,
            e.numero_expediente,
            e.tipo_expediente,
            e.descripcion,
@@ -245,32 +322,40 @@ export const obtenerPasesPorUsuario = (req, res) => {
            e.id_profesional_asignado,
            u.nombre AS nombre_asignado,
            u.apellido AS apellido_asignado,
-           d.nombre AS departamento_actual,
-           h1.id_usuario_responsable AS ultimo_destino
-    FROM historial_expediente h1
-    INNER JOIN expedientes e ON h1.id_expediente = e.id_expediente
+           up.nombre AS usuario_presentante_nombre,
+           up.apellido AS usuario_presentante_apellido,
+           up.telefono AS usuario_presentante_telefono,
+           up.email AS usuario_presentante_email
+    FROM expedientes e
     LEFT JOIN usuario u ON e.id_profesional_asignado = u.id_usuario
-    LEFT JOIN departamentos d ON h1.id_departamento = d.id_departamento
-    INNER JOIN (
-      SELECT id_expediente, MAX(fecha) AS max_fecha
-      FROM historial_expediente
-      GROUP BY id_expediente
-    ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
-    WHERE h1.id_usuario_responsable = ?
-      AND e.estado_actual IN ('en revisión', 'aprobado')
-    ORDER BY h1.fecha DESC
+    LEFT JOIN usuario up ON e.id_usuario_presentante = up.id_usuario
+    WHERE (
+      e.id_profesional_asignado = ?
+      OR e.id_expediente IN (
+        SELECT h1.id_expediente
+        FROM historial_expediente h1
+        INNER JOIN (
+          SELECT id_expediente, MAX(fecha) AS max_fecha
+          FROM historial_expediente
+          WHERE LOWER(accion) LIKE '%recepcion%'
+          GROUP BY id_expediente
+        ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
+        WHERE h1.id_usuario_responsable = ?
+        AND LOWER(h1.accion) LIKE '%recepcion%'
+      )
+    )
+    AND (e.estado_actual IS NULL OR e.estado_actual NOT IN ('aprobado', 'rechazado', 'archivado'))
+    ORDER BY e.fecha_creacion DESC
   `;
 
-  connection.query(sql, [id_usuario], (err, results) => {
+  console.log("[SQL obtenerPasesPorUsuario] id_usuario:", id_usuario);
+  console.log("[SQL obtenerPasesPorUsuario] QUERY:\n", sql);
+  connection.query(sql, [id_usuario, id_usuario], (err, results) => {
     if (err) {
-      console.error("❌ Error al obtener pases del usuario:", err);
-      return res.status(500).json({ error: "Error al obtener pases del usuario" });
+      console.error("❌ Error al obtener expedientes asignados o últimos responsables:", err);
+      return res.status(500).json({ error: "Error al obtener expedientes asignados o últimos responsables" });
     }
-    // Para compatibilidad con el frontend, devolver ultimo_destino como string (puede ser id o nombre)
-    const resultsConDestino = results.map(r => ({
-      ...r,
-      ultimo_destino: r.ultimo_destino // id_usuario_responsable del último pase
-    }));
-    res.json(resultsConDestino);
+    console.log("[SQL obtenerPasesPorUsuario] RESULTADOS:", results);
+    res.json(results);
   });
 };

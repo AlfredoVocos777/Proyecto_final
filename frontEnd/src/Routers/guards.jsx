@@ -27,7 +27,7 @@ export const RequireAdmin = ({ children }) => {
     // si falla el parseo, forzamos a login
     return <Navigate to={LOGIN_USUARIO} replace state={{ from: location }} />;
   }
-  const isAdminByRol = ["administrativo", "admin ti", "director"].includes(rol);
+  const isAdminByRol = ["administrativo", "director"].includes(rol);
   const isAdminByTipo = ["administrativo", "avanzado"].includes(tipo);
   if (!isAdminByRol && !isAdminByTipo) {
     return <Navigate to={PORTADA} replace />;

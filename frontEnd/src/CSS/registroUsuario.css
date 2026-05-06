@@ -1,154 +1,113 @@
-
+/* Estilización y Alineación de la página de Registro */
 
 .containerUsuario {
- background-image: url('../assets/fondo_portada_2.jpg'); /* Ajusta la ruta según tu estructura */
-  position: relative;
-  display: flex;
-  flex-direction: column; 
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;      /* ocupa toda la altura de la pantalla */
-  width: 100vw; 
-  background-color: rgb(193, 199, 211);
+    background-image: url('../assets/fondo_portada_2.jpg');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    display: flex;
+    flex-direction: column; 
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100vw; 
+    background-color: #f3f4f6;
+    padding: 2rem 0;
+    margin-top: 5%;
 }
 
 .titulo {
-  font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif; /* Asegúrate de que la fuente esté importada */
-    font-size: 7vh; /* Tamaño de fuente grande */
-    color: #1d0c49; /* Color del texto */
-    text-align: center; /* Centra el texto */
-    margin-top: 90px; /* Espacio superior */
-    margin-bottom: 20px; /* Espacio inferior */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 3rem;
+    font-weight: 800;
+    color: #1e3a8a;
+    text-align: center;
+    margin-bottom: 2rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
 }
 
 .contenedorFlex {
- flex-direction: row; 
-  display: flex; /* pongo elementos (imagen y h1) uno al lado del otro.*/
-  align-items: center; /* alineo verticalmente los elementos.*/
-  justify-content: center;  /* centro horizontalmente todo el bloque.*/
-  gap: 5%;  /*mete espacio entre la imagen y el texto*/
-  padding-top: 1%;
-  padding-bottom: 10%;
+    display: flex;
+    flex-direction: row; 
+    align-items: center; /* Alineación vertical perfecta */
+    justify-content: center;
+    gap: 3rem;
+    width: 100%;
+    max-width: 1200px;
+    padding: 1rem;
 }
 
-.contenedorLabel {
- display: flex;
-  flex-direction: column;
-  gap: 1rem; /* space between form groups */
-}
-
-.contenedorLabel label,
-.contenedorLabel .form-label {
-  margin-bottom: 0;
-  font-weight: 700;
-  color: rgb(37, 35, 180);
-}
-
-.contenedorLabel .form-control {
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border-radius: 6px;
-  border: 1px solid #ced4da;
-  box-shadow: none;
-  font-size: 1rem;
-}
-
-
-@media (max-width: 768px) {
-  .contenedorFormUsuario {
-    width: 90%;
-    padding: 20px;
-  }
-  .contenedorFlex {
-    flex-direction: column;
-    gap: 2rem;
-    padding-bottom: 8%;
-  }
-  .ImgcargaUsuario {
-    width: 60%;
-    margin: 0 auto;
-  }
+.ImgcargaUsuario {
+    width: 80%;
+    max-width: 600px;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
 }
 
 .contenedorFormUsuario {
-    width: 600px;  
-    padding: 80px ;      /* Más espacio interno */
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 15px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    padding-bottom: 0px;
-    
-   
+    width: 100%;
+    max-width: 800px; /* Incrementado para las 2 columnas */
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
 }
 
-
-.ImgcargaUsuario {
-  width: 620px;
-    height: auto;
-    border-radius: 15px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+.contenedorLabel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
+.contenedorLabel label {
+    font-weight: 800;
+    color: #1e3a8a;
+    margin-bottom: 0.25rem;
+}
 
+.campo-requerido {
+    color: #dc2626;
+    font-weight: 700;
+    margin-left: 2px;
+    font-size: 0.9rem;
+}
+
+.leyenda-obligatorio {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+    margin-top: -0.5rem;
+}
+
+.leyenda-obligatorio .campo-requerido {
+    font-size: 0.85rem;
+}
 
 .contenedorBotonRegistro {
- display: flex;
-  
-  flex-direction: row ; 
-  justify-content: center;
-  align-items: center;
-  padding-top: 20px;
-  gap: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    margin-top: 2rem;
 }
 
-.btnRegistro{
- 
-     border-radius: 12px ;
-    font-size: 1.1rem ;
-    transition: all 0.3s ease ;
-    padding: 14px 20px ;
-   
-
-   
-    background-color: #3780df;
-    color: #ffffff;
-    font-weight: bold; /* negrita */
-    
+.contenedorBotonRegistro button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
 }
 
-.btnRegistro:hover {
-    transform: translateY(-3px) ;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4) ;
-    filter: brightness(1.1) ;
-    background-color:rgb(37, 35, 180); /* nuevo color de fondo al pasar el mouse */
-    color: rgb(255, 255, 255);
-    font-weight: bold; /* negrita */
-
-}
-
-
-
-/* Responsive */
-@media (max-width: 768px) {
-  .contenedorFlex {
-    flex-direction: column;
-    gap: 2rem;
-    padding-bottom: 8%;
-  }
-
-  .ImgcargaUsuario {
-    width: 90%;
-    max-width: 500px;
-    margin: 0 auto;
-  }
-
-  .contenedorFormUsuario {
-    width: 90%;
-    padding: 30px;
-  }
-
-  .titulo {
-    font-size: 5vh;
-    margin-top: 60px;
-  }
+/* Responsive adjustment */
+@media (max-width: 1024px) {
+    .contenedorFlex {
+        flex-direction: column;
+        gap: 2rem;
+    }
+    .ImgcargaUsuario {
+        width: 80%;
+    }
+    .titulo {
+        font-size: 2.5rem;
+    }
 }

@@ -1,0 +1,143 @@
+/* ============================================================
+   ESTILOS PREMIUM PARA DOCUMENTACIÓN ADJUNTA (POR ROL)
+   ============================================================ */
+
+.docs-main-container {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.doc-area-card {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: #fff;
+}
+
+.doc-area-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.doc-area-header {
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.doc-area-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  margin: 0;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.doc-area-subtitle {
+  font-size: 0.82rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* Variantes de Color por Rol */
+.doc-area-presentante { background-color: #f0f7ff; border-left: 5px solid #dae4f0; }
+.doc-area-presentante .doc-area-header { background: linear-gradient(90deg, #e1f0ff, #f0f7ff); color: #0056b3; }
+
+.doc-area-administrativo { background-color: #f0f7ff; border-left: 5px solid #dae4f0; }
+.doc-area-administrativo .doc-area-header { background: linear-gradient(90deg, #e1f0ff, #f0f7ff); color: #2b6eb6; }
+
+.doc-area-tecnico { background-color: #f0f7ff; border-left: 5px solid #dae4f0; }
+.doc-area-tecnico .doc-area-header { background: linear-gradient(90deg, #e1f0ff, #f0f7ff); color: #4e80b4; }
+
+.doc-area-juridico { background-color: #f0f7ff; border-left: 5px solid #dae4f0; }
+.doc-area-juridico .doc-area-header { background: linear-gradient(90deg, #e1f0ff, #f0f7ff); color: #469bf5; }
+
+.doc-area-director { background-color: #f0f7ff; border-left: 5px solid #dae4f0; }
+.doc-area-director .doc-area-header { background: linear-gradient(90deg, #e1f0ff, #f0f7ff); color: #67abf3 }
+
+.doc-area-otro { background-color: #f8f9fa; border-left: 5px solid #6c757d; }
+.doc-area-otro .doc-area-header { background: linear-gradient(90deg, #e9ecef, #f8f9fa); color: #495057; }
+
+/* Estilo de la Tabla interna */
+.doc-custom-table-container {
+  padding: 0 10px 10px 10px;
+}
+
+.doc-custom-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.doc-custom-table thead th {
+  padding: 10px 15px;
+  font-weight: 600;
+  color: #666;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  border: none;
+  background: transparent;
+}
+
+.doc-custom-table tbody tr {
+  background: #fff;
+  transition: background 0.15s ease;
+}
+
+.doc-custom-table tbody tr:hover {
+  background: #fdfdfd;
+}
+
+.doc-custom-table td {
+  padding: 10px 15px;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.doc-custom-table td:first-child { border-left: 1px solid #f0f0f0; border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.doc-custom-table td:last-child { border-right: 1px solid #f0f0f0; border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+/* Botones de acción dentro de la tabla */
+.doc-btn-view {
+  color: #007bff;
+  background: #eef6ff;
+  border: 1px solid #cce5ff;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.doc-btn-view:hover {
+  background: #007bff;
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(0, 123, 255, 0.2);
+}
+
+.doc-btn-delete {
+  color: #dc3545;
+  background: #fff5f6;
+  border: 1px solid #ffdde0;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.doc-btn-delete:hover {
+  background: #dc3545;
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(220, 53, 69, 0.2);
+}

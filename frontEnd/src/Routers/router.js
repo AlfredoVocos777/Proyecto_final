@@ -10,18 +10,21 @@ export const NUEVO_TRAMITE_EXPEDIENTES = '/Nuevo_tramiteExpediente';
 export const CREAR_ROL = '/CrearRol';
 export const CREAR_PERMISO = '/CrearPermiso';
 export const CREAR_DEPARTAMENTO = '/CrearDepartamento';
-export const CREAR_FIRMA = '/CrearFirmaDigital';
 export const LISTAR_ROLES = '/GestionarRoles';
 export const LISTAR_PERMISOS = '/GestionarPermisos';
 export const LISTAR_DEPARTAMENTOS = '/GestionarDepartamentos';
-export const LISTAR_FIRMAS = '/GestionarFirmas';
 export const LISTAR_USUARIOS = '/GestionarUsuarios';
 export const EDITAR_USUARIO = '/EditarUsuario/:id';
 export const USUARIO_TECNICO = '/UsuarioTecnico';
 export const USUARIO_JURIDICO = '/UsuarioJuridico';
 export const USUARIO_DIRECTOR = '/UsuarioDirector';
 export const CONSULTA_ADMIN = '/ConsultaAdminExpedientes';
+export const RECUPERAR_CONTRASENA = '/recuperar-contrasena';
+export const RESET_PASSWORD = '/reset-password/:token';
 
 export const EXPEDIENTES_FINALIZADOS = '/ExpedientesFinalizados';
 export const EXPEDIENTES_ARCHIVADOS = '/ExpedientesArchivados';
+export const EXPEDIENTES_EN_REVISION = '/ExpedientesEnRevision';
+export const CONSULTA_EXPEDIENTES_ESTADO = '/consulta-expedientes-estado';
+export const LISTAR_TIPOS_TRAMITE = '/GestionarTiposTramite';
 

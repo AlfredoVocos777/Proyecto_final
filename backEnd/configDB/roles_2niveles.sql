@@ -33,7 +33,7 @@ UPDATE usuario
    SET id_rol = @id_avanzado,
        tipo_usuario = 'avanzado'
  WHERE LOWER(COALESCE(tipo_usuario, '')) IN (
-  'administrativo','admin','admin ti','director','tecnico','técnico','juridico','jurídico','avanzado'
+  'administrativo','admin','director','tecnico','técnico','juridico','jurídico','avanzado'
  );
 
 -- 3b) El resto pasan a común si no tienen ya asignado un id_rol

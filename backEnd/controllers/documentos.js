@@ -1,4 +1,4 @@
-import connection from "../configDB/dataBase.js";
+﻿import connection from "../configDB/dataBase.js";
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -45,7 +45,15 @@ export const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 5 * 1024 * 1024 // Límite de 5MB
+        fileSize: 100 * 1024 * 1024 // Límite de 100MB
+    }
+});
+
+// Upload sin restricción de tipo para subidas internas (técnico, jurídico, director)
+export const uploadInterno = multer({
+    storage: storage,
+    limits: {
+        fileSize: 100 * 1024 * 1024
     }
 });
 
@@ -70,7 +78,7 @@ export const subirDocumento = async (req, res) => {
             hash_integridad: null // Aquí podrías implementar un hash del archivo si lo necesitas
         };
 
-        const sql = 'INSERT INTO Documentos SET ?';
+        const sql = 'INSERT INTO documentos SET ?';
         connection.query(sql, documento, (err, result) => {
             if (err) {
                 console.error('Error al guardar documento en la base de datos:', err);
@@ -93,7 +101,13 @@ export const subirDocumento = async (req, res) => {
 export const obtenerDocumentosExpediente = (req, res) => {
     const { id_expediente } = req.params;
 
-    const sql = 'SELECT * FROM Documentos WHERE id_expediente = ?';
+    const sql = `
+      SELECT d.*, u.nombre AS subido_por_nombre, r.nombre AS rol_nombre
+      FROM documentos d
+      LEFT JOIN usuario u ON d.subido_por = u.id_usuario
+      LEFT JOIN roles r ON u.id_rol = r.id_rol
+      WHERE d.id_expediente = ?
+    `;
     connection.query(sql, [id_expediente], (err, results) => {
         if (err) {
             console.error('Error al obtener documentos:', err);
@@ -146,13 +160,8 @@ export const eliminarDocumento = (req, res) => {
 // Subir múltiples documentos (solo archivos físicos, sin registrar en BD)
 export const subirMultiplesDocumentos = async (req, res) => {
     try {
-        // Aceptamos tanto expedienteId como id_expediente para compatibilidad
-        const expedienteId = req.body.expedienteId || req.body.id_expediente;
+        const expedienteId = req.body.expedienteId || req.body.id_expediente || 0;
         const subido_por = req.body.subido_por || null;
-
-        if (!expedienteId) {
-            return res.status(400).json({ error: 'Falta el ID del expediente' });
-        }
 
         const files = req.files || [];
         if (!files.length) {
@@ -264,8 +273,9 @@ export const subirYRegistrar = async (req, res) => {
         res.status(201).json({ resultados });
 
     } catch (error) {
-        console.error("Error al subir y registrar documentos:", error);
-        res.status(500).json({ error: "Error al registrar los documentos en BD" });
+        console.error("Error al subir y registrar documentos:", error?.message || error);
+        if (error?.code) console.error("SQL error code:", error.code, error?.sqlMessage);
+        res.status(500).json({ error: error?.sqlMessage || error?.message || "Error al registrar los documentos en BD" });
     }
 };
 
@@ -286,8 +296,18 @@ export const verDocumento = (req, res) => {
             return res.status(404).json({ error: "Documento no encontrado" });
         }
 
-        const rutaArchivo = results[0].ruta_archivo;
-        res.sendFile(rutaArchivo);
+        let rutaArchivo = results[0].ruta_archivo;
+        // Si la ruta es relativa, la unimos con la carpeta uploads
+        if (!path.isAbsolute(rutaArchivo)) {
+            rutaArchivo = path.join(__dirname, '../', rutaArchivo);
+        }
+        // Normalizar rutas para comparación multiplataforma
+        const uploadsDir = path.resolve(path.join(__dirname, '../uploads'));
+        const rutaNormalizada = path.resolve(rutaArchivo);
+        if (!rutaNormalizada.startsWith(uploadsDir)) {
+            return res.status(403).json({ error: 'Acceso denegado al archivo.' });
+        }
+        res.sendFile(rutaNormalizada);
     });
 };
 

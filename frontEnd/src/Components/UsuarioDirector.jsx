@@ -1,104 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_FIRMAS, URL_SUBIR_DOCUMENTO, URL_UPLOADS } from "../Constants/endpoints";
-import { Modal, Button, Form, Alert } from "react-bootstrap";
-  // Estados para OTP
-  const [showModalOTP, setShowModalOTP] = useState(false);
-  const [expedienteOTP, setExpedienteOTP] = useState(null);
-  const [codigoOTP, setCodigoOTP] = useState("");
-  const [procesandoOTP, setProcesandoOTP] = useState(false);
-  const [mensajeOTP, setMensajeOTP] = useState({ tipo: "", texto: "" });
-  const [otpEnviado, setOtpEnviado] = useState(false);
-  // Iniciar flujo OTP: solicitar/generar OTP y abrir modal
-  const iniciarValidacionOTP = async (exp) => {
-    setExpedienteOTP(exp);
-    setShowModalOTP(true);
-    setCodigoOTP("");
-    setMensajeOTP({ tipo: "", texto: "" });
-    setOtpEnviado(false);
-    try {
-      setProcesandoOTP(true);
-      // Obtener email del usuario logueado (director)
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-      const email = usuarioLogueado?.email;
-      if (!email) {
-        setMensajeOTP({ tipo: "danger", texto: "No se encontró el email del usuario logueado." });
-        setProcesandoOTP(false);
-        return;
-      }
-      // Buscar la firma digital asociada a este expediente y usuario
-      // (puedes ajustar esto según tu lógica, aquí se asume 1 firma por expediente y usuario)
-      const resFirmas = await axios.get(`/firmas?expediente=${exp.id_expediente}&usuario=${usuarioLogueado.id_usuario}`);
-      const firma = resFirmas.data && resFirmas.data.length > 0 ? resFirmas.data[0] : null;
-      if (!firma) {
-        setMensajeOTP({ tipo: "danger", texto: "No se encontró registro de firma digital para este expediente." });
-        setProcesandoOTP(false);
-        return;
-      }
-      // Iniciar OTP
-      await axios.post("/firmas/iniciar-otp", {
-        id_firma: firma.id_firma,
-        email_destino: email
-      });
-      setOtpEnviado(true);
-      setMensajeOTP({ tipo: "success", texto: "Se envió un código OTP a su correo electrónico." });
-    } catch (error) {
-      setMensajeOTP({ tipo: "danger", texto: error.response?.data?.error || "Error al enviar OTP" });
-    } finally {
-      setProcesandoOTP(false);
-    }
-  };
-
-  // Validar OTP ingresado
-  const validarOTP = async () => {
-    if (!codigoOTP.trim()) {
-      setMensajeOTP({ tipo: "warning", texto: "Ingrese el código OTP recibido por email." });
-      return;
-    }
-    try {
-      setProcesandoOTP(true);
-      setMensajeOTP({ tipo: "", texto: "" });
-      // Buscar la firma digital asociada
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-      const resFirmas = await axios.get(`/firmas?expediente=${expedienteOTP.id_expediente}&usuario=${usuarioLogueado.id_usuario}`);
-      const firma = resFirmas.data && resFirmas.data.length > 0 ? resFirmas.data[0] : null;
-      if (!firma) {
-        setMensajeOTP({ tipo: "danger", texto: "No se encontró registro de firma digital para este expediente." });
-        setProcesandoOTP(false);
-        return;
-      }
-      // Validar OTP
-      await axios.post("/firmas/validar-otp", {
-        id_firma: firma.id_firma,
-        codigo_otp: codigoOTP.trim()
-      });
-      setMensajeOTP({ tipo: "success", texto: "OTP validado correctamente. Trámite firmado digitalmente." });
-      // Actualizar UI: cerrar modal y recargar expedientes
-      setTimeout(() => {
-        setShowModalOTP(false);
-        setExpedienteOTP(null);
-        setCodigoOTP("");
-        setMensajeOTP({ tipo: "", texto: "" });
-        // Recargar expedientes (puedes ajustar esto según tu lógica)
-        window.location.reload();
-      }, 1800);
-    } catch (error) {
-      setMensajeOTP({ tipo: "danger", texto: error.response?.data?.error || "OTP incorrecto o error de validación" });
-    } finally {
-      setProcesandoOTP(false);
-    }
-  };
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_SUBIR_DOCUMENTO, URL_UPLOADS, URL_OBSERVACIONES } from "../Constants/endpoints";
+import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
 import "../CSS/UsuarioDirector.css";
+import BotonesReporte from "./BotonesReporte";
 
 export default function UsuarioDirector() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [seccionActiva, setSeccionActiva] = useState("inicio");
+  const [seccionActiva, setSeccionActiva] = useState("bandeja");
+  const [generandoPDF, setGenerandoPDF] = useState(false);
+  const [navPreviewUrl, setNavPreviewUrl] = useState(null);
   const [permisosUsuario, setPermisosUsuario] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expedientesPendientes, setExpedientesPendientes] = useState([]);
   const [loadingExpedientes, setLoadingExpedientes] = useState(false);
+  const [paginaBandeja, setPaginaBandeja] = useState(1);
+  const [paginaConsulta, setPaginaConsulta] = useState(1);
   
   // Estados para recepción
   const [expedientesSeleccionados, setExpedientesSeleccionados] = useState([]);
@@ -111,7 +31,6 @@ export default function UsuarioDirector() {
   const [showModalConsulta, setShowModalConsulta] = useState(false);
   const [numeroExpedienteConsulta, setNumeroExpedienteConsulta] = useState("");
   const [expedienteConsultado, setExpedienteConsultado] = useState(null);
-  // Cambiar label y placeholder para reflejar búsqueda por ID
   const [historialExpediente, setHistorialExpediente] = useState([]);
   const [loadingConsulta, setLoadingConsulta] = useState(false);
   const [mensajeConsulta, setMensajeConsulta] = useState({ tipo: "", texto: "" });
@@ -125,6 +44,27 @@ export default function UsuarioDirector() {
   const [mensajeDoc, setMensajeDoc] = useState({ tipo: "", texto: "" });
   const [documentosDoc, setDocumentosDoc] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [modalSoloVer, setModalSoloVer] = useState(false);
+  const [historialDoc, setHistorialDoc] = useState([]);
+
+  // Estados para Observaciones (Director)
+  const [observacionesExps, setObservacionesExps] = useState([]); // Histórico para el modal
+  const [observacionDirector, setObservacionDirector] = useState("");
+  const [errorObs, setErrorObs] = useState("");
+  const [subiendoObs, setSubiendoObs] = useState(false);
+
+  const cargarObservaciones = async (idExp) => {
+    try {
+      const res = await axios.get(`${URL_OBSERVACIONES}/${idExp}`);
+      const data = res.data || {};
+      const todas = [
+        ...(data.Director || []).map(o => ({ ...o, rol: 'Director' }))
+      ].sort((a,b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
+      setObservacionesExps(todas);
+    } catch (err) {
+      console.error("Error al cargar observaciones:", err);
+    }
+  };
 
   // Estados para aprobar/rechazar expediente (integrado en modal de revisión)
   const [showModalRevision, setShowModalRevision] = useState(false);
@@ -139,20 +79,22 @@ export default function UsuarioDirector() {
   const [comentarioDocRevision, setComentarioDocRevision] = useState("");
   const [historialRevision, setHistorialRevision] = useState([]);
 
-  // Estados para decisión (aprobar/rechazar) - modal antiguo, ahora no se usa
-  const [showModalDecision, setShowModalDecision] = useState(false);
-  const [expedienteDecision, setExpedienteDecision] = useState(null);
-  const [mensajeDecision, setMensajeDecision] = useState({ tipo: "", texto: "" });
-
-  // Estados para firmar documento
-  const [showModalFirma, setShowModalFirma] = useState(false);
-  const [documentoAFirmar, setDocumentoAFirmar] = useState(null);
-  const [firmasDisponibles, setFirmasDisponibles] = useState([]);
-  const [firmaSeleccionada, setFirmaSeleccionada] = useState("");
-  const [procesandoFirma, setProcesandoFirma] = useState(false);
-  const [mensajeFirma, setMensajeFirma] = useState({ tipo: "", texto: "" });
+  // Estados para consulta general
+  const [expedientesTodos, setExpedientesTodos] = useState([]);
+  const [loadingTodos, setLoadingTodos] = useState(false);
+  const [filtroConsulta, setFiltroConsulta] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("en revisión");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [mostrarPickerFecha, setMostrarPickerFecha] = useState(false);
 
   useEffect(() => {
+    // Cargar todos los expedientes para la consulta general
+    setLoadingTodos(true);
+    axios.get(URL_EXPEDIENTES)
+      .then(res => setExpedientesTodos(res.data || []))
+      .catch(() => setExpedientesTodos([]))
+      .finally(() => setLoadingTodos(false));
     try {
       const raw = localStorage.getItem("usuarioLogueado");
       const user = raw ? JSON.parse(raw) : null;
@@ -173,6 +115,14 @@ export default function UsuarioDirector() {
         .catch(() => {})
         .finally(() => setLoading(false));
       
+      /*
+        BLOQUE: GESTIÓN DE BANDEJA Y MÁQUINA DE ESTADOS (DIRECTOR)
+        A diferencia del técnico y jurídico, el Director evalúa los expedientes 
+        en la parte final de la cadena de mando.
+        El código carga todos los expedientes que le pasaron al Director, y mediante
+        una consulta cruzada al Historial marca cuáles ya recepcionó y cuáles le faltan.
+        ¡Un Director no puede Aprobar/Rechazar un exp que aún dice 'Nuevo' en su bandeja!
+      */
       // Cargar expedientes asignados
       if (idUsuario) {
         setLoadingExpedientes(true);
@@ -184,11 +134,39 @@ export default function UsuarioDirector() {
               expedientes.map(async exp => {
                 try {
                   const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
-                  const recepcionado = historial.data.some(h => 
-                    h.id_usuario_responsable === idUsuario && 
-                    h.accion?.toLowerCase().includes('recepción')
+                  const historialData = historial.data || [];
+                  const recepcionado = historialData.some(h => 
+                    Number(h.id_usuario_responsable) === Number(idUsuario) && 
+                    h.accion?.toLowerCase().includes('recepci')
                   );
-                  return { ...exp, recepcionado };
+
+                  // --- Calcular fecha de pase y datos de asignación ---
+                  const ultimoAsignadoAUsuario = historialData
+                    .filter(h => h.id_usuario_responsable === idUsuario)
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+
+                  let fechaPase = exp.fecha_creacion;
+                  let observacionesPase = '';
+                  let desdeUsuario = '-';
+
+                  if (ultimoAsignadoAUsuario) {
+                    fechaPase = ultimoAsignadoAUsuario.fecha;
+                    observacionesPase = ultimoAsignadoAUsuario.comentario || '';
+                    const historialAsc = [...historialData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                    const idxEnAsc = historialAsc.findIndex(h => h.id_historial === ultimoAsignadoAUsuario.id_historial);
+                    if (idxEnAsc > 0) {
+                      const entradaAnterior = historialAsc[idxEnAsc - 1];
+                      desdeUsuario = `${entradaAnterior.usuario_nombre || ''} ${entradaAnterior.usuario_apellido || ''}`.trim() || '-';
+                    }
+                  }
+
+                  return { 
+                    ...exp, 
+                    recepcionado,
+                    fecha_pase: fechaPase,
+                    desde_usuario: desdeUsuario,
+                    observaciones_pase: observacionesPase
+                  };
                 } catch {
                   return { ...exp, recepcionado: false };
                 }
@@ -206,7 +184,88 @@ export default function UsuarioDirector() {
     }
   }, []);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const exportarPDF = () => {
+    setGenerandoPDF(true);
+    try {
+      const doc = new jsPDF();
+      const fecha = new Date().toLocaleString("es-AR");
+
+      if (seccionActiva === "consultar-expediente") {
+        // Reporte de la consulta filtrada actual
+        const filtrados = expedientesTodos.filter(exp => {
+          const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+          const coincideTexto = texto.includes(filtroConsulta.toLowerCase());
+          const coincideEstado = !filtroEstado || (exp.estado_actual || exp.estado || "").toLowerCase() === filtroEstado.toLowerCase();
+          return coincideTexto && coincideEstado;
+        });
+        doc.setFontSize(14);
+        doc.text("Consulta de Expedientes - Dirección Provincial del Agua", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}${filtroConsulta ? `  |  Filtro: "${filtroConsulta}"` : ""}${filtroEstado ? `  |  Estado: "${filtroEstado}"` : ""}`, 14, 22);
+        doc.text(`Total: ${filtrados.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "N° Expediente", dataKey: "numero" },
+            { header: "Presentante", dataKey: "presentante" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Descripción", dataKey: "descripcion" },
+            { header: "Prioridad", dataKey: "prioridad" },
+            { header: "Ubicación", dataKey: "ubicacion" },
+            { header: "Estado", dataKey: "estado" },
+            { header: "Fecha", dataKey: "fecha" },
+          ],
+          body: filtrados.map(e => ({
+            numero: e.numero_expediente ?? "",
+            presentante: e.usuario_presentante_nombre ? `${e.usuario_presentante_nombre} ${e.usuario_presentante_apellido}` : "N/A",
+            tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+            descripcion: e.descripcion ?? "",
+            prioridad: e.prioridad ?? "",
+            ubicacion: e.ubicacion ?? "",
+            estado: e.estado_actual ?? e.estado ?? "",
+            fecha: e.fecha_creacion ? new Date(e.fecha_creacion).toLocaleDateString("es-AR") : "",
+          })),
+        });
+
+      } else {
+        // Bandeja de entrada (default — también para "resolver" y "reportes")
+        const expedientesUnicos = Array.from(
+          new Map(expedientesPendientes.map(e => [e.id_expediente, e])).values()
+        );
+        doc.setFontSize(14);
+        doc.text("Bandeja de Entrada - Dirección Provincial del Agua", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fecha}`, 14, 22);
+        doc.text(`Total: ${expedientesUnicos.length} expediente(s)`, 14, 28);
+        autoTable(doc, {
+          startY: 33,
+          columns: [
+            { header: "N° Expediente", dataKey: "numero" },
+            { header: "Tipo", dataKey: "tipo" },
+            { header: "Descripción", dataKey: "descripcion" },
+            { header: "Estado", dataKey: "estado" },
+            { header: "Fecha Pase", dataKey: "fecha_pase" },
+            { header: "Origen", dataKey: "origen" },
+          ],
+          body: expedientesUnicos.map(e => ({
+            numero: e.numero_expediente ?? "",
+            tipo: e.tipo_tramite ?? e.tipo_expediente ?? "",
+            descripcion: e.descripcion ?? "",
+            estado: e.estado ?? e.estado_actual ?? "",
+            fecha_pase: e.fecha_pase ? new Date(e.fecha_pase).toLocaleDateString("es-AR") : "",
+            origen: e.desde_usuario ?? e.desde_departamento ?? "",
+          })),
+        });
+      }
+
+      return doc.output('bloburl');
+    } catch (err) {
+      alert(`No se pudo generar el reporte: ${err?.message ?? err}`);
+      return null;
+    } finally {
+      setGenerandoPDF(false);
+    }
+  };
 
   const handleSalir = () => {
     localStorage.removeItem("usuarioLogueado");
@@ -286,8 +345,8 @@ export default function UsuarioDirector() {
                   try {
                     const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
                     const recepcionado = historial.data.some(h => 
-                      h.id_usuario_responsable === usuarioLogueado.id_usuario && 
-                      h.accion?.toLowerCase().includes('recepción')
+                      Number(h.id_usuario_responsable) === Number(usuarioLogueado.id_usuario) && 
+                      h.accion?.toLowerCase().includes('recepci')
                     );
                     return { ...exp, recepcionado };
                   } catch {
@@ -379,6 +438,7 @@ export default function UsuarioDirector() {
 
     // Cargar historial del expediente
     try {
+      cargarObservaciones(expediente.id_expediente);
       const resHist = await axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`);
       setHistorialRevision(resHist.data || []);
     } catch (err) {
@@ -409,19 +469,18 @@ export default function UsuarioDirector() {
       setSubiendoDoc(true);
       const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
       
-      // Subida múltiple: usar 'files' para todos los archivos y endpoint /upload
-      const fd = new FormData();
-      archivosRevision.forEach(archivo => {
-        fd.append('files', archivo);
-      });
-      fd.append('id_expediente', expedienteRevision.id_expediente);
-      fd.append('subido_por', user?.id_usuario);
-      if (comentarioDocRevision?.trim()) {
-        fd.append('comentario', comentarioDocRevision.trim());
+      for (const archivo of archivosRevision) {
+        const fd = new FormData();
+        fd.append('archivo', archivo);
+        fd.append('id_expediente', expedienteRevision.id_expediente);
+        fd.append('subido_por', user?.id_usuario);
+        if (comentarioDocRevision?.trim()) {
+          fd.append('comentario', comentarioDocRevision.trim());
+        }
+        await axios.post(URL_DOCUMENTOS, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
-      await axios.post(URL_DOCUMENTOS + '/upload', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
 
       setMensajeRevision({
         tipo: "success",
@@ -468,35 +527,98 @@ export default function UsuarioDirector() {
       const payloadUpdate = {
         tipo_expediente: expedienteRevision.tipo_tramite || expedienteRevision.tipo_expediente,
         descripcion: expedienteRevision.descripcion,
-        prioridad: expedienteRevision.prioridad || "normal",
+        prioridad: expedienteRevision.prioridad || "media",
         estado_actual: nuevoEstado,
+        comentario_director: comentarioDecision
       };
       
+      // Enviamos al backend
       await axios.put(`${URL_EXPEDIENTES}/${expedienteRevision.id_expediente}`, payloadUpdate);
 
+      // Actualización optimista: sacar inmediatamente del panel Resolver sin esperar el reload
+      setExpedientesPendientes(prev =>
+        prev.filter(e => e.id_expediente !== expedienteRevision.id_expediente)
+      );
+
+      // Construccion mensaje automático + comentario del director
+        const mensajeObservacion =
+          decisionTipo === "aprobar"
+            ? `• Expediente aprobado por Dirección.\n\n• Se autoriza la obra solicitada.\n\n• Observación del Director:\n\n${comentarioDecision}`
+            : `• Expediente rechazado por Dirección.\n\n• Falta documentación o requisitos.\n\n• Observación del Director:\n\n${comentarioDecision}`;
+
+        // Guardar observación para el presentante
+        await axios.post(URL_OBSERVACIONES, {
+          id_expediente: expedienteRevision.id_expediente,
+          id_usuario: usuarioLogueado.id_usuario,
+          observacion: mensajeObservacion
+        });
+
       // Registrar en historial
-      const historialData = {
+          const historialData = {
         id_expediente: expedienteRevision.id_expediente,
         id_usuario_responsable: usuarioLogueado.id_usuario,
-        accion: decisionTipo === "aprobar" ? "Aprobación Dirección" : "Rechazo Dirección",
+        accion: decisionTipo === "aprobar" ? "Aprobado por Dirección" : "Rechazado por Dirección",
         comentario: comentarioDecision,
-        tipo_accion: decisionTipo === "aprobar" ? "aprobación" : "rechazo"
+        tipo_accion: "decision_director"
       };
+      
 
       await axios.post(URL_HISTORIAL, historialData);
 
+      // Notificar al presentante por email
+      try {
+        await axios.post("http://localhost:8000/api/notificar-pase", {
+          id_usuario: expedienteRevision.id_usuario_presentante,
+          email: expedienteRevision.usuario_presentante_email || "",
+          nombre: expedienteRevision.usuario_presentante_nombre || "",
+          apellido: expedienteRevision.usuario_presentante_apellido || "",
+          numero_expediente: expedienteRevision.numero_expediente,
+          observacion: decisionTipo === "aprobar"
+            ? `Su expediente fue APROBADO por la Dirección. ${comentarioDecision}`
+            : `Su expediente fue RECHAZADO por la Dirección. ${comentarioDecision}`
+        });
+      } catch (notifErr) {
+        console.warn("No se pudo enviar notificación al presentante:", notifErr.message);
+        // No cortamos el flujo si falla la notificación
+      }
+      
       setMensajeRevision({
         tipo: "success",
         texto: `Expediente ${decisionTipo === "aprobar" ? "aprobado" : "rechazado"} exitosamente. Se notificará al usuario presentante.`
       });
+
       setTimeout(() => {
         cerrarModalRevision();
-        if (decisionTipo === "aprobar") {
-          navigate("/ExpedientesFinalizados");
-        } else {
-          navigate("/ExpedientesArchivados");
+        // Recargar expedientes de consulta (todos)
+        axios.get(URL_EXPEDIENTES)
+          .then(res => setExpedientesTodos(res.data || []))
+          .catch(() => {});
+        // Recargar expedientes de bandeja/resolver
+        if (usuarioLogueado?.id_usuario) {
+          setLoadingExpedientes(true);
+          axios.get(`${URL_EXPEDIENTES_PASES}/${usuarioLogueado.id_usuario}`)
+            .then(async res => {
+              const expedientes = res.data || [];
+              const expedientesConEstado = await Promise.all(
+                expedientes.map(async exp => {
+                  try {
+                    const historial = await axios.get(`${URL_HISTORIAL}/${exp.id_expediente}`);
+                    const recepcionado = historial.data.some(h => 
+                      Number(h.id_usuario_responsable) === Number(usuarioLogueado.id_usuario) && 
+                      (h.tipo_accion === 'revisión' || h.accion?.toLowerCase().includes('recepci'))
+                    );
+                    return { ...exp, recepcionado };
+                  } catch {
+                    return { ...exp, recepcionado: false };
+                  }
+                })
+              );
+              setExpedientesPendientes(expedientesConEstado);
+            })
+            .catch(err => console.error("Error al recargar expedientes:", err))
+            .finally(() => setLoadingExpedientes(false));
         }
-      }, 1800);
+      }, 2500);
 
     } catch (error) {
       console.error("Error al procesar decisión:", error);
@@ -509,17 +631,26 @@ export default function UsuarioDirector() {
     }
   };
 
-  const abrirModalDoc = (expediente) => {
+  const abrirModalDoc = (expediente, soloVer = false) => {
     setExpedienteDoc(expediente);
     setShowModalDoc(true);
+    setModalSoloVer(soloVer);
     setArchivosStaged([]);
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setLoadingDocs(true);
+    setHistorialDoc([]);
+    setObservacionDirector(""); // Reset de observación para el nuevo expediente
     axios.get(`${URL_DOCUMENTOS}/expediente/${expediente.id_expediente}`)
       .then(res => setDocumentosDoc(res.data || []))
       .catch(err => console.error('Error al cargar documentos:', err))
-      .finally(() => setLoadingDocs(false));
+      .finally(() => {
+        setLoadingDocs(false);
+        cargarObservaciones(expediente.id_expediente);
+      });
+    axios.get(`${URL_HISTORIAL}/${expediente.id_expediente}`)
+      .then(res => setHistorialDoc(res.data || []))
+      .catch(err => console.error('Error al cargar historial para docs:', err));
   };
 
   const cerrarModalDoc = () => {
@@ -529,6 +660,7 @@ export default function UsuarioDirector() {
     setComentarioDoc("");
     setMensajeDoc({ tipo: "", texto: "" });
     setDocumentosDoc([]);
+    setHistorialDoc([]);
   };
 
   const handleArchivosChange = (e) => {
@@ -551,10 +683,10 @@ export default function UsuarioDirector() {
       formData.append("comentario", comentarioDoc || "Documento subido por el Director");
       
       archivosStaged.forEach(file => {
-        formData.append("files", file);
+        formData.append("documentos", file);
       });
 
-      await axios.post(URL_SUBIR_DOCUMENTO + '/upload', formData, {
+      await axios.post(URL_SUBIR_DOCUMENTO, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
@@ -581,310 +713,355 @@ export default function UsuarioDirector() {
     }
   };
 
-  const abrirModalDecision = (expediente, tipo) => {
-    setExpedienteDecision(expediente);
-    setDecisionTipo(tipo);
-    setComentarioDecision("");
-    setMensajeDecision({ tipo: "", texto: "" });
-    setShowModalDecision(true);
-  };
+  
 
-  const cerrarModalDecision = () => {
-    setShowModalDecision(false);
-    setExpedienteDecision(null);
-    setDecisionTipo("");
-    setComentarioDecision("");
-    setMensajeDecision({ tipo: "", texto: "" });
-  };
+  
 
-  const confirmarDecision = async () => {
-    try {
-      setProcesandoDecision(true);
-      setMensajeDecision({ tipo: "", texto: "" });
-
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-      const nuevoEstado = decisionTipo === "aprobar" ? "aprobado" : "rechazado";
-      
-      // Actualizar estado del expediente
-      const payloadUpdate = {
-        tipo_expediente: expedienteDecision.tipo_tramite || expedienteDecision.tipo_expediente,
-        descripcion: expedienteDecision.descripcion,
-        prioridad: expedienteDecision.prioridad || "normal",
-        estado_actual: nuevoEstado,
-      };
-      
-      await axios.put(`${URL_EXPEDIENTES}/${expedienteDecision.id_expediente}`, payloadUpdate);
-
-      // Registrar en historial
-      const historialData = {
-        id_expediente: expedienteDecision.id_expediente,
-        id_usuario_responsable: usuarioLogueado.id_usuario,
-        accion: decisionTipo === "aprobar" ? "Aprobación Dirección" : "Rechazo Dirección",
-        comentario: comentarioDecision || `Expediente ${decisionTipo === "aprobar" ? "aprobado" : "rechazado"} por el Director`,
-        tipo_accion: decisionTipo === "aprobar" ? "aprobación" : "rechazo"
-      };
-
-      await axios.post(URL_HISTORIAL, historialData);
-
-
-      setMensajeDecision({
-        tipo: "success",
-        texto: `Expediente ${decisionTipo === "aprobar" ? "aprobado" : "rechazado"} exitosamente`
-      });
-      setTimeout(() => {
-        cerrarModalDecision();
-        if (decisionTipo === "aprobar") {
-          navigate("/ExpedientesFinalizados");
-        } else {
-          navigate("/ExpedientesArchivados");
-        }
-      }, 1800);
-
-    } catch (error) {
-      console.error("Error al procesar decisión:", error);
-      setMensajeDecision({
-        tipo: "danger",
-        texto: error.response?.data?.error || "Error al procesar la decisión"
-      });
-    } finally {
-      setProcesandoDecision(false);
-    }
-  };
-
-  const abrirModalFirma = async (documento) => {
-    setDocumentoAFirmar(documento);
-    setShowModalFirma(true);
-    setFirmaSeleccionada("");
-    setMensajeFirma({ tipo: "", texto: "" });
-    
-    // Cargar firmas disponibles del usuario
-    try {
-      const usuarioLogueado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-      const res = await axios.get(`${URL_FIRMAS}/usuario/${usuarioLogueado.id_usuario}`);
-      setFirmasDisponibles(res.data || []);
-    } catch (error) {
-      console.error("Error al cargar firmas:", error);
-      setMensajeFirma({ tipo: "warning", texto: "No se pudieron cargar las firmas disponibles" });
-    }
-  };
-
-  const cerrarModalFirma = () => {
-    setShowModalFirma(false);
-    setDocumentoAFirmar(null);
-    setFirmaSeleccionada("");
-    setMensajeFirma({ tipo: "", texto: "" });
-    setFirmasDisponibles([]);
-  };
-
-  const confirmarFirma = async () => {
-    if (!firmaSeleccionada) {
-      setMensajeFirma({ tipo: "warning", texto: "Debe seleccionar una firma" });
-      return;
-    }
-
-    try {
-      setProcesandoFirma(true);
-      setMensajeFirma({ tipo: "", texto: "" });
-
-      // Aquí deberías implementar la lógica de firmado en el backend
-      // Por ahora simularemos el proceso
-      await axios.post(`${URL_FIRMAS}/firmar-documento`, {
-        id_documento: documentoAFirmar.id_documento,
-        id_firma: firmaSeleccionada
-      });
-
-      setMensajeFirma({
-        tipo: "success",
-        texto: "Documento firmado exitosamente"
-      });
-
-      // Recargar documentos
-      if (expedienteDoc) {
-        const res = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-        setDocumentosDoc(res.data || []);
-      }
-
-      setTimeout(() => {
-        cerrarModalFirma();
-      }, 2000);
-
-    } catch (error) {
-      console.error("Error al firmar documento:", error);
-      setMensajeFirma({
-        tipo: "danger",
-        texto: error.response?.data?.error || "Error al firmar el documento"
-      });
-    } finally {
-      setProcesandoFirma(false);
-    }
-  };
-
-  // Menú específico para Usuario Director
-  const menuItems = [
-    { id: "consultar-expediente", label: "Consultar Expediente", icon: "🔍", permiso: "consultar_expediente_detalle" },
-    { id: "recepcionados", label: "Recepcionados", icon: "📥", permiso: "recepcion_pase" },
-    { id: "finalizados", label: "Finalizados", icon: "✅", permiso: "consultar_expediente_detalle" },
-    { id: "archivados", label: "Archivados", icon: "📦", permiso: "consultar_expediente_detalle" },
-    { id: "firmar-documentos", label: "Firma Digital", icon: "✍️", permiso: "firmar_documentos" },
-    { id: "reportes", label: "Reportes y Estadísticas", icon: "📊", permiso: "ver_reportes" },
-    { id: "supervision-areas", label: "Supervisión de Áreas", icon: "👥", permiso: "supervisar_areas" },
-    { id: "manual-usuario", label: "Manual de Usuario", icon: "📖", permiso: "ver_manual_usuario" },
-  ];
-
-  const menuFiltrado = permisosUsuario.length > 0
-    ? menuItems
-    : menuItems;
+  
 
   const renderContenido = () => {
-    // Redirección directa a las páginas de finalizados y archivados
-    if (seccionActiva === "finalizados") {
-      window.location.href = "/ExpedientesFinalizados";
-      return null;
-    }
-    if (seccionActiva === "archivados") {
-      window.location.href = "/ExpedientesArchivados";
-      return null;
-    }
-
     switch (seccionActiva) {
-      case "recepcionados":
-        // Mostrar expedientes ya recepcionados
-        const expedientesRecepcionados = expedientesPendientes.filter(e => e.recepcionado);
-        return (
-          <div className="seccion-contenido">
-            <h2>Expedientes Recepcionados</h2>
-            {expedientesRecepcionados.length === 0 ? (
-              <p>No hay expedientes recepcionados.</p>
-            ) : (
-              <div className="tabla-container">
-                <table className="tabla-expedientes">
-                  <thead>
-                    <tr>
-                      <th>Nº Expediente</th>
-                      <th>Tipo</th>
-                      <th>Descripción</th>
-                      <th>Estado</th>
-                      <th>Prioridad</th>
-                      <th>Fecha Pase</th>
-                      <th>Desde</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expedientesRecepcionados.map((exp, idx) => (
-                      <tr key={`exp-rev-${exp.id_expediente}-${idx}`} style={{ opacity: 0.8 }}>
-                        <td><strong>{exp.numero_expediente}</strong></td>
-                        <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
-                        <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                        <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
-                        <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
-                        <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                        <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                        <td>
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => abrirModalRevisionCompleto(exp)}
-                            title="Revisar expediente completo"
-                          >
-                            📋 Revisar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+      case "bandeja": {
+        const expBandeja = expedientesPendientes.filter(exp =>
+          !['aprobado', 'rechazado'].includes((exp.estado || exp.estado_actual || '').toLowerCase())
         );
-      case "inicio":
-        // Panel doble: Recepcionar y Revisar
-        // Evitar duplicados por id_expediente
-        const seen = new Set();
-        const expedientesPorRecepcionar = expedientesPendientes.filter(e => {
-          if (!e.recepcionado && !seen.has(e.id_expediente)) {
-            seen.add(e.id_expediente);
-            return true;
-          }
-          return false;
-        });
+        const totalPagBandeja = Math.max(1, Math.ceil(expBandeja.length / 6));
+        const expPagBand = expBandeja.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
         return (
           <div className="seccion-contenido seccion-inicio">
             <h1>Portal del Director</h1>
             <p>Bienvenido al sistema de gestión de expedientes - Dirección Provincial del Agua</p>
+            {loadingExpedientes ? <p>Cargando expedientes...</p> : expBandeja.length > 0 ? (
+              <div className="expedientes-pendientes">
+                <h2>Bandeja de Entrada - Expedientes asignados</h2>
+                <div className="acciones-seleccion">
+                  <Button variant="primary" onClick={abrirModalRecepcion} disabled={expedientesSeleccionados.length === 0}>
+                    Recepcionar Seleccionados ({expedientesSeleccionados.length})
+                  </Button>
+                  <Button variant="outline-secondary" onClick={toggleSeleccionTodos} disabled={expBandeja.filter(e => !e.recepcionado).length === 0}>
+                    {expedientesSeleccionados.length === expBandeja.filter(e => !e.recepcionado).length && expBandeja.filter(e => !e.recepcionado).length > 0 ? "Deseleccionar Todos" : "Seleccionar Todos"}
+                  </Button>
+                </div>
+                <div className="paginacion mb-2">
+                  <button className="cpag-btn" disabled={paginaBandeja === 1} onClick={() => setPaginaBandeja(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPagBandeja}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaBandeja === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaBandeja(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaBandeja === totalPagBandeja} onClick={() => setPaginaBandeja(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expBandeja.length} expediente(s)</span>
+                </div>
+                <div className="tabla-container">
+                  <table className="tabla-expedientes">
+                    <thead>
+                      <tr>
+                        <th><input type="checkbox" checked={expBandeja.filter(e => !e.recepcionado).length > 0 && expedientesSeleccionados.length === expBandeja.filter(e => !e.recepcionado).length} onChange={toggleSeleccionTodos} disabled={expBandeja.filter(e => !e.recepcionado).length === 0} /></th>
+                        <th>Nº Expediente</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Nombre</th>
+                        <th>Fecha Pase</th>
+                        <th>Documentación</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expPagBand.map(exp => (
+                        <tr key={exp.id_expediente} style={{ opacity: exp.recepcionado ? 0.6 : 1 }}>
+                          <td><input type="checkbox" checked={expedientesSeleccionados.includes(exp.id_expediente)} onChange={() => toggleSeleccion(exp.id_expediente)} disabled={exp.recepcionado} /></td>
+                          <td>
+                            <strong>{exp.numero_expediente}</strong>
+                            {exp.recepcionado && <span className="badge bg-success ms-2">✓ Recepcionado</span>}
+                          </td>
+                          <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
+                          <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                          <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString('es-AR') : '-'}</td>
+                          <td><button className="btn btn-sm btn-info" onClick={() => abrirModalDoc(exp, true)}>📄 Ver Documentos</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="sin-expedientes"><p>No hay expedientes pendientes de recepción</p></div>
+            )}
+          </div>
+        );
+      }
+      case "resolver":
+        return (
+          <div className="seccion-contenido seccion-inicio">
+            <h1>Portal del Director</h1>
+            <p>Bienvenido al sistema de gestión de expedientes - Dirección Provincial del Agua</p>
+            
             {loadingExpedientes ? (
               <p>Cargando expedientes...</p>
-            ) : (
-              <div className="expedientes-por-recepcionar">
-                <h2>Expedientes para Recepcionar</h2>
-                {expedientesPorRecepcionar.length === 0 ? (
-                  <p>No hay expedientes para recepcionar</p>
-                ) : (
-                  <div className="tabla-container">
-                    <table className="tabla-expedientes">
-                      <thead>
-                        <tr>
-                          <th>Nº Expediente</th>
-                          <th>Tipo</th>
-                          <th>Descripción</th>
-                          <th>Estado</th>
-                          <th>Prioridad</th>
-                          <th>Fecha Pase</th>
-                          <th>Desde</th>
-                          <th>Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {expedientesPorRecepcionar.map((exp, idx) => (
-                          <tr key={`exp-rec-${exp.id_expediente}-${idx}`}>
-                            <td><strong>{exp.numero_expediente}</strong></td>
-                            <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
-                            <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                            <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
-                            <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
-                            <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                            <td>{exp.desde_usuario || exp.desde_departamento || '-'}</td>
-                            <td>
+            ) : expedientesPendientes.length > 0 ? (
+              (() => {
+                // Filtrar para que solo aparezcan los que NO están aprobados ni rechazados
+                const pendientesRealmente = expedientesPendientes.filter(exp => 
+                  !['aprobado', 'rechazado'].includes((exp.estado || exp.estado_actual || '').toLowerCase())
+                );
+
+                if (pendientesRealmente.length === 0) {
+                  return (
+                    <div className="sin-expedientes">
+                      <p>No hay expedientes pendientes de revisión</p>
+                    </div>
+                  );
+                }
+
+                const totalPaginasBandeja = Math.max(1, Math.ceil(pendientesRealmente.length / 6));
+                const expPagBandeja = pendientesRealmente.slice((paginaBandeja - 1) * 6, paginaBandeja * 6);
+                return (
+              <div className="expedientes-pendientes">
+                <h2>Expedientes Pendientes de Revisión</h2>
+                <div className="paginacion mb-2">
+                  <button className="cpag-btn" disabled={paginaBandeja === 1} onClick={() => setPaginaBandeja(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasBandeja}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaBandeja === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaBandeja(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaBandeja === totalPaginasBandeja} onClick={() => setPaginaBandeja(p => p + 1)}>›</button>
+                  <span className="cpag-info">{pendientesRealmente.length} expediente(s)</span>
+                </div>
+                <div className="tabla-container">
+                  <table className="tabla-expedientes">
+                    <thead>
+                      <tr>
+                        <th>Nº Expediente</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Nombre</th>
+                        <th>Fecha Pase</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expPagBandeja.map(exp => (
+                        <tr key={exp.id_expediente}>
+                          <td>
+                            <strong>{exp.numero_expediente}</strong>
+                          </td>
+                          <td>{exp.tipo_tramite || exp.tipo_expediente || '-'}</td>
+                          <td className="descripcion-cell">{exp.descripcion || '-'}</td>
+                          <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                          <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString('es-AR') : '-'}</td>
+                          <td>
+                            <div className="d-flex gap-1 justify-content-center">
                               <button
-                                className="btn btn-sm btn-success"
-                                onClick={() => abrirModalRecepcionDirecta(exp)}
-                                title="Recepcionar expediente"
+                                className="btn btn-sm"
+                                style={{ background: '#f1f3f5', border: '1px solid #ced4da', color: '#495057', fontWeight: 500, fontSize: '0.78rem', borderRadius: '6px', padding: '3px 10px' }}
+                                onClick={() => abrirModalDoc(exp, true)}
+                                title="Ver documentación del expediente"
                               >
-                                📥 Recepción
+                                Ver docs
                               </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                              <button
+                                className="btn btn-sm"
+                                style={{ background: '#0d6efd', border: 'none', color: '#fff', fontWeight: 500, fontSize: '0.875rem', borderRadius: '6px', padding: '3px 10px' }}
+                                onClick={() => abrirModalRevisionCompleto(exp)}
+                                title="Revisar expediente completo"
+                              >
+                                Resolución
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+                );
+              })()
+            ) : (
+              <div className="sin-expedientes">
+                <p>No hay expedientes pendientes de revisión</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case "consultar-expediente": {
+        const recargarTodos = () => {
+          setLoadingTodos(true);
+          const params = {};
+          if (fechaDesde) params.desde = fechaDesde;
+          if (fechaHasta) params.hasta = fechaHasta;
+          axios.get(URL_EXPEDIENTES, { params })
+            .then(res => setExpedientesTodos(res.data || []))
+            .catch(() => setExpedientesTodos([]))
+            .finally(() => setLoadingTodos(false));
+        };
+        const expedientesFiltrados = expedientesTodos.filter(exp => {
+          const texto = `${exp.numero_expediente} ${exp.estado_actual} ${exp.descripcion} ${exp.usuario_asignado_nombre || ''} ${exp.usuario_asignado_apellido || ''}`.toLowerCase();
+          const coincideTexto = texto.includes(filtroConsulta.toLowerCase());
+          const coincideEstado = !filtroEstado || (exp.estado_actual || exp.estado || "").toLowerCase() === filtroEstado.toLowerCase();
+          return coincideTexto && coincideEstado;
+        });
+        const totalPaginasConsulta = Math.max(1, Math.ceil(expedientesFiltrados.length / 6));
+        const expPagConsulta = expedientesFiltrados.slice((paginaConsulta - 1) * 6, paginaConsulta * 6);
+        return (
+          <div className="seccion-contenido seccion-consulta">
+            <h2>Consulta de Expedientes</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "1rem" }}>
+              <div className="consulta-toolbar" style={{ flex: 1 }}>
+                <div className="consulta-search-wrap">
+                  <span className="consulta-search-icon">🔍</span>
+                  <input
+                    className="consulta-search-input"
+                    type="text"
+                    placeholder="Buscar por número, estado o usuario…"
+                    value={filtroConsulta}
+                    onChange={e => { setFiltroConsulta(e.target.value); setPaginaConsulta(1); }}
+                    disabled={loadingTodos}
+                  />
+                </div>
+              </div>
+
+              {/* Filtro por estado */}
+              <select
+                value={filtroEstado}
+                onChange={e => { setFiltroEstado(e.target.value); setPaginaConsulta(1); }}
+                disabled={loadingTodos}
+                style={{
+                  height: "38px",
+                  borderRadius: "0.375rem",
+                  border: "1px solid #ced4da",
+                  padding: "0 10px",
+                  fontSize: "0.9rem",
+                  background: "#fff",
+                  color: "#333",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <option value="en revisión">En revisión</option>
+                <option value="aprobado">Aprobado</option>
+                <option value="rechazado">Rechazado</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="archivado">Archivado</option>
+              </select>
+
+              {/* Filtro por rango de fechas - fuera del toolbar para evitar clipping */}
+              <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+                <button
+                  onClick={() => setMostrarPickerFecha(v => !v)}
+                  title={(fechaDesde || fechaHasta) ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
+                  className="btn d-flex align-items-center justify-content-center gap-2"
+                  style={{
+                    background: "#fff",
+                    color: "#333",
+                    border: "1px solid #ced4da",
+                    borderRadius: "0.375rem",
+                    height: "38px",
+                    padding: "0 14px",
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
+                </button>
+                {mostrarPickerFecha && (
+                  <div style={{
+                    position: "absolute", top: "40px", left: 0, zIndex: 9999,
+                    background: "#fff", borderRadius: "12px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                    padding: "16px 20px", minWidth: "260px", border: "1px solid #e5e7eb",
+                  }}>
+                    <div style={{ marginBottom: "10px" }}>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Fecha de inicio</label>
+                      <input type="date" value={fechaDesde} max={fechaHasta || undefined}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                        style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }} />
+                    </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Hasta</label>
+                      <input type="date" value={fechaHasta} min={fechaDesde || undefined}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                        style={{ width: "100%", borderRadius: "6px", border: "1px solid #d1d5db", padding: "5px 8px", fontSize: "0.88rem" }} />
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
+                        style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "1px solid #d1d5db", background: "#f9fafb", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600, color: "#6b7280" }}>
+                        Limpiar</button>
+                      <button onClick={() => { recargarTodos(); setMostrarPickerFecha(false); }}
+                        style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", background: "#2563eb", color: "#fff", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600 }}>
+                        Aplicar</button>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
-            <div style={{ marginTop: 32, textAlign: "center" }}>
-              <button className="btn btn-secondary" onClick={() => window.history.back()}>
-                Volver
-              </button>
-            </div>
-          </div>
-        );
-  // Función para recepcionar directamente desde el panel
-  const abrirModalRecepcionDirecta = (expediente) => {
-    setExpedientesSeleccionados([expediente.id_expediente]);
-    setShowModalRecepcion(true);
-    setObservacionesRecepcion("");
-    setMensajeRecepcion({ tipo: "", texto: "" });
-  };
 
-      case "consultar-expediente":
-        return (
-          <div className="seccion-contenido">
-            <h2>Consultar Expediente</h2>
-            <Button variant="primary" onClick={abrirModalConsulta}>
-              🔍 Buscar Expediente
-            </Button>
+              {!loadingTodos && (
+                <div className="consulta-pag">
+                  <button className="cpag-btn" disabled={paginaConsulta === 1} onClick={() => setPaginaConsulta(p => p - 1)}>‹</button>
+                  {Array.from({length: totalPaginasConsulta}, (_, i) => (
+                    <button key={i+1} className={`cpag-btn${paginaConsulta === i+1 ? ' cpag-active' : ''}`} onClick={() => setPaginaConsulta(i+1)}>{i+1}</button>
+                  ))}
+                  <button className="cpag-btn" disabled={paginaConsulta === totalPaginasConsulta} onClick={() => setPaginaConsulta(p => p + 1)}>›</button>
+                  <span className="cpag-info">{expedientesFiltrados.length} resultados</span>
+                </div>
+              )}
+            </div>
+            {loadingTodos ? (
+              <p>Cargando expedientes...</p>
+            ) : (
+              <>
+                <div className="tabla-container">
+                  <table className="table table-sm table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Nº Expediente</th>
+                        <th>Presentante</th>
+                        <th>Tipo</th>
+                        <th>Descripción</th>
+                        <th>Prioridad</th>
+                        <th>Ubicación</th>
+                        <th>Estado</th>
+                        <th>Asignado a</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expPagConsulta.map(exp => {
+                        let usuarioAsignado = 'Sin asignar';
+                        if (exp.usuario_asignado_nombre) {
+                          usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
+                        }
+                        if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
+                          usuarioAsignado = 'Pendiente de recepción';
+                        }
+                        return (
+                          <tr key={exp.id_expediente}>
+                            <td>{exp.numero_expediente}</td>
+                            <td>{exp.usuario_presentante_nombre ? `${exp.usuario_presentante_nombre} ${exp.usuario_presentante_apellido}` : 'N/A'}</td>
+                            <td>{exp.tipo_expediente || 'N/A'}</td>
+                            <td>{exp.descripcion || 'N/A'}</td>
+                            <td>{exp.prioridad || 'N/A'}</td>
+                            <td>{exp.ubicacion || 'N/A'}</td>
+                            <td>
+                              {(() => {
+                                const estado = (exp.estado_actual || exp.estado || '').toLowerCase();
+                                if (estado === 'aprobado') return <span className="badge bg-success">Aprobado</span>;
+                                if (estado === 'rechazado') return <span className="badge bg-danger">Rechazado</span>;
+                                if (estado.includes('revisi')) return <span className="badge bg-warning text-dark">En revisión</span>;
+                                return <span className="badge bg-secondary">{exp.estado_actual || exp.estado || 'Sin estado'}</span>;
+                              })()}
+                            </td>
+                            <td>{usuarioAsignado}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {expedientesFiltrados.length === 0 && <p>No se encontraron expedientes.</p>}
+                </div>
+              </>
+            )}
           </div>
         );
+      }
 
       case "recepcion-pase":
         return (
@@ -899,90 +1076,6 @@ export default function UsuarioDirector() {
           <div className="seccion-contenido">
             <h2>Aprobar o Rechazar Expedientes</h2>
             <p>Revise y apruebe o rechace expedientes según corresponda.</p>
-          </div>
-        );
-
-      case "firmar-documentos":
-        // Filtrar expedientes aprobados o rechazados (pendientes de validación OTP)
-        // Cuando se implemente el campo validado_otp, agregar: && !exp.validado_otp
-        const expedientesFirmaDigital = expedientesPendientes.filter(
-          exp => ["aprobado", "rechazado"].includes((exp.estado || exp.estado_actual)?.toLowerCase())
-        );
-        return (
-          <div className="seccion-contenido">
-            <h2>Firma Digital - Validación de Trámite</h2>
-            {expedientesFirmaDigital.length === 0 ? (
-              <p>No hay expedientes pendientes de validación digital.</p>
-            ) : (
-              <div className="tabla-container">
-                <table className="tabla-expedientes">
-                  <thead>
-                    <tr>
-                      <th>Nº Expediente</th>
-                      <th>Tipo</th>
-                      <th>Descripción</th>
-                      <th>Estado</th>
-                      <th>Prioridad</th>
-                      <th>Fecha Pase</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expedientesFirmaDigital.map((exp, idx) => (
-                      <tr key={`exp-firma-${exp.id_expediente}-${idx}`}>
-                        <td><strong>{exp.numero_expediente}</strong></td>
-                        <td>{exp.tipo_tramite || exp.tipo_expediente}</td>
-                        <td className="descripcion-cell">{exp.descripcion || '-'}</td>
-                        <td><span className={`badge-estado estado-${exp.estado || exp.estado_actual}`}>{exp.estado || exp.estado_actual}</span></td>
-                        <td><span className={`badge badge-${exp.prioridad}`}>{exp.prioridad || 'normal'}</span></td>
-                        <td>{exp.fecha_pase ? new Date(exp.fecha_pase).toLocaleDateString() : '-'}</td>
-                        <td>
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => iniciarValidacionOTP(exp)}
-                            title="Validar trámite con OTP"
-                            disabled={procesandoOTP}
-                          >
-                            🔐 Validar OTP
-                          </button>
-                              {/* Modal de Validación OTP */}
-                              <Modal show={showModalOTP} onHide={() => setShowModalOTP(false)} centered>
-                                <Modal.Header closeButton>
-                                  <Modal.Title>Validar Trámite con OTP</Modal.Title>
-                                </Modal.Header>
-                                <Modal.Body>
-                                  {mensajeOTP.tipo && mensajeOTP.texto && (
-                                    <Alert variant={mensajeOTP.tipo}>{mensajeOTP.texto}</Alert>
-                                  )}
-                                  <p>Se enviará un código de un solo uso (OTP) a su correo electrónico registrado.<br/>Ingrese el código recibido para validar el trámite.</p>
-                                  <Form.Group className="mb-3">
-                                    <Form.Label>Código OTP</Form.Label>
-                                    <Form.Control
-                                      type="text"
-                                      value={codigoOTP}
-                                      onChange={e => setCodigoOTP(e.target.value)}
-                                      placeholder="Ingrese el código recibido"
-                                      disabled={!otpEnviado || procesandoOTP}
-                                      maxLength={10}
-                                    />
-                                  </Form.Group>
-                                </Modal.Body>
-                                <Modal.Footer>
-                                  <Button variant="secondary" onClick={() => setShowModalOTP(false)} disabled={procesandoOTP}>
-                                    Cancelar
-                                  </Button>
-                                  <Button variant="primary" onClick={validarOTP} disabled={!otpEnviado || procesandoOTP}>
-                                    {procesandoOTP ? "Validando..." : "Validar OTP"}
-                                  </Button>
-                                </Modal.Footer>
-                              </Modal>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
         );
 
@@ -1005,8 +1098,12 @@ export default function UsuarioDirector() {
       case "manual-usuario":
         return (
           <div className="seccion-contenido">
-            <h2>Manual de Usuario - Dirección</h2>
-            <p>Consulte la documentación y guías de uso del sistema para directores.</p>
+            <h2>📖 Manual de Usuario</h2>
+            <iframe
+              src="/Manual_Usuario_SIGEDEX.pdf"
+              title="Manual de Usuario"
+              style={{ width: "100%", height: "80vh", border: "none", borderRadius: "8px" }}
+            />
           </div>
         );
 
@@ -1022,31 +1119,48 @@ export default function UsuarioDirector() {
 
   return (
     <div className="director-layout">
-      {/* Sidebar */}
-      <aside className={`director-sidebar ${sidebarOpen ? "open" : "closed"}`}>
-        <button className="director-toggle" onClick={toggleSidebar}>
-          {sidebarOpen ? "◀" : "▶"}
-        </button>
-        {sidebarOpen && (
-          <nav className="director-menu">
-            {menuFiltrado.map((item) => (
-              <button
-                key={item.id}
-                className={`director-menu-btn ${seccionActiva === item.id ? "active" : ""}`}
-                onClick={() => setSeccionActiva(item.id)}
-              >
-                <span className="director-icon">{item.icon}</span>
-                <span className="director-label">{item.label}</span>
-              </button>
-            ))}
-            
-            <button className="director-menu-btn director-salir" onClick={handleSalir}>
-              <span className="director-icon">🚪</span>
-              <span className="director-label">Salir</span>
+      {/* Navegación horizontal */}
+      <div className="user-nav-bar user-nav-director">
+        <Nav variant="pills" className="flex-wrap gap-1 align-items-center">
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "bandeja"} onClick={() => setSeccionActiva("bandeja")}>📥 Bandeja</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={["inicio","resolver"].includes(seccionActiva)} onClick={() => setSeccionActiva("resolver")}>⚖️ Resolver</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "consultar-expediente"} onClick={() => setSeccionActiva("consultar-expediente")}>�️ Consulta</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <button
+              className="nav-reporte-btn"
+              onClick={() => { const url = exportarPDF(); if (url) setNavPreviewUrl(url); }}
+              disabled={generandoPDF}
+            >
+              {generandoPDF ? "⏳ Generando..." : "🖨️ Reporte"}
             </button>
-          </nav>
-        )}
-      </aside>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link active={seccionActiva === "manual-usuario"} onClick={() => setSeccionActiva("manual-usuario")}>📖 Manual</Nav.Link>
+          </Nav.Item>
+        </Nav>
+      </div>
+
+      {/* Vista previa PDF */}
+      {navPreviewUrl && (
+        <div className="pdf-preview-overlay" onClick={e => { if (e.target === e.currentTarget) setNavPreviewUrl(null); }}>
+          <div className="pdf-preview-modal">
+            <div className="pdf-preview-header">
+              <span className="pdf-preview-title">📄 Vista previa del reporte</span>
+              <div className="pdf-preview-actions">
+                <a href={navPreviewUrl} download="reporte.pdf" className="pdf-btn pdf-btn-download">&#8595; Descargar</a>
+                <button className="pdf-btn pdf-btn-close" onClick={() => setNavPreviewUrl(null)}>✕ Cerrar</button>
+              </div>
+            </div>
+            <iframe src={navPreviewUrl} className="pdf-preview-frame" title="Vista previa reporte" />
+          </div>
+        </div>
+      )}
 
       {/* Contenido principal */}
       <main className="director-main">
@@ -1065,17 +1179,6 @@ export default function UsuarioDirector() {
             </Alert>
           )}
           <p><strong>Expedientes seleccionados:</strong> {expedientesSeleccionados.length}</p>
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Observaciones de Dirección</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              placeholder="Agregue observaciones desde la Dirección..."
-              value={observacionesRecepcion}
-              onChange={(e) => setObservacionesRecepcion(e.target.value)}
-              disabled={procesandoRecepcion}
-            />
-          </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarModalRecepcion} disabled={procesandoRecepcion}>
@@ -1141,7 +1244,7 @@ export default function UsuarioDirector() {
                       <tbody>
                         {historialExpediente.map((h, idx) => (
                           <tr key={idx}>
-                            <td>{new Date(h.fecha_accion).toLocaleString()}</td>
+                            <td>{h.fecha ? new Date(h.fecha).toLocaleString('es-AR') : '-'}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>
                             <td>{h.comentario}</td>
@@ -1162,223 +1265,172 @@ export default function UsuarioDirector() {
 
       {/* Modal de Documentos */}
       <Modal show={showModalDoc} onHide={() => setShowModalDoc(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Documentos del Expediente {expedienteDoc?.numero_expediente}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {mensajeDoc.tipo && mensajeDoc.texto && (
-            <Alert variant={mensajeDoc.tipo}>{mensajeDoc.texto}</Alert>
-          )}
-
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Seleccionar archivos oficiales</strong></Form.Label>
-            <Form.Control
-              type="file"
-              multiple
-              onChange={(e) => setArchivosStaged(Array.from(e.target.files))}
-              disabled={subiendoDoc}
-            />
-            <Form.Text>Archivos seleccionados: {archivosStaged.length}</Form.Text>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Comentario de Dirección</strong></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              placeholder="Descripción de los documentos desde Dirección..."
-              value={comentarioDoc}
-              onChange={(e) => setComentarioDoc(e.target.value)}
-              disabled={subiendoDoc}
-            />
-          </Form.Group>
-
-          {loadingDocs ? (
-            <p>Cargando documentos existentes...</p>
-          ) : documentosDoc.length > 0 && (
-            <div className="documentos-existentes mt-4">
-              <h6>Documentos existentes</h6>
-              <table className="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Tipo</th>
-                    <th>Tamaño</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documentosDoc.map((doc, idx) => (
-                    <tr key={`doc-${doc.id_documento || idx}`}>
-                      <td title={doc.nombre_archivo}>{doc.nombre_archivo}</td>
-                      <td>{doc.tipo}</td>
-                      <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                      <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleString() : '-'}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => {
-                              const url = `${URL_UPLOADS}/${doc.ruta_archivo}`;
-                              window.open(url, '_blank');
-                            }}
-                            title="Ver documento"
-                          >
-                            👁️
-                          </button>
-                          <button
-                            className="btn btn-outline-success btn-sm"
-                            onClick={() => abrirModalFirma(doc)}
-                            title="Firmar documento"
-                          >
-                            ✍️
-                          </button>
-                          <button
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={async () => {
-                              if (!window.confirm('¿Eliminar este documento?')) return;
-                              try {
-                                await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                setDocumentosDoc(resp.data || []);
-                              } catch (err) {
-                                console.error('Error al eliminar documento:', err);
-                                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                              }
-                            }}
-                            title="Eliminar documento"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalDoc(false)} disabled={subiendoDoc}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary"
-            disabled={archivosStaged.length === 0 || subiendoDoc}
-            onClick={async () => {
-              try {
-                if (!archivosStaged.length) return;
-                setSubiendoDoc(true);
-                setMensajeDoc({ tipo: "", texto: "" });
-                const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-                let ok = 0, fail = 0;
-                // Subida múltiple: usar 'files' y endpoint /upload
-                const fd = new FormData();
-                archivosStaged.forEach(f => {
-                  fd.append('files', f);
-                });
-                fd.append('id_expediente', expedienteDoc.id_expediente);
-                fd.append('subido_por', user?.id_usuario);
-                if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
-                await axios.post(URL_DOCUMENTOS + '/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                ok = archivosStaged.length;
-                const msg = fail === 0
-                  ? `Se subieron ${ok} archivo(s)`
-                  : `Subidos ${ok}, fallidos ${fail}`;
-                setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
-                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                setDocumentosDoc(resp.data || []);
-                setArchivosStaged([]);
-              } catch (err) {
-                console.error('Error en guardado de documentos:', err);
-                setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
-              } finally {
-                setSubiendoDoc(false);
-              }
-            }}
-          >
-            {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Modal de Decisión (Aprobar/Rechazar) */}
-      <Modal show={showModalDecision} onHide={cerrarModalDecision} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {decisionTipo === 'aprobar' ? '✓ Aprobar Expediente' : '✗ Rechazar Expediente'}
+        <Modal.Header closeButton style={{ borderBottom: '2px solid #dee2e6' }}>
+          <Modal.Title style={{ fontWeight: 600, fontSize: '1.1rem' }}>
+            📁 Expediente {expedienteDoc?.numero_expediente}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          {mensajeDecision.tipo && mensajeDecision.texto && (
-            <Alert variant={mensajeDecision.tipo}>{mensajeDecision.texto}</Alert>
-          )}
-          
-          {expedienteDecision && (
-            <>
-              <div className="mb-3">
-                <strong>Expediente:</strong> {expedienteDecision.numero_expediente}
-                <br />
-                <strong>Tipo:</strong> {expedienteDecision.tipo_tramite || expedienteDecision.tipo_expediente}
-                <br />
-                <strong>Descripción:</strong> {expedienteDecision.descripcion || 'Sin descripción'}
+        <Modal.Body style={{ padding: '1rem 1.5rem' }}>
+
+          {/* Datos del presentante */}
+          {expedienteDoc && (
+            <div className="mb-2 p-2" style={{ background: '#f0f4ff', borderRadius: '8px', border: '1px solid #c7d4f0' }}>
+              <p className="mb-1 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Datos del presentante</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', fontSize: '0.9rem', color: '#333' }}>
+                <span><span className="text-muted">Nombre:</span> <strong>{expedienteDoc.usuario_presentante_nombre} {expedienteDoc.usuario_presentante_apellido}</strong></span>
+                <span><span className="text-muted">Teléfono:</span> <strong>{expedienteDoc.usuario_presentante_telefono || '—'}</strong></span>
+                <span><span className="text-muted">Email:</span> <strong>{expedienteDoc.usuario_presentante_email || '—'}</strong></span>
               </div>
-
-              <Alert variant={decisionTipo === 'aprobar' ? 'success' : 'danger'}>
-                <strong>
-                  {decisionTipo === 'aprobar' 
-                    ? '¿Confirma que desea APROBAR este expediente?' 
-                    : '¿Confirma que desea RECHAZAR este expediente?'}
-                </strong>
-              </Alert>
-
-              <Form.Group className="mb-3">
-                <Form.Label>
-                  <strong>
-                    {decisionTipo === 'aprobar' 
-                      ? 'Comentarios de aprobación' 
-                      : 'Motivo del rechazo'} *
-                  </strong>
-                </Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={4}
-                  placeholder={
-                    decisionTipo === 'aprobar'
-                      ? 'Agregue observaciones sobre la aprobación...'
-                      : 'Indique el motivo del rechazo...'
-                  }
-                  value={comentarioDecision}
-                  onChange={(e) => setComentarioDecision(e.target.value)}
-                  disabled={procesandoDecision}
-                />
-              </Form.Group>
-            </>
+            </div>
           )}
+
+          {/* Alerta de resultado */}
+          {mensajeDoc.tipo && mensajeDoc.texto && (
+            <Alert variant={mensajeDoc.tipo} className="py-2">{mensajeDoc.texto}</Alert>
+          )}
+
+          {/* Sección: subir archivos (solo modo completo) */}
+          {!modalSoloVer && (
+            <div className="mb-2 p-2" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+              <p className="mb-2 fw-semibold" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#555' }}>Subir documentación oficial</p>
+              <Form.Control type="file" multiple onChange={(e) => setArchivosStaged(Array.from(e.target.files))} disabled={subiendoDoc} className="mb-2" />
+              {archivosStaged.length > 0 && <Form.Text className="text-muted d-block mb-2">{archivosStaged.length} archivo(s) seleccionado(s)</Form.Text>}
+              <Form.Control as="textarea" rows={2} placeholder="Comentario de Dirección (opcional)..." value={comentarioDoc} onChange={(e) => setComentarioDoc(e.target.value)} disabled={subiendoDoc} className="mb-2" />
+              <Button size="sm" variant="primary" disabled={archivosStaged.length === 0 || subiendoDoc}
+                onClick={async () => {
+                  try {
+                    if (!archivosStaged.length) return;
+                    setSubiendoDoc(true);
+                    setMensajeDoc({ tipo: "", texto: "" });
+                    const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+                    let ok = 0, fail = 0;
+                    for (const f of archivosStaged) {
+                      try {
+                        const fd = new FormData();
+                        fd.append('archivo', f);
+                        fd.append('id_expediente', expedienteDoc.id_expediente);
+                        fd.append('subido_por', user?.id_usuario);
+                        if (comentarioDoc?.trim()) fd.append('comentario', comentarioDoc.trim());
+                        await axios.post(URL_DOCUMENTOS, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                        ok++;
+                      } catch (e) {
+                        console.error('Falló subida de', f.name, e);
+                        fail++;
+                      }
+                    }
+                    const msg = fail === 0 ? `Se subieron ${ok} archivo(s)` : `Subidos ${ok}, fallidos ${fail}`;
+                    setMensajeDoc({ tipo: fail === 0 ? 'success' : 'warning', texto: msg });
+                    const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                    setDocumentosDoc(resp.data || []);
+                    setArchivosStaged([]);
+                  } catch (err) {
+                    console.error('Error en guardado de documentos:', err);
+                    setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'Error al guardar documentos' });
+                  } finally {
+                    setSubiendoDoc(false);
+                  }
+                }}
+              >
+                {subiendoDoc ? 'Guardando…' : 'Guardar documentos'}
+              </Button>
+            </div>
+          )}
+
+          {/* Sección: documentos existentes agrupados por rol */}
+          {loadingDocs ? (
+            <p className="text-muted text-center py-3">Cargando documentos…</p>
+          ) : (() => {
+            const rolOrder = ['Presentante', 'Administrativo', 'Técnico', 'Jurídico'];
+            const grupos = {};
+            rolOrder.forEach(r => { grupos[r] = []; });
+            documentosDoc.forEach(doc => {
+              const rol = doc.rol_nombre || 'Otro';
+              if (grupos[rol]) grupos[rol].push(doc);
+              else { grupos[rol] = [doc]; }
+            });
+            const nombresPorRol = {};
+            historialDoc.forEach(h => {
+              if ((h.rol_nombre === 'Administrativo' || h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
+                nombresPorRol[h.rol_nombre] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
+              }
+            });
+            // También obtener nombres desde los propios documentos
+            documentosDoc.forEach(doc => {
+              if ((doc.rol_nombre === 'Administrativo' || doc.rol_nombre === 'Técnico' || doc.rol_nombre === 'Jurídico') && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
+                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
+              }
+            });
+            const hayAlgun = rolOrder.some(r => grupos[r].length > 0);
+            if (!hayAlgun && !modalSoloVer) return (
+              <p className="text-muted text-center py-3" style={{ fontSize: '0.9rem' }}>No hay documentos adjuntos para este expediente.</p>
+            );
+            return (
+              <div>
+                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
+                {rolOrder.map(rol => {
+                  const docs = grupos[rol] || [];
+                  if (rol === 'Presentante' && docs.length === 0) return null;
+                  return (
+                    <div key={rol} className="mb-2">
+                      <h6 className="fw-bold" style={{ color: '#495057' }}>
+                        {rol === 'Presentante' ? '👤' : rol === 'Administrativo' ? '📂' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
+                        {nombresPorRol[rol] && (
+                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
+                        )}
+                      </h6>
+                      {docs.length > 0 ? (
+                        <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                          <thead className="table-light">
+                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
+                          </thead>
+                          <tbody>
+                            {docs.map(doc => (
+                              <tr key={doc.id_documento}>
+                                <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
+                                <td>{doc.tipo}</td>
+                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
+                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
+                                <td>
+                                  <div className="d-flex gap-2">
+                                    <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                                    {!modalSoloVer && (
+                                      <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                                        if (!window.confirm('¿Eliminar este documento?')) return;
+                                        try {
+                                          await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                          const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                          setDocumentosDoc(resp.data || []);
+                                        } catch (err) {
+                                          console.error('Error al eliminar documento:', err);
+                                          setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
+                                        }
+                                      }} title="Eliminar documento">🗑️</button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-muted small ms-2">Sin documentos adjuntos</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={cerrarModalDecision} disabled={procesandoDecision}>
-            Cancelar
-          </Button>
-          <Button 
-            variant={decisionTipo === 'aprobar' ? 'success' : 'danger'}
-            onClick={confirmarDecision}
-            disabled={procesandoDecision || !comentarioDecision.trim()}
-          >
-            {procesandoDecision 
-              ? 'Procesando...' 
-              : decisionTipo === 'aprobar' ? '✓ Confirmar Aprobación' : '✗ Confirmar Rechazo'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      </Modal>    
 
       {/* Modal de Revisión Completo (Nuevo) */}
       <Modal show={showModalRevision} onHide={cerrarModalRevision} size="xl" centered>
         <Modal.Header closeButton>
           <Modal.Title>
-            📋 Revisión Completa - Expediente {expedienteRevision?.numero_expediente}
+            Revisión Completa - Expediente {expedienteRevision?.numero_expediente}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
@@ -1391,83 +1443,102 @@ export default function UsuarioDirector() {
           {expedienteRevision && (
             <>
               {/* Información del Expediente */}
-              <div className="mb-4">
-                <h5 className="text-primary">📄 Información del Expediente</h5>
-                <table className="table table-bordered table-sm">
-                  <tbody>
-                    <tr>
-                      <th width="30%">Número de Expediente:</th>
-                      <td><strong>{expedienteRevision.numero_expediente}</strong></td>
-                    </tr>
-                    <tr>
-                      <th>Tipo:</th>
-                      <td>{expedienteRevision.tipo_tramite || expedienteRevision.tipo_expediente}</td>
-                    </tr>
-                    <tr>
-                      <th>Descripción:</th>
-                      <td>{expedienteRevision.descripcion || 'Sin descripción'}</td>
-                    </tr>
-                    <tr>
-                      <th>Estado Actual:</th>
-                      <td>
-                        <span className={`badge badge-${expedienteRevision.estado || expedienteRevision.estado_actual}`}>
-                          {expedienteRevision.estado || expedienteRevision.estado_actual}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th>Prioridad:</th>
-                      <td>
-                        <span className={`badge badge-${expedienteRevision.prioridad}`}>
-                          {expedienteRevision.prioridad || 'normal'}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th>Ubicación:</th>
-                      <td>{expedienteRevision.ubicacion || 'Sin especificar'}</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="mb-4 p-3" style={{ background: '#f0f4ff', borderRadius: '8px', border: '1px solid #c7d4f0' }}>
+                <p className="mb-3 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Información del Expediente</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', fontSize: '0.9rem', color: '#333' }}>
+                  <span><span className="text-muted">Número:</span> <strong>{expedienteRevision.numero_expediente}</strong></span>
+                  <span><span className="text-muted">Presentante:</span> <strong>{expedienteRevision.usuario_presentante_nombre} {expedienteRevision.usuario_presentante_apellido}</strong></span>
+                  <span><span className="text-muted">Teléfono:</span> <strong>{expedienteRevision.usuario_presentante_telefono || '—'}</strong></span>
+                  <span><span className="text-muted">Tipo:</span> <strong>{expedienteRevision.tipo_tramite || expedienteRevision.tipo_expediente}</strong></span>
+                  <span style={{ gridColumn: '1 / -1' }}><span className="text-muted">Descripción:</span> <strong>{expedienteRevision.descripcion || 'Sin descripción'}</strong></span>
+                  <span><span className="text-muted">Prioridad:</span> <span className={`badge badge-${expedienteRevision.prioridad}`}>{expedienteRevision.prioridad || 'normal'}</span></span>
+                  <span><span className="text-muted">Ubicación:</span> <strong>{expedienteRevision.ubicacion || 'Sin especificar'}</strong></span>
+                </div>
               </div>
 
               {/* Documentos Existentes */}
               <div className="mb-4">
-                <h5 className="text-primary">📎 Documentos del Expediente</h5>
+                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
                 {loadingDocsRevision ? (
                   <p>Cargando documentos...</p>
                 ) : documentosRevision.length > 0 ? (
-                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    <table className="table table-sm table-striped">
-                      <thead>
-                        <tr>
-                          <th>Nombre</th>
-                          <th>Tipo</th>
-                          <th>Tamaño</th>
-                          <th>Fecha</th>
-                          <th>Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {documentosRevision.map((doc, idx) => (
-                          <tr key={`revdoc-${doc.id_documento || idx}`}>
-                            <td>{doc.nombre_archivo}</td>
-                            <td>{doc.tipo}</td>
-                            <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                            <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString() : '-'}</td>
-                            <td>
-                              <button
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() => window.open(`${URL_UPLOADS}/${doc.ruta_archivo}`, '_blank')}
-                              >
-                                👁️ Ver
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  (() => {
+                    const rolOrder = ['Presentante', 'Administrativo', 'Técnico', 'Jurídico'];
+                    const grupos = {};
+                    rolOrder.forEach(r => { grupos[r] = []; });
+                    documentosRevision.forEach(doc => {
+                      const rol = doc.rol_nombre || 'Otro';
+                      if (grupos[rol]) grupos[rol].push(doc);
+                      else { grupos[rol] = grupos[rol] || []; grupos[rol].push(doc); }
+                    });
+                    // Buscar nombres en el historial
+                    const nombresPorRol = {};
+                    historialRevision.forEach(h => {
+                      if ((h.rol_nombre === 'Administrativo' || h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
+                        nombresPorRol[h.rol_nombre] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
+                      }
+                    });
+                    return (
+                      <div>
+                        {rolOrder.map(rol => {
+                          const docs = grupos[rol] || [];
+                          // Presentante: solo mostrar si tiene docs
+                          if (rol === 'Presentante' && docs.length === 0) return null;
+                          const obsRol = observacionesExps.filter(o => o.rol === rol);
+                          return (
+                            <div key={rol} className="mb-3">
+                              <h6 className="fw-bold" style={{ color: '#495057' }}>
+                                {rol === 'Presentante' ? '👤' : rol === 'Administrativo' ? '📂' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
+                                {nombresPorRol[rol] && (
+                                  <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>
+                                    — {nombresPorRol[rol]}
+                                  </span>
+                                )}
+                              </h6>
+                              {docs.length > 0 ? (
+                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                  <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
+                                    <thead className="table-light">
+                                      <tr>
+                                        <th>Nombre</th>
+                                        <th>Tipo</th>
+                                        <th>Tamaño</th>
+                                        <th>Fecha</th>
+                                        <th></th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {docs.map(doc => (
+                                        <tr key={doc.id_documento}>
+                                          <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
+                                          <td>{doc.tipo}</td>
+                                          <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
+                                          <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString('es-AR') : '—'}</td>
+                                          <td>
+                                            <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-muted small ms-2">Sin documentos adjuntos</p>
+                              )}
+                              {obsRol.length > 0 && (
+                                <div className="ms-2 mt-1 p-2" style={{ background: '#f8f9fa', borderLeft: '3px solid #6c757d', borderRadius: '4px' }}>
+                                  <span className="fw-semibold" style={{ fontSize: '0.8rem', color: '#555' }}>Observaciones:</span>
+                                  {obsRol.map((obs, i) => (
+                                    <div key={i} style={{ fontSize: '0.85rem', color: '#333', marginTop: '2px' }}>{obs.observacion}</div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
                 ) : (
                   <Alert variant="info">No hay documentos adjuntos en este expediente</Alert>
                 )}
@@ -1475,7 +1546,7 @@ export default function UsuarioDirector() {
 
               {/* Historial de Movimientos */}
               <div className="mb-4">
-                <h5 className="text-primary">📜 Historial de Movimientos</h5>
+                <h5 className="text-primary">Historial de Movimientos</h5>
                 {historialRevision.length > 0 ? (
                   <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                     <table className="table table-sm table-striped">
@@ -1489,8 +1560,8 @@ export default function UsuarioDirector() {
                       </thead>
                       <tbody>
                         {historialRevision.map((h, idx) => (
-                          <tr key={`histrev-${h.id_historial || idx}`}>
-                            <td>{new Date(h.fecha_accion).toLocaleString()}</td>
+                          <tr key={idx}>
+                            <td>{h.fecha ? new Date(h.fecha).toLocaleString('es-AR') : '-'}</td>
                             <td>{h.accion}</td>
                             <td>{h.usuario_nombre || 'Sistema'}</td>
                             <td>{h.comentario}</td>
@@ -1504,11 +1575,9 @@ export default function UsuarioDirector() {
                 )}
               </div>
 
-              <hr />
-
               {/* Subir Nuevos Documentos */}
               <div className="mb-4">
-                <h5 className="text-success">📤 Subir Documentos Oficiales (Opcional)</h5>
+                <h5 className="text-success">Subir Documentos Oficiales (Opcional)</h5>
                 <Form.Group className="mb-3">
                   <Form.Label><strong>Seleccionar archivos</strong></Form.Label>
                   <Form.Control
@@ -1524,25 +1593,13 @@ export default function UsuarioDirector() {
                   </Form.Text>
                 </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label><strong>Comentario sobre los documentos</strong></Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    placeholder="Describa los documentos que está adjuntando..."
-                    value={comentarioDocRevision}
-                    onChange={(e) => setComentarioDocRevision(e.target.value)}
-                    disabled={subiendoDoc || procesandoDecision}
-                  />
-                </Form.Group>
-
                 <Button 
                   variant="outline-success"
                   onClick={subirDocumentosRevision}
                   disabled={archivosRevision.length === 0 || subiendoDoc || procesandoDecision}
                   className="me-2"
                 >
-                  {subiendoDoc ? 'Subiendo...' : '📤 Subir Documentos'}
+                  {subiendoDoc ? 'Subiendo...' : 'Subir Documentos'}
                 </Button>
               </div>
 
@@ -1550,7 +1607,7 @@ export default function UsuarioDirector() {
 
               {/* Decisión Final */}
               <div className="mb-3">
-                <h5 className="text-danger">⚖️ Decisión Final del Director</h5>
+                <h5 className="text-danger">Decisión Final del Director</h5>
                 <Alert variant="warning">
                   <strong>Importante:</strong> Esta decisión es definitiva y se notificará al usuario presentante del trámite.
                 </Alert>
@@ -1561,7 +1618,7 @@ export default function UsuarioDirector() {
                     <Form.Check
                       type="radio"
                       id="radio-aprobar"
-                      label="✅ APROBAR"
+                      label="APROBAR"
                       name="decision"
                       checked={decisionTipo === 'aprobar'}
                       onChange={() => setDecisionTipo('aprobar')}
@@ -1570,7 +1627,7 @@ export default function UsuarioDirector() {
                     <Form.Check
                       type="radio"
                       id="radio-rechazar"
-                      label="❌ RECHAZAR"
+                      label="RECHAZAR"
                       name="decision"
                       checked={decisionTipo === 'rechazar'}
                       onChange={() => setDecisionTipo('rechazar')}
@@ -1624,79 +1681,15 @@ export default function UsuarioDirector() {
             {procesandoDecision 
               ? 'Procesando...' 
               : decisionTipo === 'aprobar' 
-                ? '✅ Confirmar Aprobación' 
+                ? 'Confirmar Aprobación' 
                 : decisionTipo === 'rechazar'
-                ? '❌ Confirmar Rechazo'
+                ? 'Confirmar Rechazo'
                 : 'Confirmar Decisión'}
           </Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Modal de Firma Digital */}
-      <Modal show={showModalFirma} onHide={cerrarModalFirma} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>✍️ Firmar Documento Digitalmente</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {mensajeFirma.tipo && mensajeFirma.texto && (
-            <Alert variant={mensajeFirma.tipo}>{mensajeFirma.texto}</Alert>
-          )}
-
-          {documentoAFirmar && (
-            <>
-              <div className="mb-3">
-                <strong>Documento:</strong> {documentoAFirmar.nombre_archivo}
-                <br />
-                <strong>Tipo:</strong> {documentoAFirmar.tipo}
-                <br />
-                <strong>Fecha subida:</strong> {documentoAFirmar.fecha_subida 
-                  ? new Date(documentoAFirmar.fecha_subida).toLocaleString() 
-                  : '-'}
-              </div>
-
-              <Form.Group className="mb-3">
-                <Form.Label><strong>Seleccione su firma digital *</strong></Form.Label>
-                <Form.Select
-                  value={firmaSeleccionada}
-                  onChange={(e) => setFirmaSeleccionada(e.target.value)}
-                  disabled={procesandoFirma || firmasDisponibles.length === 0}
-                >
-                  <option value="">Seleccione una firma...</option>
-                  {firmasDisponibles.map(firma => (
-                    <option key={firma.id_firma} value={firma.id_firma}>
-                      {firma.nombre_firma} - {firma.tipo_firma}
-                    </option>
-                  ))}
-                </Form.Select>
-                {firmasDisponibles.length === 0 && (
-                  <Form.Text className="text-danger">
-                    No tiene firmas digitales registradas. Debe crear una en el sistema.
-                  </Form.Text>
-                )}
-              </Form.Group>
-
-              <Alert variant="info">
-                <small>
-                  La firma digital se aplicará al documento seleccionado y quedará registrada 
-                  en el sistema como parte del expediente oficial.
-                </small>
-              </Alert>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={cerrarModalFirma} disabled={procesandoFirma}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="primary"
-            onClick={confirmarFirma}
-            disabled={procesandoFirma || !firmaSeleccionada || firmasDisponibles.length === 0}
-          >
-            {procesandoFirma ? 'Firmando...' : '✍️ Firmar Documento'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* Modal de Firma Digital eliminado - funcionalidad no implementada */}
     </div>
   );
 }
