@@ -615,9 +615,15 @@ export default function UsuarioTecnico() {
       }
 
       setArchivosVer([]);
+      const idPasado = expedienteVer.id_expediente;
       setTimeout(() => {
         cerrarModalVer();
-        recargarExpedientes();
+        setExpedientesPendientes((prev) => prev.filter((e) => e.id_expediente !== idPasado));
+        setPasesPorExp((prev) => {
+          const next = { ...prev };
+          delete next[idPasado];
+          return next;
+        });
       }, 1200);
     } catch (err) {
       console.error('Error pase:', err);

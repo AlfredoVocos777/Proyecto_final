@@ -275,7 +275,16 @@ export default function UsuarioJuridico() {
       }
 
       setArchivosVer([]);
-      setTimeout(() => { cerrarModalVer(); recargarExpedientes(); }, 1200);
+      const idPasado = expedienteVer.id_expediente;
+      setTimeout(() => {
+        cerrarModalVer();
+        setExpedientesPendientes((prev) => prev.filter((e) => e.id_expediente !== idPasado));
+        setPasesPorExp((prev) => {
+          const next = { ...prev };
+          delete next[idPasado];
+          return next;
+        });
+      }, 1200);
     } catch (err) {
       setMensajeVer({ tipo: 'danger', texto: err.response?.data?.error || 'Error al realizar el pase.' });
     }
