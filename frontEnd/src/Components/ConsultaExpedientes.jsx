@@ -17,11 +17,27 @@ import {
   Badge,
   Container,
   Alert,
+  Accordion
 } from "react-bootstrap";
 import "../CSS/Consulta.css";
 import "../CSS/PerfilUsuario.css";
+import "../CSS/DocumentacionAdjunta.css";
 
-function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada", ocultarPrioridad = false, compacto = false }) {
+const BADGE_ESTADO = {
+  "pendiente":   "warning",
+  "en revisión": "info",
+  "asignado":    "primary",
+  "aprobado":    "success",
+  "rechazado":   "danger",
+  "archivado":   "secondary",
+  "finalizado":  "dark",
+};
+
+function getBadge(estado) {
+  return BADGE_ESTADO[(estado ?? "").toLowerCase()] ?? "primary";
+}
+
+function ConsultaExpedientes({ soloEstado, rutaVolver = "/Portada", ocultarPrioridad = false, compacto = false, ocultarHeader = false }) {
   const [expedientes, setExpedientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -74,6 +90,9 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   });
   const [editandoPerfil, setEditandoPerfil] = useState(false);
   const [mensajePerfil, setMensajePerfil] = useState({ tipo: "", texto: "" });
+
+  // Estado para la categoría activa de documentos en el modal ver
+  const [categoriaActiva, setCategoriaActiva] = useState("Presentante");
 
   // --- Funciones para Perfil de Usuario ---
   const abrirModalPerfil = async () => {
@@ -161,24 +180,18 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     }
   };
 
-
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("usuarioLogueado"));
     setUsuarioLog(u || null);
 
-    // Por defecto, filtrar el último mes si no hay fechas seteadas
+    // Por defecto, filtrar las últimas dos semanas si no hay fechas seteadas
     const hoy = new Date();
-    const haceUnMes = new Date();
-    haceUnMes.setMonth(hoy.getMonth() - 1);
+    const haceDosSemanas = new Date();
+    haceDosSemanas.setDate(hoy.getDate() - 14);
     
     // Formato YYYY-MM-DD para el input type="date"
-    const desdeStr = haceUnMes.toISOString().split('T')[0];
+    const desdeStr = haceDosSemanas.toISOString().split('T')[0];
     setFechaDesde(desdeStr);
-    
-    // El primer fetch se disparará por el cambio de fechaDesde en el useEffect de abajo
-    // pero como necesitamos cargar el usuarioLogueado, lo dejamos así.
-    // Para evitar doble carga, solo llamamos si no vamos a cambiar el estado de fechaDesde
-    // o simplemente dejamos que los efectos se encarguen.
   }, []);
 
   // Efecto para recargar cuando cambian fechas o filtros básicos (que el backend soporta)
@@ -217,8 +230,10 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
         docs.map((d) => ({
           id_documento: d.id_documento,
           nombre: d.nombre_archivo,
-          subido_por_nombre: d.subido_por_nombre || null,
+          subido_por_nombre: d.subido_por_nombre || "Desconocido",
           rol_nombre: d.rol_nombre || null,
+          categoria: d.categoria || null,
+          fecha_subida: d.fecha_subida || null
         }))
       );
 
@@ -288,7 +303,8 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     const resultados = await uploadModalFiles(
       expedienteSeleccionado.id_expediente,
       archivos,
-      idUsuario
+      idUsuario,
+      categoriaActiva // Enviamos la categoría seleccionada en el acordeón
     );
 
     if (resultados && resultados.length) {
@@ -296,6 +312,7 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
       const archivosMapeados = resultados.map((r) => ({
         id_documento: r.id_documento,
         nombre: r.nombre,
+        categoria: categoriaActiva, // Asignamos la categoría al nuevo archivo
       }));
 
       // Agregar al listado de documentos subidos
@@ -314,16 +331,17 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
   const uploadModalFiles = async (
     expedienteId,
     archivosSeleccionados,
-    idUsuario
+    idUsuario,
+    categoria
   ) => {
     if (!archivosSeleccionados || !archivosSeleccionados.length) return;
 
     const formData = new FormData();
     formData.append("id_expediente", expedienteId);
     formData.append("subido_por", idUsuario);
-
+    formData.append("categoria", categoria); // Enviamos el tipo de documento (dni, nota, etc.)
     archivosSeleccionados.forEach((file) => {
-      formData.append("files", file); // 'files' coincide con Multer
+      formData.append("files", file); // 'files' coincide with Multer
     });
 
     try {
@@ -469,9 +487,15 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
     const coincidePrioridad =
       !filtroPrioridad ||
       (e.prioridad || "").toLowerCase() === filtroPrioridad.toLowerCase();
-    const coincideAsignado =
-      !filtroAsignado ||
-      `${e.usuario_asignado_nombre || ""} ${e.usuario_asignado_apellido || ""}`.toLowerCase().includes(filtroAsignado.toLowerCase());
+    const coincideAsignado = !filtroAsignado || (() => {
+      const tipo = (e.usuario_asignado_tipo || "").toLowerCase();
+      let rolLabel = "";
+      if (tipo === 'técnico' || tipo === 'tecnico') rolLabel = 'Área Técnica';
+      else if (tipo === 'jurídico' || tipo === 'juridico') rolLabel = 'Área Jurídica';
+      else if (tipo === 'director') rolLabel = 'Dirección';
+      else if (tipo === 'administrador' || tipo === 'administrativo') rolLabel = 'Administración';
+      return rolLabel === filtroAsignado;
+    })();
 
     return (
       coincideBusqueda && coincideTipo && coincideEstado && coincidePrioridad && coincideAsignado
@@ -487,24 +511,26 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
 
   return (
     <Container fluid className="consulta-expedientes-container">
-      <div className="consulta-header">
-        <h2>Consulta de Expedientes</h2>
-        <div className="d-flex gap-2">
-          <Button
-            variant="outline-primary"
-            onClick={abrirModalPerfil}
-            className="d-flex align-items-center gap-1"
-          >
-            👤 Mis Datos
-          </Button>
-          <Button variant="outline-primary" onClick={obtenerExpedientes} disabled={loading}>
-            {loading ? "Cargando..." : "Actualizar"}
-          </Button>
-          <Button variant="secondary" onClick={() => navigate(rutaVolver)}>
-            Volver a Portada
-          </Button>
+      {!ocultarHeader && (
+        <div className="consulta-header">
+          <h2>Consulta de Expedientes</h2>
+          <div className="d-flex gap-2">
+            <Button
+              variant="outline-primary"
+              onClick={abrirModalPerfil}
+              className="d-flex align-items-center gap-1"
+            >
+              👤 Mis Datos
+            </Button>
+            <Button variant="outline-primary" onClick={obtenerExpedientes} disabled={loading}>
+              {loading ? "Cargando..." : "Actualizar"}
+            </Button>
+            <Button variant="secondary" onClick={() => navigate(rutaVolver)}>
+              Volver a Portada
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Subtítulo contextual para presentante */}
       {usuarioLog?.tipo_usuario?.toLowerCase() === "presentante" && (
@@ -517,200 +543,183 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
         </Alert>
       )}
 
+      {/* Barra de filtros */}
+      <div className="row g-2 mb-3">
+        <div className="col-md-3">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Buscar por número, tipo o descripción..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
+        <div className="col-md-3">
+          <select
+            className="form-select"
+            value={filtroTipo}
+            onChange={(e) => setFiltroTipo(e.target.value)}
+          >
+            <option value="">Tipo (todos)</option>
+            {Array.from(
+              new Set(
+                expedientes.map((e) => e.tipo_expediente).filter(Boolean)
+              )
+            )
+            .filter(t => t !== "Rio" && t !== "Rivera")
+            .map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+        {!soloEstado && (
+        <div className="col-md-2">
+          <select
+            className="form-select"
+            value={filtroEstado}
+            onChange={(e) => setFiltroEstado(e.target.value)}
+          >
+            {[
+              "en revisión",
+              "aprobado",
+              "rechazado",
+              "pendiente",
+              "archivado",
+            ].map((est) => (
+              <option key={est} value={est}>
+                {est}
+              </option>
+            ))}
+          </select>
+        </div>
+        )}
+        {!ocultarPrioridad && (
+        <div className="col-md-2">
+          <select
+            className="form-select"
+            value={filtroPrioridad}
+            onChange={(e) => setFiltroPrioridad(e.target.value)}
+          >
+            <option value="">Prioridad (todas)</option>
+            {["alta", "media", "baja"].map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
+        )}
+        {ocultarPrioridad && (
+        <div className="col-md-2">
+          <select
+            className="form-select"
+            value={filtroAsignado}
+            onChange={(e) => setFiltroAsignado(e.target.value)}
+          >
+            <option value="" disabled hidden>Asignado a:</option>
+            {["Administración", "Área Técnica", "Área Jurídica", "Dirección"].map((area) => (
+              <option key={area} value={area}>{area}</option>
+            ))}
+          </select>
+        </div>
+        )}
+        
+        {/* Filtro fecha rango */}
+        <div className="col-md-2" style={{ position: "relative" }}>
+          <button
+            onClick={() => setMostrarPickerFecha(v => !v)}
+            title={fechaDesde || fechaHasta ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
+            className={`btn-date-filter ${fechaDesde || fechaHasta ? 'active' : ''}`}
+          >
+            {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
+          </button>
+
+          {mostrarPickerFecha && (
+            <div className="datepicker-popover">
+              <div className="d-flex justify-content-end align-items-center mb-3">
+                <button 
+                  className="btn-close" 
+                  style={{ fontSize: "0.75rem" }} 
+                  onClick={() => setMostrarPickerFecha(false)}
+                ></button>
+              </div>
+              
+              <div className="mb-3">
+                <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Fecha de inicio:</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                />
+              </div>
+              
+              <div className="mb-3">
+                <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Hasta:</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={fechaHasta}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                />
+              </div>
+
+              <div className="d-flex gap-2">
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="text-decoration-none p-0 ms-auto"
+                  onClick={() => { 
+                    setFechaDesde(""); 
+                    setFechaHasta(""); 
+                  }}
+                  style={{ fontSize: "0.8rem", color: "#6b7280" }}
+                >
+                  Limpiar fechas
+                </Button>
+                <Button 
+                  variant="primary" 
+                  size="sm"
+                  onClick={() => setMostrarPickerFecha(false)}
+                  style={{ borderRadius: "6px", padding: "4px 12px" }}
+                >
+                  Aplicar
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="col-md-2 d-grid">
+          <Button
+            variant="outline-primary"
+            onClick={() => {
+              setBusqueda("");
+              setFiltroEstado(soloEstado || "en revisión");
+              setFiltroPrioridad("");
+              setFiltroTipo("");
+              setFiltroAsignado("");
+              setFechaDesde("");
+              setFechaHasta("");
+            }}
+            style={{ whiteSpace: "nowrap", backgroundColor: "#f8f6f0" }}
+          >
+            Limpiar filtros
+          </Button>
+        </div>
+      </div>
+
       {expedientes.length === 0 ? (
-        <Alert variant="info">
+        <Alert variant="info" className="mt-4">
           No hay expedientes registrados en el sistema.
+        </Alert>
+      ) : filtrados.length === 0 ? (
+        <Alert variant="info" className="mt-4">
+          No se encontraron expedientes con los filtros aplicados.
         </Alert>
       ) : (
         <div className={`tabla-container${compacto ? " tabla-container--compacto" : ""}`}>
-          {/* Barra de filtros */}
-          <div className="row g-2 mb-3">
-            <div className="col-md-3">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Buscar por número, tipo o descripción..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-              />
-            </div>
-            <div className="col-md-3">
-              <select
-                className="form-select"
-                value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value)}
-              >
-                <option value="">Tipo (todos)</option>
-                {Array.from(
-                  new Set(
-                    expedientes.map((e) => e.tipo_expediente).filter(Boolean)
-                  )
-                ).map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {!soloEstado && (
-            <div className="col-md-2">
-              <select
-                className="form-select"
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-              >
-                {[
-                  "en revisión",
-                  "aprobado",
-                  "rechazado",
-                  "pendiente",
-                  "archivado",
-                ].map((est) => (
-                  <option key={est} value={est}>
-                    {est}
-                  </option>
-                ))}
-              </select>
-            </div>
-            )}
-            {!ocultarPrioridad && (
-            <div className="col-md-2">
-              <select
-                className="form-select"
-                value={filtroPrioridad}
-                onChange={(e) => setFiltroPrioridad(e.target.value)}
-              >
-                <option value="">Prioridad (todas)</option>
-                {["alta", "media", "baja"].map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-            )}
-            {ocultarPrioridad && (
-            <div className="col-md-2">
-              <select
-                className="form-select"
-                value={filtroAsignado}
-                onChange={(e) => setFiltroAsignado(e.target.value)}
-              >
-                <option value="">Asignado (todos)</option>
-                {Array.from(
-                  new Set(
-                    expedientes
-                      .map((e) => e.usuario_asignado_nombre ? `${e.usuario_asignado_nombre} ${e.usuario_asignado_apellido || ""}`.trim() : null)
-                      .filter(Boolean)
-                  )
-                ).map((nombre) => (
-                  <option key={nombre} value={nombre}>{nombre}</option>
-                ))}
-              </select>
-            </div>
-            )}
-            
-            {/* Filtro fecha rango */}
-            <div className="col-md-2" style={{ position: "relative" }}>
-              <button
-                onClick={() => setMostrarPickerFecha(v => !v)}
-                title={fechaDesde || fechaHasta ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
-                className="btn w-100 d-flex align-items-center justify-content-center"
-                style={{
-                  background: "#fff",
-                  color: "#333",
-                  border: "1px solid #ced4da",
-                  borderRadius: "0.375rem",
-                  height: "38px",
-                  fontSize: "0.9rem",
-                  whiteSpace: "nowrap",
-                  fontWeight: 500,
-                }}
-              >
-                {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
-              </button>
-
-              {mostrarPickerFecha && (
-                <div
-                  style={{
-                    position: "absolute", top: "44px", left: "50%", transform: "translateX(-50%)", zIndex: 1050,
-                    background: "#fff",
-                    borderRadius: "12px",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-                    padding: "16px 20px",
-                    minWidth: "280px",
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
-                  <div className="d-flex justify-content-end align-items-center mb-3">
-                    <button 
-                      className="btn-close" 
-                      style={{ fontSize: "0.75rem" }} 
-                      onClick={() => setMostrarPickerFecha(false)}
-                    ></button>
-                  </div>
-                  
-                  <div className="mb-3">
-                    <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Fecha de inicio:</label>
-                    <input
-                      type="date"
-                      className="form-control form-control-sm"
-                      value={fechaDesde}
-                      onChange={(e) => setFechaDesde(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="mb-3">
-                    <label className="form-label small text-muted mb-1" style={{ fontWeight: 600 }}>Hasta:</label>
-                    <input
-                      type="date"
-                      className="form-control form-control-sm"
-                      value={fechaHasta}
-                      onChange={(e) => setFechaHasta(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="d-flex gap-2">
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="text-decoration-none p-0 ms-auto"
-                      onClick={() => { setFechaDesde(""); setFechaHasta(""); }}
-                      style={{ fontSize: "0.8rem", color: "#6b7280" }}
-                    >
-                      Limpiar fechas
-                    </Button>
-                    <Button 
-                      variant="primary" 
-                      size="sm"
-                      onClick={() => setMostrarPickerFecha(false)}
-                      style={{ borderRadius: "6px", padding: "4px 12px" }}
-                    >
-                      Aplicar
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="col-md-2 d-grid">
-              <Button
-                variant="outline-primary"
-                onClick={() => {
-                  setBusqueda("");
-                  setFiltroEstado(soloEstado || "en revisión");
-                  setFiltroPrioridad("");
-                  setFiltroTipo("");
-                  setFiltroAsignado("");
-                  setFechaDesde("");
-                  setFechaHasta("");
-                }}
-                style={{ whiteSpace: "nowrap", backgroundColor: "#f8f6f0" }}
-              >
-                Limpiar filtros
-              </Button>
-            </div>
-          </div>
-
           {/* Info de paginación superior */}
           <div className="d-flex justify-content-between align-items-center mb-2">
             <small className="text-muted">
@@ -772,13 +781,22 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                           const nombre = `${expediente.usuario_asignado_nombre} ${expediente.usuario_asignado_apellido || ''}`.trim();
                           const tipo = (expediente.usuario_asignado_tipo ?? '').toLowerCase();
                           
-                          if (tipo === 'técnico' || tipo === 'tecnico') return <>{nombre} <strong>(Técnico)</strong></>;
-                          if (tipo === 'jurídico' || tipo === 'juridico') return <>{nombre} <strong>(Jurídico)</strong></>;
-                          if (tipo === 'director') return <>{nombre} <strong>(Director)</strong></>;
-                          if (tipo === 'administrador' || tipo === 'administrativo') return <>{nombre} <strong>(Administrador)</strong></>;
-                          return nombre;
+                          let rolLabel = '';
+                          if (tipo === 'técnico' || tipo === 'tecnico') rolLabel = 'Área Técnica';
+                          else if (tipo === 'jurídico' || tipo === 'juridico') rolLabel = 'Área Jurídica';
+                          else if (tipo === 'director') rolLabel = 'Dirección';
+                          else if (tipo === 'administrador' || tipo === 'administrativo') rolLabel = 'Administración';
+                          else rolLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+
+                          return (
+                            <div className="text-center">
+                              <strong>{rolLabel}</strong>
+                              <br />
+                              <span className="text-muted" style={{ fontSize: '0.85em' }}>({nombre})</span>
+                            </div>
+                          );
                         })()
-                      : <span className="text-muted">Sin asignar</span>}
+                      : <div className="text-center"><span className="text-muted">Sin asignar</span></div>}
                   </td>
                   ) : (
                   <td>
@@ -878,63 +896,52 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
           {expedienteSeleccionado && (
             <Form onSubmit={actualizarExpediente}>
 
-
               {/*------Datos generales del expediente---------- */}
+              <span className="modal-seccion-header">Datos del Expediente</span>
+              <div className="expediente-datos-grid mb-4">
+                <div className="row g-3">
+                  <div className="col-md-6 dato-item">
+                    <span className="dato-label">Número</span>
+                    <span className="dato-valor">{expedienteSeleccionado.numero_expediente}</span>
+                  </div>
+                  <div className="col-md-6 dato-item">
+                    <span className="dato-label">Tipo de Expediente</span>
+                    <span className="dato-valor">{expedienteSeleccionado.tipo_expediente || "Sin especificar"}</span>
+                  </div>
+                  
+                  <div className="col-md-6 dato-item">
+                    <span className="dato-label">Estado Actual</span>
+                    <Badge bg={getBadge(expedienteSeleccionado.estado_actual)}>{expedienteSeleccionado.estado_actual ?? "-"}</Badge>
+                  </div>
+                  <div className="col-md-6 dato-item">
+                    <span className="dato-label">Prioridad</span>
+                    <span className="dato-valor">{expedienteSeleccionado.prioridad || "Sin especificar"}</span>
+                  </div>
 
-              <div className="datos-grid">
-                <Form.Group>
-                  <Form.Label>Expediente</Form.Label>
-                  <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.numero_expediente}
-                  </Form.Label>
-                </Form.Group>
+                  <div className="col-md-6 dato-item">
+                    <span className="dato-label">Presentante</span>
+                    <span className="dato-valor">
+                      {expedienteSeleccionado.usuario_presentante_apellido && expedienteSeleccionado.usuario_presentante_nombre
+                        ? `${expedienteSeleccionado.usuario_presentante_nombre} ${expedienteSeleccionado.usuario_presentante_apellido}`
+                        : expedienteSeleccionado.usuario_presentante_nombre || expedienteSeleccionado.id_usuario_presentante}
+                    </span>
+                  </div>
+                  <div className="col-md-6 dato-item">
+                    <span className="dato-label">Fecha de Creación</span>
+                    <span className="dato-valor">
+                      {expedienteSeleccionado.fecha_creacion
+                        ? new Date(expedienteSeleccionado.fecha_creacion).toLocaleString("es-AR")
+                        : "—"}
+                    </span>
+                  </div>
 
-
-                <Form.Group>
-                  <Form.Label>Fecha</Form.Label>
-                  <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.fecha_creacion
-                      ? new Date(expedienteSeleccionado.fecha_creacion).toLocaleString("es-AR")
-                      : "—"}
-                  </Form.Label>
-                </Form.Group>
-
-                <Form.Group>
-                  <Form.Label>Usuario Presentante</Form.Label>
-                  <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.usuario_presentante_apellido && expedienteSeleccionado.usuario_presentante_nombre
-                      ? `${expedienteSeleccionado.usuario_presentante_nombre} ${expedienteSeleccionado.usuario_presentante_apellido}`
-                      : expedienteSeleccionado.usuario_presentante_nombre || expedienteSeleccionado.id_usuario_presentante}
-                  </Form.Label>
-                </Form.Group>
-
-                <Form.Group>
-                  <Form.Label>Estado</Form.Label>
-                  <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.estado_actual}
-                  </Form.Label>
-                </Form.Group>
-
-                <Form.Group>
-                  <Form.Label>Tipo</Form.Label>
-                  <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.tipo_expediente || "Sin especificar"}
-                  </Form.Label>
-                </Form.Group>
-
-                <Form.Group>
-                  <Form.Label>Prioridad</Form.Label>
-                  <Form.Label className="expediente-label">
-                    {expedienteSeleccionado.prioridad || "Sin especificar"}
-                  </Form.Label>
-                </Form.Group>
-
-                <Form.Group style={{ gridColumn: "1 / -1" }}>
-                  <Form.Label>Descripción</Form.Label>
-                  <Form.Label className="expediente-label" style={{ whiteSpace: "pre-wrap" }}>
-                    {expedienteSeleccionado.descripcion || "Sin descripción"}
-                  </Form.Label>
-                </Form.Group>
+                  <div className="col-12 dato-item dato-item-full">
+                    <span className="dato-label">Descripción</span>
+                    <p className="mb-0 dato-valor" style={{ whiteSpace: "pre-wrap" }}>
+                      {expedienteSeleccionado.descripcion || "Sin descripción"}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/*------Observaciones de los distintos roles---------- */}
@@ -1070,79 +1077,187 @@ const [observacionesDirector, setObservacionesDirector] = useState([]);
                 </div>
               )}
 
-              {/*Agregar documentos en el modal ver*/}
-
-              <div className="documentos-box">
+              {/*Categorización de documentos en el modal ver (Estilo Acordeón)*/}
+              <div className="documentos-box mt-4">
                 {modalType === "ver" && (
                   <>
-                    <Form.Group controlId="modalFileUpload" className="mb-3">
-                      <Form.Label>Subir más documentos:</Form.Label>
-                      <Form.Control
-                        type="file"
-                        multiple
-                        onChange={handleModalFileSelect}
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      />
-                    </Form.Group>
+                    <h6 className="mb-3 fw-bold"><i className="bi bi-folder2-open me-2"></i>Documentación del Expediente:</h6>
+                    <Accordion defaultActiveKey={null} className="accordion-documentos">
+                      {[
+                        { id: "0", label: "DNI del presentante (frente y dorso)", key: "dni" },
+                        { id: "1", label: "Nota de elevación (con firma y aclaración)", key: "nota" },
+                        { id: "2", label: "Plano de ubicación de proyecto", key: "plano" },
+                        { id: "3", label: "Memoria descriptiva", key: "memoria" },
+                        { id: "4", label: "Título de propiedad o boleto de compra venta", key: "titulo" }
+                      ].map((cat) => {
+                        // Filtramos archivos: 
+                        // 1. Por el campo 'categoria' de la base de datos
+                        // 2. Fallback por nombre de archivo para archivos viejos
+                        const archivosAMostrar = modalUploadedFiles.filter(f => {
+                          const catBD = (f.categoria || "").toLowerCase();
+                          const nombre = (f.nombre || "").toLowerCase();
+                          
+                          // Si ya tiene categoría en BD, comparamos directo
+                          if (catBD === cat.key) return true;
+                          
+                          // Si no tiene categoría, probamos el hack del nombre
+                          if (!catBD && nombre.includes(cat.key)) return true;
+                          
+                          return false;
+                        });
 
-                    {modalFiles.length > 0 && (
-                      <div className="mb-3">
-                        <h6>Archivos seleccionados:</h6>
-                        {modalFiles.map((file, idx) => (
-                          <div
-                            key={idx}
-                            className="d-flex align-items-center mb-1"
-                          >
-                            <span className="me-auto">{file.name}</span>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() =>
-                                setModalFiles(
-                                  modalFiles.filter((f) => f.name !== file.name)
-                                )
-                              }
-                            >
-                              Eliminar
-                            </Button>
+                        return (
+                          <Accordion.Item eventKey={cat.id} key={cat.id}>
+                            <Accordion.Header>
+                              <div className="d-flex justify-content-between w-100 me-3">
+                                <span>{cat.label}</span>
+                                <Badge bg={archivosAMostrar.length > 0 ? "primary" : "secondary"} pill>
+                                  {archivosAMostrar.length} {archivosAMostrar.length === 1 ? 'archivo' : 'archivos'}
+                                </Badge>
+                              </div>
+                            </Accordion.Header>
+                            <Accordion.Body>
+                              {/* Listado de archivos subidos */}
+                              <div className="listado-archivos-categoria mb-3">
+                                {archivosAMostrar.length > 0 ? (
+                                  archivosAMostrar.map((f, i) => (
+                                    <div key={i} className="doc-subido-item-nuevo">
+                                      <div className="doc-info">
+                                        <i className="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                        <div>
+                                          <div className="doc-nombre">{f.nombre}</div>
+                                          <div className="doc-meta">
+                                            Subido el {f.fecha_subida ? new Date(f.fecha_subida).toLocaleDateString('es-AR') : '—'} 
+                                            {f.rol_nombre ? ` — ${f.rol_nombre}` : ''}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <Button
+                                        variant="link"
+                                        className="btn-ver-doc"
+                                        onClick={() => window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank")}
+                                      >
+                                        <i className="bi bi-eye me-1"></i>Ver
+                                      </Button>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-center py-3 text-muted">
+                                    <p className="small mb-0">No hay documentos cargados en esta sección.</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Sección para subir más documentos (Solo si no está en un estado final/cerrado) */}
+                              {expedienteSeleccionado.estado_actual?.toLowerCase() !== "finalizado" && 
+                               expedienteSeleccionado.estado_actual?.toLowerCase() !== "archivado" && 
+                               expedienteSeleccionado.estado_actual?.toLowerCase() !== "aprobado" && 
+                               expedienteSeleccionado.estado_actual?.toLowerCase() !== "rechazado" && (
+                                <div className="upload-section-acordeon pt-2 border-top">
+                                  <Form.Group controlId={`upload-${cat.id}`} className="mb-2">
+                                    <Form.Label className="small fw-bold text-muted">Añadir {cat.label}:</Form.Label>
+                                    <Form.Control
+                                      type="file"
+                                      size="sm"
+                                      multiple
+                                      onChange={(e) => {
+                                        handleModalFileSelect(e);
+                                        setCategoriaActiva(cat.key); // Actualizamos la categoría activa al elegir el archivo
+                                      }}
+                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                      className="form-control-sm"
+                                    />
+                                  </Form.Group>
+
+                                  {modalFiles.length > 0 && (
+                                    <div className="mt-2 p-2 bg-light rounded border border-primary-subtle">
+                                      <h6 className="small fw-bold">Archivos seleccionados:</h6>
+                                      {modalFiles.map((file, idx) => (
+                                        <div key={idx} className="d-flex align-items-center justify-content-between mb-1 small">
+                                          <span><i className="bi bi-paperclip me-1"></i>{file.name}</span>
+                                          <i 
+                                            className="bi bi-x-circle text-danger" 
+                                            style={{ cursor: 'pointer' }}
+                                            onClick={() => setModalFiles(modalFiles.filter((f) => f.name !== file.name))}
+                                          ></i>
+                                        </div>
+                                      ))}
+                                      <Button
+                                        variant="primary"
+                                        size="sm"
+                                        className="w-100 mt-2 btn-confirmar-subida"
+                                        onClick={subirArchivosModal}
+                                      >
+                                        Confirmar Subida
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </Accordion.Body>
+                          </Accordion.Item>
+                        );
+                      })}
+                    </Accordion>
+
+                    {/* --- SECCIONES EXTRA SEGÚN DISPONIBILIDAD DE ARCHIVOS --- */}
+                    {(() => {
+                      const categoriasPresentante = ["dni", "nota", "plano", "memoria", "titulo"];
+                      
+                      const docsPresentanteOtros = modalUploadedFiles.filter(f => {
+                        const rol = (f.rol_nombre || "").toLowerCase();
+                        const cat = (f.categoria || "").toLowerCase();
+                        const esPresentante = !rol || rol === "" || rol.includes("presentante");
+                        return esPresentante && !categoriasPresentante.includes(cat);
+                      });
+
+                      const docsAdmin = modalUploadedFiles.filter(f => (f.rol_nombre || "").toLowerCase().includes("admin"));
+                      const docsTecnico = modalUploadedFiles.filter(f => (f.rol_nombre || "").toLowerCase().includes("tecnico") || (f.rol_nombre || "").toLowerCase().includes("técnico"));
+                      const docsJuridico = modalUploadedFiles.filter(f => (f.rol_nombre || "").toLowerCase().includes("juridico") || (f.rol_nombre || "").toLowerCase().includes("jurídico"));
+
+                      const renderSeccionDoc = (titulo, icon, colorClass, archivos) => {
+                        if (archivos.length === 0) return null;
+                        return (
+                          <div className="mt-4 pt-3 border-top">
+                            <h6 className={`mb-3 fw-bold ${colorClass}`}>
+                              <i className={`bi ${icon} me-2`}></i>{titulo}:
+                            </h6>
+                            <div className="listado-archivos-categoria">
+                              {archivos.map((f, i) => (
+                                <div key={i} className="doc-subido-item-nuevo">
+                                  <div className="doc-info">
+                                    <i className={`bi bi-file-earmark-pdf ${colorClass} me-2`}></i>
+                                    <div>
+                                      <div className="doc-nombre">{f.nombre}</div>
+                                      <div className="doc-meta">
+                                        Subido el {f.fecha_subida ? new Date(f.fecha_subida).toLocaleDateString('es-AR') : '—'} 
+                                        {f.subido_por_nombre ? ` por ${f.subido_por_nombre}` : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="link"
+                                    className="btn-ver-doc"
+                                    onClick={() => window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank")}
+                                  >
+                                    <i className="bi bi-eye me-1"></i>Ver
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        ))}
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={subirArchivosModal}
-                        >
-                          Subir Archivos
-                        </Button>
-                      </div>
-                    )}
+                        );
+                      };
 
-                    {modalUploadedFiles.map((f, i) => (
-                      <li
-                        key={i}
-                        className="d-flex align-items-center justify-content-between mb-2"
-                      >
-                        <span>
-                          {f.nombre}
-                          {(f.rol_nombre || f.subido_por_nombre) && (
-                            <span className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
-                              — {f.rol_nombre || ''}{f.subido_por_nombre ? ` (${f.subido_por_nombre})` : ''}
-                            </span>
-                          )}
-                        </span>
+                      return (
+                        <>
 
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() =>
-                            window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank")
-                          }
-                        >
-                          Ver
-                        </Button>
-                      </li>
-                    ))}
-
+                          {renderSeccionDoc("Informe de Administración", "bi-file-earmark-person", "text-primary", docsAdmin)}
+                          {renderSeccionDoc("Informe de Área Técnica", "bi-file-earmark-medical", "text-success", docsTecnico)}
+                          {renderSeccionDoc("Informe de Área Jurídica", "bi-file-earmark-gavel", "text-info", docsJuridico)}
+                        </>
+                      );
+                    })()}
                   </>
                 )}
               </div>

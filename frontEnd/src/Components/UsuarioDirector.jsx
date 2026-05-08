@@ -4,8 +4,9 @@ import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS, URL_SUBIR_DOCUMENTO, URL_UPLOADS, URL_OBSERVACIONES } from "../Constants/endpoints";
-import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
+import { Modal, Button, Form, Alert, Nav, Accordion, Badge } from "react-bootstrap";
 import "../CSS/UsuarioDirector.css";
+import "../CSS/DocumentacionAdjunta.css";
 import BotonesReporte from "./BotonesReporte";
 
 export default function UsuarioDirector() {
@@ -1025,13 +1026,6 @@ export default function UsuarioDirector() {
                     </thead>
                     <tbody>
                       {expPagConsulta.map(exp => {
-                        let usuarioAsignado = 'Sin asignar';
-                        if (exp.usuario_asignado_nombre) {
-                          usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
-                        }
-                        if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
-                          usuarioAsignado = 'Pendiente de recepción';
-                        }
                         return (
                           <tr key={exp.id_expediente}>
                             <td>{exp.numero_expediente}</td>
@@ -1049,7 +1043,34 @@ export default function UsuarioDirector() {
                                 return <span className="badge bg-secondary">{exp.estado_actual || exp.estado || 'Sin estado'}</span>;
                               })()}
                             </td>
-                            <td>{usuarioAsignado}</td>
+                             <td>
+                              {exp.usuario_asignado_nombre ? (
+                                (() => {
+                                  const nombre = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido || ''}`.trim();
+                                  const tipo = (exp.usuario_asignado_tipo ?? '').toLowerCase();
+                                  let rolLabel = '';
+                                  if (tipo === 'técnico' || tipo === 'tecnico') rolLabel = 'Área Técnica';
+                                  else if (tipo === 'jurídico' || tipo === 'juridico') rolLabel = 'Área Jurídica';
+                                  else if (tipo === 'director') rolLabel = 'Dirección';
+                                  else if (tipo === 'administrador' || tipo === 'administrativo') rolLabel = 'Administración';
+                                  else rolLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+
+                                  return (
+                                    <div className="text-center">
+                                      <strong>{rolLabel}</strong>
+                                      <br />
+                                      <span className="text-muted small">({nombre})</span>
+                                    </div>
+                                  );
+                                })()
+                              ) : (
+                                <div className="text-center">
+                                  <span className="text-muted italic">
+                                    {exp.estado_actual === 'en revisión' ? 'Pendiente de recepción' : 'Sin asignar'}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
@@ -1340,84 +1361,99 @@ export default function UsuarioDirector() {
           {loadingDocs ? (
             <p className="text-muted text-center py-3">Cargando documentos…</p>
           ) : (() => {
-            const rolOrder = ['Presentante', 'Administrativo', 'Técnico', 'Jurídico'];
-            const grupos = {};
-            rolOrder.forEach(r => { grupos[r] = []; });
-            documentosDoc.forEach(doc => {
-              const rol = doc.rol_nombre || 'Otro';
-              if (grupos[rol]) grupos[rol].push(doc);
-              else { grupos[rol] = [doc]; }
-            });
-            const nombresPorRol = {};
-            historialDoc.forEach(h => {
-              if ((h.rol_nombre === 'Administrativo' || h.rol_nombre === 'Técnico' || h.rol_nombre === 'Jurídico') && !nombresPorRol[h.rol_nombre]) {
-                nombresPorRol[h.rol_nombre] = `${h.usuario_nombre || ''} ${h.usuario_apellido || ''}`.trim();
-              }
-            });
-            // También obtener nombres desde los propios documentos
-            documentosDoc.forEach(doc => {
-              if ((doc.rol_nombre === 'Administrativo' || doc.rol_nombre === 'Técnico' || doc.rol_nombre === 'Jurídico') && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
-                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
-              }
-            });
-            const hayAlgun = rolOrder.some(r => grupos[r].length > 0);
-            if (!hayAlgun && !modalSoloVer) return (
-              <p className="text-muted text-center py-3" style={{ fontSize: '0.9rem' }}>No hay documentos adjuntos para este expediente.</p>
-            );
+            const categories = [
+              { id: "0", label: "DNI del presentante (frente y dorso)", key: "dni" },
+              { id: "1", label: "Nota de elevación (con firma y aclaración)", key: "nota" },
+              { id: "2", label: "Plano de ubicación de proyecto", key: "plano" },
+              { id: "3", label: "Memoria descriptiva", key: "memoria" },
+              { id: "4", label: "Título de propiedad o boleto de compra venta", key: "titulo" }
+            ];
+
             return (
-              <div>
-                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
-                {rolOrder.map(rol => {
-                  const docs = grupos[rol] || [];
-                  if (rol === 'Presentante' && docs.length === 0) return null;
-                  return (
-                    <div key={rol} className="mb-2">
-                      <h6 className="fw-bold" style={{ color: '#495057' }}>
-                        {rol === 'Presentante' ? '👤' : rol === 'Administrativo' ? '📂' : rol === 'Técnico' ? '🔧' : '⚖️'} {rol}
-                        {nombresPorRol[rol] && (
-                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
-                        )}
-                      </h6>
-                      {docs.length > 0 ? (
-                        <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
-                          <thead className="table-light">
-                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
-                          </thead>
-                          <tbody>
-                            {docs.map(doc => (
-                              <tr key={doc.id_documento}>
-                                <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
-                                <td>{doc.tipo}</td>
-                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
-                                <td>
-                                  <div className="d-flex gap-2">
-                                    <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
-                                    {!modalSoloVer && (
-                                      <button className="btn btn-outline-danger btn-sm" onClick={async () => {
-                                        if (!window.confirm('¿Eliminar este documento?')) return;
-                                        try {
-                                          await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                          const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                          setDocumentosDoc(resp.data || []);
-                                        } catch (err) {
-                                          console.error('Error al eliminar documento:', err);
-                                          setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                                        }
-                                      }} title="Eliminar documento">🗑️</button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : (
-                        <p className="text-muted small ms-2">Sin documentos adjuntos</p>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="mt-4">
+                {/* SECCIÓN: PRESENTANTE */}
+                <div className="seccion-titulo-premium mt-4">
+                  <i className="bi bi-person-fill"></i>
+                  <h6>Presentante</h6>
+                </div>
+
+                <Accordion className="accordion-maestro shadow-sm rounded">
+                  <Accordion.Item eventKey="presentante-master">
+                    <Accordion.Header>
+                      <span className="fw-medium">Documentación</span>
+                    </Accordion.Header>
+                    <Accordion.Body className="p-0 border-0">
+                      <Accordion defaultActiveKey={null} className="accordion-documentos-internos">
+                        {categories.map((cat) => {
+                          const archivosAMostrar = documentosDoc.filter(doc => {
+                            if (doc.categoria) return doc.categoria === cat.key;
+                            const nombre = doc.nombre_archivo.toLowerCase();
+                            if (cat.key === 'dni' && (nombre.includes('dni') || nombre.includes('frente') || nombre.includes('dorso'))) return true;
+                            if (cat.key === 'nota' && (nombre.includes('nota') || nombre.includes('elevacion'))) return true;
+                            if (cat.key === 'plano' && (nombre.includes('plano') || nombre.includes('ubicacion'))) return true;
+                            if (cat.key === 'memoria' && nombre.includes('memoria')) return true;
+                            if (cat.key === 'titulo' && (nombre.includes('titulo') || nombre.includes('propiedad') || nombre.includes('boleto'))) return true;
+                            return false;
+                          });
+
+                          return (
+                            <Accordion.Item eventKey={cat.id} key={cat.id}>
+                              <Accordion.Header>
+                                <div className="d-flex justify-content-between w-100 me-3">
+                                  <span>{cat.label}</span>
+                                  <Badge bg={archivosAMostrar.length > 0 ? "primary" : "secondary"} pill className="badge-archivos-count">
+                                    {archivosAMostrar.length} {archivosAMostrar.length === 1 ? 'archivo' : 'archivos'}
+                                  </Badge>
+                                </div>
+                              </Accordion.Header>
+                              <Accordion.Body>
+                                <div className="listado-archivos-categoria">
+                                  {archivosAMostrar.length === 0 ? (
+                                    <p className="text-muted small mb-0">No hay archivos en esta categoría.</p>
+                                  ) : (
+                                    archivosAMostrar.map((doc) => (
+                                      <div key={doc.id_documento} className="doc-subido-item-nuevo mb-2 p-2 border rounded d-flex justify-content-between align-items-center shadow-sm">
+                                        <div className="d-flex align-items-center overflow-hidden">
+                                          <i className="bi bi-file-earmark-pdf text-danger me-2 fs-5"></i>
+                                          <div className="text-truncate">
+                                            <p className="mb-0 fw-medium text-truncate doc-nombre">{doc.nombre_archivo}</p>
+                                            <small className="doc-meta">
+                                              Subido el {new Date(doc.fecha_subida).toLocaleDateString()} — {doc.subido_por_nombre || 'Presentante'}
+                                            </small>
+                                          </div>
+                                        </div>
+                                        <div className="d-flex gap-2">
+                                          <a 
+                                            href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                                          >
+                                            <i className="bi bi-eye"></i> Ver
+                                          </a>
+                                          {!modalSoloVer && (
+                                            <button className="btn btn-outline-danger btn-sm" onClick={async () => {
+                                              if (!window.confirm('¿Eliminar este documento?')) return;
+                                              try {
+                                                await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                                const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                                setDocumentosDoc(resp.data || []);
+                                              } catch (err) { setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' }); }
+                                            }}>Eliminar</button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </Accordion.Body>
+                            </Accordion.Item>
+                          );
+                        })}
+                      </Accordion>
+                    </Accordion.Body>
+                  </Accordion.Item>
+                </Accordion>
               </div>
             );
           })()}
@@ -1482,8 +1518,91 @@ export default function UsuarioDirector() {
                       <div>
                         {rolOrder.map(rol => {
                           const docs = grupos[rol] || [];
-                          // Presentante: solo mostrar si tiene docs
-                          if (rol === 'Presentante' && docs.length === 0) return null;
+                          // Presentante: solo mostrar si tiene docs y usar acordeón anidado
+                          if (rol === 'Presentante') {
+                            if (docs.length === 0) return null;
+                            const categories = [
+                              { id: "0", label: "DNI del presentante (frente y dorso)", key: "dni" },
+                              { id: "1", label: "Nota de elevación (con firma y aclaración)", key: "nota" },
+                              { id: "2", label: "Plano de ubicación de proyecto", key: "plano" },
+                              { id: "3", label: "Memoria descriptiva", key: "memoria" },
+                              { id: "4", label: "Título de propiedad o boleto de compra venta", key: "titulo" }
+                            ];
+                            return (
+                              <div key={rol} className="mb-4">
+                                <div className="seccion-titulo-premium mb-2">
+                                  <i className="bi bi-person-fill"></i>
+                                  <h6>{rol}</h6>
+                                </div>
+                                <Accordion className="accordion-maestro shadow-sm rounded">
+                                  <Accordion.Item eventKey="presentante-master">
+                                    <Accordion.Header>
+                                      <span className="fw-medium">Documentación</span>
+                                    </Accordion.Header>
+                                    <Accordion.Body className="p-0 border-0">
+                                      <Accordion defaultActiveKey={null} className="accordion-documentos-internos">
+                                        {categories.map((cat) => {
+                                          const archivosAMostrar = docs.filter(doc => {
+                                            if (doc.categoria) return doc.categoria === cat.key;
+                                            const nombre = doc.nombre_archivo.toLowerCase();
+                                            if (cat.key === 'dni' && (nombre.includes('dni') || nombre.includes('frente') || nombre.includes('dorso'))) return true;
+                                            if (cat.key === 'nota' && (nombre.includes('nota') || nombre.includes('elevacion'))) return true;
+                                            if (cat.key === 'plano' && (nombre.includes('plano') || nombre.includes('ubicacion'))) return true;
+                                            if (cat.key === 'memoria' && nombre.includes('memoria')) return true;
+                                            if (cat.key === 'titulo' && (nombre.includes('titulo') || nombre.includes('propiedad') || nombre.includes('boleto'))) return true;
+                                            return false;
+                                          });
+                                          return (
+                                            <Accordion.Item eventKey={cat.id} key={cat.id}>
+                                              <Accordion.Header>
+                                                <div className="d-flex justify-content-between w-100 me-3">
+                                                  <span style={{ fontSize: '0.85rem' }}>{cat.label}</span>
+                                                  <Badge bg={archivosAMostrar.length > 0 ? "primary" : "secondary"} pill className="badge-archivos-count">
+                                                    {archivosAMostrar.length} {archivosAMostrar.length === 1 ? 'archivo' : 'archivos'}
+                                                  </Badge>
+                                                </div>
+                                              </Accordion.Header>
+                                              <Accordion.Body>
+                                                <div className="listado-archivos-categoria">
+                                                  {archivosAMostrar.length === 0 ? (
+                                                    <p className="text-muted small mb-0">No hay archivos en esta categoría.</p>
+                                                  ) : (
+                                                    archivosAMostrar.map((doc) => (
+                                                      <div key={doc.id_documento} className="doc-subido-item-nuevo mb-2 p-2 border rounded d-flex justify-content-between align-items-center shadow-sm bg-white">
+                                                        <div className="d-flex align-items-center overflow-hidden">
+                                                          <i className="bi bi-file-earmark-pdf text-danger me-2 fs-5"></i>
+                                                          <div className="text-truncate">
+                                                            <p className="mb-0 fw-medium text-truncate doc-nombre" style={{ fontSize: '0.85rem' }}>{doc.nombre_archivo}</p>
+                                                            <small className="doc-meta text-muted" style={{ fontSize: '0.75rem' }}>
+                                                              Subido el {new Date(doc.fecha_subida).toLocaleDateString()}
+                                                            </small>
+                                                          </div>
+                                                        </div>
+                                                        <a 
+                                                          href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} 
+                                                          target="_blank" 
+                                                          rel="noopener noreferrer"
+                                                          className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                                                        >
+                                                          <i className="bi bi-eye"></i> Ver
+                                                        </a>
+                                                      </div>
+                                                    ))
+                                                  )}
+                                                </div>
+                                              </Accordion.Body>
+                                            </Accordion.Item>
+                                          );
+                                        })}
+                                      </Accordion>
+                                    </Accordion.Body>
+                                  </Accordion.Item>
+                                </Accordion>
+                              </div>
+                            );
+                          }
+
+                          // Administrativo, Técnico, Jurídico: mantener tabla original
                           const obsRol = observacionesExps.filter(o => o.rol === rol);
                           return (
                             <div key={rol} className="mb-3">

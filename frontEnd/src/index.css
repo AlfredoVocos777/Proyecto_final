@@ -82,3 +82,52 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+/* --- Estilos para el Filtro de Fechas --- */
+.datepicker-popover {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  padding: 16px 20px;
+  min-width: 280px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Alineación a la izquierda si es necesario */
+.datepicker-popover.align-left {
+  left: 0;
+  transform: none;
+}
+
+.btn-date-filter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #333;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.btn-date-filter.active {
+  background: #eaf2ff !important;
+  color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+.btn-date-filter:hover {
+  background: #f8f9fa;
+  border-color: #adb5bd;
+}

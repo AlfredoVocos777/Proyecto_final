@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Table, Badge, Spinner, Alert, Form, InputGroup,
-  Button, Modal, Container
+  Button, Modal, Container, Accordion
 } from "react-bootstrap";
 import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Header_1 from "../Components/Header_1";
 import Footer from "../Components/Footer";
+import "../CSS/DocumentacionAdjunta.css";
 import { URL_EXPEDIENTES, URL_HISTORIAL, URL_USUARIOS, URL_OBSERVACIONES } from "../Constants/endpoints";
 
 const API_DOCS    = "http://localhost:8000/api/documentos";
@@ -39,22 +40,34 @@ function formatAsignado(exp) {
   if (!exp?.usuario_asignado_nombre) return null;
   const nombre = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido ?? ""}`.trim();
   const tipo = (exp.usuario_asignado_tipo ?? "").toLowerCase();
-  if (tipo === "técnico" || tipo === "tecnico") return `${nombre} (TÉCNICO)`;
-  if (tipo === "jurídico" || tipo === "juridico") return `${nombre} (JURÍDICO)`;
-  if (tipo === "director") return `${nombre} (DIRECTOR)`;
-  if (tipo === "administrador" || tipo === "administrativo") return `${nombre} (ADMINISTRADOR)`;
-  return nombre;
+  
+  let rolLabel = '';
+  if (tipo === "técnico" || tipo === "tecnico") rolLabel = "ÁREA TÉCNICA";
+  else if (tipo === "jurídico" || tipo === "juridico") rolLabel = "ÁREA JURÍDICA";
+  else if (tipo === "director") rolLabel = "DIRECCIÓN";
+  else if (tipo === "administrador" || tipo === "administrativo") rolLabel = "ADMINISTRACIÓN";
+  else rolLabel = tipo.toUpperCase();
+
+  return `${rolLabel} (${nombre})`;
 }
 
 function renderAsignado(exp) {
   if (!exp?.usuario_asignado_nombre) return null;
   const nombre = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido ?? ""}`.trim();
   const tipo = (exp.usuario_asignado_tipo ?? "").toLowerCase();
-  if (tipo === "técnico" || tipo === "tecnico") return <>{nombre} <strong>(TÉCNICO)</strong></>;
-  if (tipo === "jurídico" || tipo === "juridico") return <>{nombre} <strong>(JURÍDICO)</strong></>;
-  if (tipo === "director") return <>{nombre} <strong>(DIRECTOR)</strong></>;
-  if (tipo === "administrador" || tipo === "administrativo") return <>{nombre} <strong>(ADMINISTRADOR)</strong></>;
-  return nombre;
+
+  let rolLabel = '';
+  if (tipo === "técnico" || tipo === "tecnico") rolLabel = "Área Técnica";
+  else if (tipo === "jurídico" || tipo === "juridico") rolLabel = "Área Jurídica";
+  else if (tipo === "director") rolLabel = "Dirección";
+  else if (tipo === "administrador" || tipo === "administrativo") rolLabel = "Administración";
+  else rolLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+
+  return (
+    <span className="ms-1">
+      <strong>{rolLabel}</strong> <span className="text-muted small">({nombre})</span>
+    </span>
+  );
 }
 
 // ─── Modal Realizar Pase ─────────────────────────────────────────────────────
@@ -105,7 +118,8 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
         archivosPase.forEach(f => formData.append('files', f));
         formData.append('id_expediente', expediente.id_expediente);
         formData.append('subido_por', user?.id_usuario);
-        await axios.post('http://localhost:8000/api/documentos/subirYRegistrar', formData, {
+        formData.append('categoria', 'informe_administrativo'); // Categorizamos el archivo
+        await axios.post(`${API_DOCS}/subirYRegistrar`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       }
@@ -153,68 +167,103 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
         
 
         <hr />
-        {/* Documentación adjunta agrupada por rol */}
-        <div className="mb-4 p-3 bg-white border rounded">
-          <p className="mb-2 fw-semibold text-uppercase text-secondary" style={{ fontSize: '0.85rem', letterSpacing: '0.05em' }}>Documentación adjunta</p>
+        {/* Documentación adjunta categorizada (Estilo Acordeón) */}
+        <div className="mb-4">
+          <span className="modal-seccion-header">Documentación del Expediente</span>
           {loadingDocs ? (
-            <p className="text-muted small">Cargando documentos…</p>
-          ) : documentos.length === 0 ? (
-            <p className="text-muted small">No hay documentos adjuntos.</p>
-          ) : (() => {
-            const rolOrder = ['Presentante', 'Administrativo'];
-            const grupos = {};
-            rolOrder.forEach(r => { grupos[r] = []; });
-            documentos.forEach(doc => {
-              const rol = doc.rol_nombre || 'Otro';
-              if (grupos[rol]) grupos[rol].push(doc);
-              else { grupos[rol] = [doc]; }
-            });
-            const nombresPorRol = {};
-            documentos.forEach(doc => {
-              if (doc.rol_nombre === 'Administrativo' && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
-                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
-              }
-            });
-            return (
-              <div>
-                {rolOrder.map(rol => {
-                  const docs = grupos[rol] || [];
-                  return (
-                    <div key={rol} className="mb-3">
-                      <h6 className="fw-bold" style={{ color: '#495057' }}>
-                        {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '📁'} {rol}
-                        {nombresPorRol[rol] && (
-                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
-                        )}
-                      </h6>
-                      {docs.length === 0 ? (
-                        <p className="text-muted small ms-2">Sin archivos adjuntos</p>
-                      ) : (
-                        <Table size="sm" hover className="align-middle" style={{ fontSize: '0.875rem' }}>
-                          <thead className="table-light">
-                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
-                          </thead>
-                          <tbody>
-                            {docs.map(doc => (
-                              <tr key={doc.id_documento}>
-                                <td title={doc.nombre_archivo} style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
-                                <td>{doc.tipo}</td>
-                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
-                                <td>
-                                  <a href={`http://localhost:8000/api/documentos/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </Table>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
+            <div className="text-center py-2"><Spinner size="sm" /> Cargando…</div>
+          ) : (
+            (() => {
+              const categories = [
+                { id: "0", label: "DNI del presentante (frente y dorso)", key: "dni" },
+                { id: "1", label: "Nota de elevación (con firma y aclaración)", key: "nota" },
+                { id: "2", label: "Plano de ubicación de proyecto", key: "plano" },
+                { id: "3", label: "Memoria descriptiva", key: "memoria" },
+                { id: "4", label: "Título de propiedad o boleto de compra venta", key: "titulo" }
+              ];
+
+              return (
+                <>
+                  {/* SECCIÓN: PRESENTANTE */}
+                  <div className="seccion-titulo-premium">
+                    <i className="bi bi-person-fill"></i>
+                    <h6>Presentante</h6>
+                  </div>
+
+                  <Accordion className="accordion-maestro shadow-sm rounded">
+                    <Accordion.Item eventKey="presentante-master">
+                      <Accordion.Header>
+                        <span className="fw-medium">Documentación</span>
+                      </Accordion.Header>
+                      <Accordion.Body className="p-0 border-0">
+                        <Accordion defaultActiveKey={null} className="accordion-documentos-internos">
+                          {categories.map((cat) => {
+                            const archivosAMostrar = documentos.filter(doc => {
+                              if (doc.categoria) return doc.categoria === cat.key;
+                              const nombre = doc.nombre_archivo.toLowerCase();
+                              if (cat.key === 'dni' && (nombre.includes('dni') || nombre.includes('frente') || nombre.includes('dorso'))) return true;
+                              if (cat.key === 'nota' && (nombre.includes('nota') || nombre.includes('elevacion'))) return true;
+                              if (cat.key === 'plano' && (nombre.includes('plano') || nombre.includes('ubicacion'))) return true;
+                              if (cat.key === 'memoria' && nombre.includes('memoria')) return true;
+                              if (cat.key === 'titulo' && (nombre.includes('titulo') || nombre.includes('propiedad') || nombre.includes('boleto'))) return true;
+                              return false;
+                            });
+
+                            return (
+                              <Accordion.Item eventKey={cat.id} key={cat.id}>
+                                <Accordion.Header>
+                                  <div className="d-flex justify-content-between w-100 me-3">
+                                    <span>{cat.label}</span>
+                                    <Badge bg={archivosAMostrar.length > 0 ? "primary" : "secondary"} pill className="badge-archivos-count">
+                                      {archivosAMostrar.length} {archivosAMostrar.length === 1 ? 'archivo' : 'archivos'}
+                                    </Badge>
+                                  </div>
+                                </Accordion.Header>
+                                <Accordion.Body className="bg-light p-2">
+                                  <div className="listado-archivos-categoria">
+                                    {archivosAMostrar.length === 0 ? (
+                                      <p className="text-muted small mb-0 p-2">No hay archivos en esta categoría.</p>
+                                    ) : (
+                                      archivosAMostrar.map((doc) => (
+                                        <div key={doc.id_documento} className="doc-subido-item-nuevo mb-2 p-2 border rounded d-flex justify-content-between align-items-center shadow-sm bg-white">
+                                          <div className="d-flex align-items-center overflow-hidden">
+                                            <i className="bi bi-file-earmark-pdf text-danger me-2 fs-5"></i>
+                                            <div className="text-truncate">
+                                              <p className="mb-0 fw-medium text-truncate doc-nombre">{doc.nombre_archivo}</p>
+                                              <small className="doc-meta">
+                                                Subido el {new Date(doc.fecha_subida).toLocaleDateString()} — {doc.subido_por_nombre || 'Presentante'}
+                                              </small>
+                                            </div>
+                                          </div>
+                                          <div className="d-flex gap-2">
+                                            <Button 
+                                              size="sm" 
+                                              variant="outline-primary"
+                                              className="d-flex align-items-center gap-1 py-1 px-2"
+                                              style={{ fontSize: '0.75rem' }}
+                                              href={`http://localhost:8000/api/documentos/ver/${doc.id_documento}`} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                            >
+                                              <i className="bi bi-eye"></i> Ver
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </Accordion.Body>
+                              </Accordion.Item>
+                            );
+                          })}
+                        </Accordion>
+                      </Accordion.Body>
+                    </Accordion.Item>
+                  </Accordion>
+                </>
+              );
+            })()
+          )}
         </div>
 
         <hr />
@@ -233,11 +282,13 @@ function ModalPase({ expediente, onClose, onPaseExitoso }) {
         </Form.Group>
         <hr />
         <Form.Group className="mb-3">
-          <Form.Label>Técnico destino <span className="text-danger">*</span></Form.Label>
+          <Form.Label>Enviar a <strong>área técnica</strong> <span className="text-danger">*</span></Form.Label>
           <Form.Select value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)}>
             <option value="">— Seleccioná un técnico —</option>
             {tecnicos.map((t) => (
-              <option key={t.id_usuario} value={t.id_usuario}>{t.nombre} {t.apellido}</option>
+              <option key={t.id_usuario} value={t.id_usuario}>
+                {t.nombre} {t.apellido}
+              </option>
             ))}
           </Form.Select>
         </Form.Group>
@@ -363,56 +414,204 @@ function ModalDetalle({ expediente, onClose }) {
       </Modal.Header>
       <Modal.Body>
         {/* Datos generales */}
-        <h6 className="fw-bold">Datos del Expediente</h6>
-        <Table bordered size="sm" className="mb-4">
-          <tbody>
-            <tr><th width="35%">Número</th><td>{expediente.numero_expediente}</td></tr>
-            <tr><th>Tipo</th><td>{expediente.tipo_expediente ?? "-"}</td></tr>
-            <tr><th>Descripción</th><td>{expediente.descripcion ?? "-"}</td></tr>
-            <tr><th>Estado</th><td><Badge bg={getBadge(expediente.estado_actual)}>{expediente.estado_actual ?? "-"}</Badge></td></tr>
-            <tr><th>Prioridad</th><td>{expediente.prioridad ?? "-"}</td></tr>
-            <tr><th>Fecha Creación</th><td>{formatFecha(expediente.fecha_creacion)}</td></tr>
-            <tr>
-              <th>Presentante</th>
-              <td>
-                {expediente.usuario_presentante_nombre
-                  ? `${expediente.usuario_presentante_nombre} ${expediente.usuario_presentante_apellido ?? ""}`
-                  : "-"}
-              </td>
-            </tr>
-            <tr>
-              <th>Teléfono presentante</th>
-              <td>{expediente.usuario_presentante_telefono ?? <span className="text-muted fst-italic">Sin datos</span>}</td>
-            </tr>
-            <tr>
-              <th>Asignado a</th>
-              <td>
-                {expediente.usuario_asignado_nombre
-                  ? renderAsignado(expediente)
-                  : <span className="text-muted fst-italic">Sin asignar</span>}
-              </td>
-            </tr>
-          </tbody>
-        </Table>
+        <span className="modal-seccion-header">Datos del Expediente</span>
+        <div className="expediente-datos-grid mb-4">
+          <div className="row g-3">
+            <div className="col-md-6 dato-item">
+              <span className="dato-label">Número</span>
+              <span className="dato-valor">{expediente.numero_expediente}</span>
+            </div>
+            <div className="col-md-6 dato-item">
+              <span className="dato-label">Tipo de Expediente</span>
+              <span className="dato-valor">{expediente.tipo_expediente ?? "-"}</span>
+            </div>
+            
+            <div className="col-md-6 dato-item">
+              <span className="dato-label">Estado Actual</span>
+              <Badge bg={getBadge(expediente.estado_actual)}>{expediente.estado_actual ?? "-"}</Badge>
+            </div>
+            <div className="col-md-6 dato-item">
+              <span className="dato-label">Prioridad</span>
+              <span className="dato-valor">{expediente.prioridad ?? "-"}</span>
+            </div>
+
+            <div className="col-md-6 dato-item">
+              <span className="dato-label">Presentante</span>
+              <span className="dato-valor">{expediente.usuario_presentante_nombre ? `${expediente.usuario_presentante_nombre} ${expediente.usuario_presentante_apellido ?? ""}` : "-"}</span>
+            </div>
+            <div className="col-md-6 dato-item">
+              <span className="dato-label">Fecha de Creación</span>
+              <span className="dato-valor">{formatFecha(expediente.fecha_creacion)}</span>
+            </div>
+
+            <div className="col-md-6 dato-item">
+              <span className="dato-label">Teléfono de contacto</span>
+              <span className="dato-valor">{expediente.usuario_presentante_telefono ?? "Sin datos"}</span>
+            </div>
+            <div className="col-md-6 dato-item">
+              <span className="dato-label">Asignado a</span>
+              <span className="dato-valor">{expediente.usuario_asignado_nombre ? renderAsignado(expediente) : "Sin asignar"}</span>
+            </div>
+
+            <div className="col-12 dato-item dato-item-full">
+              <span className="dato-label">Descripción</span>
+              <p className="mb-0 dato-valor">{expediente.descripcion ?? "-"}</p>
+            </div>
+          </div>
+        </div>
 
         {/* Documentos */}
-        <h6 className="fw-bold">Documentos adjuntos</h6>
+        <span className="modal-seccion-header">Documentación del Expediente</span>
         {loading ? (
           <div className="text-center py-2"><Spinner size="sm" /> Cargando…</div>
-        ) : documentos.length === 0 ? (
-          <Alert variant="secondary" className="py-2">Sin documentos adjuntos.</Alert>
         ) : (
-          <ul className="list-group mb-4">
-            {documentos.map((doc) => (
-              <li key={doc.id_documento} className="list-group-item d-flex justify-content-between align-items-center">
-                <span>📎 {doc.nombre_archivo}</span>
-                <Button size="sm" variant="outline-primary"
-                  href={`${API_DOCS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer">
-                  Ver
-                </Button>
-              </li>
-            ))}
-          </ul>
+          (() => {
+            const categories = [
+              { id: "0", label: "DNI del presentante (frente y dorso)", key: "dni" },
+              { id: "1", label: "Nota de elevación (con firma y aclaración)", key: "nota" },
+              { id: "2", label: "Plano de ubicación de proyecto", key: "plano" },
+              { id: "3", label: "Memoria descriptiva", key: "memoria" },
+              { id: "4", label: "Título de propiedad o boleto de compra venta", key: "titulo" }
+            ];
+
+            return (
+              <>
+                {/* SECCIÓN: PRESENTANTE */}
+                <div className="seccion-titulo-premium">
+                  <i className="bi bi-person-fill"></i>
+                  <h6>Presentante</h6>
+                </div>
+
+                <Accordion className="accordion-maestro shadow-sm rounded mb-4">
+                  <Accordion.Item eventKey="presentante-master">
+                    <Accordion.Header>
+                      <span className="fw-medium">Documentación</span>
+                    </Accordion.Header>
+                    <Accordion.Body className="p-0 border-0">
+                      <Accordion defaultActiveKey={null} className="accordion-documentos-internos">
+                        {categories.map((cat) => {
+                          const archivosAMostrar = documentos.filter(doc => {
+                            if (doc.categoria) return doc.categoria === cat.key;
+                            const nombre = doc.nombre_archivo.toLowerCase();
+                            if (cat.key === 'dni' && (nombre.includes('dni') || nombre.includes('frente') || nombre.includes('dorso'))) return true;
+                            if (cat.key === 'nota' && (nombre.includes('nota') || nombre.includes('elevacion'))) return true;
+                            if (cat.key === 'plano' && (nombre.includes('plano') || nombre.includes('ubicacion'))) return true;
+                            if (cat.key === 'memoria' && nombre.includes('memoria')) return true;
+                            if (cat.key === 'titulo' && (nombre.includes('titulo') || nombre.includes('propiedad') || nombre.includes('boleto'))) return true;
+                            return false;
+                          });
+
+                          return (
+                            <Accordion.Item eventKey={cat.id} key={cat.id}>
+                              <Accordion.Header>
+                                <div className="d-flex justify-content-between w-100 me-3">
+                                  <span>{cat.label}</span>
+                                  <Badge bg={archivosAMostrar.length > 0 ? "primary" : "secondary"} pill className="badge-archivos-count">
+                                    {archivosAMostrar.length} {archivosAMostrar.length === 1 ? 'archivo' : 'archivos'}
+                                  </Badge>
+                                </div>
+                              </Accordion.Header>
+                              <Accordion.Body className="bg-light p-2">
+                                  <div className="listado-archivos-categoria">
+                                    {archivosAMostrar.length === 0 ? (
+                                      <p className="text-muted small mb-0 p-2">No hay archivos en esta categoría.</p>
+                                    ) : (
+                                      archivosAMostrar.map((doc) => (
+                                        <div key={doc.id_documento} className="doc-subido-item-nuevo mb-2 p-2 border rounded d-flex justify-content-between align-items-center shadow-sm bg-white">
+                                          <div className="d-flex align-items-center overflow-hidden">
+                                            <i className="bi bi-file-earmark-pdf text-danger me-2 fs-5"></i>
+                                            <div className="text-truncate">
+                                              <p className="mb-0 fw-medium text-truncate doc-nombre">{doc.nombre_archivo}</p>
+                                              <small className="doc-meta">
+                                                Subido el {new Date(doc.fecha_subida).toLocaleDateString()} — {doc.subido_por_nombre || 'Presentante'}
+                                              </small>
+                                            </div>
+                                          </div>
+                                          <div className="d-flex gap-2">
+                                            <Button 
+                                              size="sm" 
+                                              variant="outline-primary"
+                                              className="d-flex align-items-center gap-1 py-1 px-2"
+                                              style={{ fontSize: '0.75rem' }}
+                                              onClick={() => window.open(`${API_DOCS}/ver/${doc.id_documento}`, "_blank")}
+                                            >
+                                              <i className="bi bi-eye"></i> Ver
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </Accordion.Body>
+                            </Accordion.Item>
+                          );
+                        })}
+                      </Accordion>
+                    </Accordion.Body>
+                  </Accordion.Item>
+                </Accordion>
+
+                {/* --- SECCIONES EXTRA SEGÚN ROL (Informes de Pases) --- */}
+                {(() => {
+                  const categoriasPresentante = ["dni", "nota", "plano", "memoria", "titulo"];
+                  
+                  // 1. Otros documentos del presentante (sin categoría específica)
+                  const docsPresentanteOtros = documentos.filter(f => {
+                    const rol = (f.rol_nombre || "").toLowerCase();
+                    const cat = (f.categoria || "").toLowerCase();
+                    const esPresentante = !rol || rol === "" || rol.includes("presentante");
+                    return esPresentante && !categoriasPresentante.includes(cat);
+                  });
+
+                  // 2. Documentos de Administración
+                  const docsAdmin = documentos.filter(f => (f.rol_nombre || "").toLowerCase().includes("admin"));
+
+                  // 3. Documentos de Área Técnica
+                  const docsTecnico = documentos.filter(f => (f.rol_nombre || "").toLowerCase().includes("tecnico") || (f.rol_nombre || "").toLowerCase().includes("técnico"));
+
+                  // 4. Documentos de Área Jurídica
+                  const docsJuridico = documentos.filter(f => (f.rol_nombre || "").toLowerCase().includes("juridico") || (f.rol_nombre || "").toLowerCase().includes("jurídico"));
+
+                  const renderSeccionDoc = (titulo, icon, colorClass, archivos) => {
+                    if (archivos.length === 0) return null;
+                    return (
+                      <div className="mt-4 pt-3 border-top">
+                        <h6 className={`mb-3 fw-bold ${colorClass}`}>
+                          <i className={`bi ${icon} me-2`}></i>{titulo}:
+                        </h6>
+                        <div className="listado-archivos-categoria">
+                          {archivos.map((f, i) => (
+                            <div key={i} className="doc-subido-item-nuevo mb-2 p-2 border rounded bg-white shadow-sm d-flex justify-content-between align-items-center">
+                              <div className="d-flex align-items-center overflow-hidden">
+                                <i className={`bi bi-file-earmark-pdf ${colorClass} me-2`}></i>
+                                <div>
+                                  <div className="doc-nombre fw-semibold text-truncate" style={{ fontSize: '0.9rem' }}>{f.nombre_archivo}</div>
+                                  <div className="doc-meta text-muted" style={{ fontSize: '0.75rem' }}>
+                                    Subido el {f.fecha_subida ? new Date(f.fecha_subida).toLocaleDateString('es-AR') : '—'} 
+                                    {f.subido_por_nombre ? ` por ${f.subido_por_nombre}` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="text-decoration-none"
+                                onClick={() => window.open(`${API_DOCS}/ver/${f.id_documento}`, "_blank")}
+                              >
+                                <i className="bi bi-eye me-1"></i>Ver
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  return null;
+                })()}
+              </>
+            );
+          })()
         )}
 
         <hr />
@@ -589,11 +788,11 @@ export default function ExpedientesEnRevisionPage() {
   }, [filtroEstado, fechaDesde, fechaHasta]);
 
   useEffect(() => {
-    // Por defecto, filtrar el último mes
+    // Por defecto, filtrar las últimas dos semanas
     const hoy = new Date();
-    const haceUnMes = new Date();
-    haceUnMes.setMonth(hoy.getMonth() - 1);
-    const desdeStr = haceUnMes.toISOString().split('T')[0];
+    const haceDosSemanas = new Date();
+    haceDosSemanas.setDate(hoy.getDate() - 14);
+    const desdeStr = haceDosSemanas.toISOString().split('T')[0];
     setFechaDesde(desdeStr);
   }, []);
 
@@ -815,35 +1014,19 @@ export default function ExpedientesEnRevisionPage() {
                 <button
                   onClick={() => setMostrarPickerFecha(v => !v)}
                   title={fechaDesde || fechaHasta ? `${fechaDesde || ""} — ${fechaHasta || ""}` : "Filtrar por fecha"}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: "rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    border: "1.5px solid rgba(255,255,255,0.35)",
-                    borderRadius: "8px",
-                    height: "36px",
-                    padding: "0 14px",
-                    fontSize: "0.9rem",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    fontWeight: 500,
-                  }}
+                  className={`btn-date-filter ${fechaDesde || fechaHasta ? 'active' : ''}`}
+                style={{
+                  background: (fechaDesde || fechaHasta) ? "#eaf2ff" : "rgba(255,255,255,0.15)",
+                  color: (fechaDesde || fechaHasta) ? "#2563eb" : "#fff",
+                  border: "1.5px solid rgba(255,255,255,0.35)",
+                  height: "36px",
+                }}
                 >
                   {(fechaDesde || fechaHasta) ? (fechaDesde && fechaHasta ? "Rango" : "Filtrar por fecha") : "Filtrar por fecha"}
                 </button>
 
                 {mostrarPickerFecha && (
-                  <div
-                    style={{
-                      position: "absolute", top: "44px", left: 0, zIndex: 9999,
-                      background: "#fff",
-                      borderRadius: "12px",
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-                      padding: "16px 20px",
-                      minWidth: "260px",
-                      border: "1px solid #e5e7eb",
-                    }}
-                  >
+                  <div className="datepicker-popover align-left">
                     <div style={{ marginBottom: "10px" }}>
                       <label style={{ display: "block", fontSize: "0.78rem", color: "#6b7280", marginBottom: "4px", fontWeight: 600 }}>Fecha de inicio</label>
                       <input
@@ -943,7 +1126,7 @@ export default function ExpedientesEnRevisionPage() {
           {error && !loading && <Alert variant="danger">{error}</Alert>}
 
           {!loading && !error && datos.length === 0 && (
-            <Alert variant="info">
+            <Alert variant="info" className="mt-4">
               No se encontraron expedientes{filtroEstado ? ` en estado "${filtroEstado}"` : ""}.
             </Alert>
           )}

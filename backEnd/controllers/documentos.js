@@ -1,4 +1,4 @@
-﻿import connection from "../configDB/dataBase.js";
+import connection from "../configDB/dataBase.js";
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -58,9 +58,9 @@ export const uploadInterno = multer({
 });
 
 // Subir un documento
-export const subirDocumento = async (req, res) => {
+    export const subirDocumento = async (req, res) => {
     try {
-        const { id_expediente, subido_por } = req.body;
+        const { id_expediente, subido_por, categoria } = req.body;
         const file = req.file;
 
         if (!file) {
@@ -75,6 +75,7 @@ export const subirDocumento = async (req, res) => {
             fecha_subida: new Date(),
             subido_por,
             tamaño_archivo: file.size,
+            categoria: categoria || null,
             hash_integridad: null // Aquí podrías implementar un hash del archivo si lo necesitas
         };
 
@@ -232,7 +233,7 @@ export const registrarDocumentosEnBD = async (expedienteId, archivosTemporales) 
 // este codigo pertenece al modal ver de la consulta del presentante para subir y ver documentos
 // subir y registrar directamente en BD
 export const subirYRegistrar = async (req, res) => {
-    const { id_expediente, subido_por } = req.body;
+    const { id_expediente, subido_por, categoria } = req.body;
     const files = req.files || [];
 
     if (!id_expediente)
@@ -253,6 +254,7 @@ export const subirYRegistrar = async (req, res) => {
                 fecha_subida: new Date(),
                 subido_por,
                 tamaño_archivo: file.size,
+                categoria: categoria || null,
                 hash_integridad: null
             };
 

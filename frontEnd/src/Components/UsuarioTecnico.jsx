@@ -4,9 +4,10 @@ import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { URL_ROLES, URL_EXPEDIENTES_PASES, URL_HISTORIAL, URL_EXPEDIENTES, URL_DOCUMENTOS,URL_OBSERVACIONES } from "../Constants/endpoints";
-import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
+import { Modal, Button, Form, Alert, Nav, Accordion, Badge, Spinner } from "react-bootstrap";
 import "../CSS/UsuarioTecnico.css";
 import BotonesReporte from "./BotonesReporte";
+import "../CSS/DocumentacionAdjunta.css";
 
 export default function UsuarioTecnico() {
   const navigate = useNavigate();
@@ -606,7 +607,8 @@ export default function UsuarioTecnico() {
         });
         formData.append('id_expediente', expedienteVer.id_expediente);
         formData.append('subido_por', usuarioLogueado.id_usuario);
-        const respDoc = await axios.post('http://localhost:8000/api/documentos/subirYRegistrar', formData, {
+        formData.append('categoria', 'informe_tecnico'); // Categorizamos como informe técnico
+        const respDoc = await axios.post(`${URL_DOCUMENTOS}/subirYRegistrar`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         if (respDoc.status !== 201) {
@@ -766,13 +768,6 @@ export default function UsuarioTecnico() {
                     </thead>
                     <tbody>
                       {expPagConsulta.map(exp => {
-                        let usuarioAsignado = 'Sin asignar';
-                        if (exp.usuario_asignado_nombre) {
-                          usuarioAsignado = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido}`;
-                        }
-                        if (!exp.usuario_asignado_nombre && exp.estado_actual === 'en revisión') {
-                          usuarioAsignado = 'Pendiente de recepción';
-                        }
                         return (
                           <tr key={exp.id_expediente}>
                             <td>{exp.numero_expediente}</td>
@@ -782,7 +777,34 @@ export default function UsuarioTecnico() {
                             <td>{exp.prioridad || 'N/A'}</td>
                             <td>{exp.ubicacion || 'N/A'}</td>
                             <td>{exp.fecha_creacion ? new Date(exp.fecha_creacion).toLocaleDateString('es-AR') : 'N/A'}</td>
-                            <td>{usuarioAsignado}</td>
+                            <td>
+                              {exp.usuario_asignado_nombre ? (
+                                (() => {
+                                  const nombre = `${exp.usuario_asignado_nombre} ${exp.usuario_asignado_apellido || ''}`.trim();
+                                  const tipo = (exp.usuario_asignado_tipo ?? '').toLowerCase();
+                                  let rolLabel = '';
+                                  if (tipo === 'técnico' || tipo === 'tecnico') rolLabel = 'Área Técnica';
+                                  else if (tipo === 'jurídico' || tipo === 'juridico') rolLabel = 'Área Jurídica';
+                                  else if (tipo === 'director') rolLabel = 'Dirección';
+                                  else if (tipo === 'administrador' || tipo === 'administrativo') rolLabel = 'Administración';
+                                  else rolLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+
+                                  return (
+                                    <div className="text-center">
+                                      <strong>{rolLabel}</strong>
+                                      <br />
+                                      <span className="text-muted small">({nombre})</span>
+                                    </div>
+                                  );
+                                })()
+                              ) : (
+                                <div className="text-center">
+                                  <span className="text-muted italic">
+                                    {exp.estado_actual === 'en revisión' ? 'Pendiente de recepción' : 'Sin asignar'}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
@@ -1399,131 +1421,265 @@ export default function UsuarioTecnico() {
           {loadingDocs ? (
             <p className="text-muted text-center py-3">Cargando documentos…</p>
           ) : (() => {
-            const rolOrder = ['Presentante', 'Administrativo', 'Técnico'];
-            const grupos = {};
-            rolOrder.forEach(r => { grupos[r] = []; });
-            documentosDoc.forEach(doc => {
-              const rol = doc.rol_nombre || 'Otro';
-              if (grupos[rol]) grupos[rol].push(doc);
-              else { grupos[rol] = [doc]; }
-            });
-            const nombresPorRol = {};
-            documentosDoc.forEach(doc => {
-              if (['Administrativo', 'Técnico'].includes(doc.rol_nombre) && !nombresPorRol[doc.rol_nombre] && doc.subido_por_nombre) {
-                nombresPorRol[doc.rol_nombre] = doc.subido_por_nombre;
-              }
-            });
+            const categories = [
+              { id: "0", label: "DNI del presentante (frente y dorso)", key: "dni" },
+              { id: "1", label: "Nota de elevación (con firma y aclaración)", key: "nota" },
+              { id: "2", label: "Plano de ubicación de proyecto", key: "plano" },
+              { id: "3", label: "Memoria descriptiva", key: "memoria" },
+              { id: "4", label: "Título de propiedad o boleto de compra venta", key: "titulo" }
+            ];
+
             return (
-              <div>
-                <p className="mb-2 fw-semibold text-primary" style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documentación adjunta</p>
-                {rolOrder.map(rol => {
-                  const docs = grupos[rol] || [];
-                  if (rol === 'Técnico' && docs.length === 0) return null;
-                  return (
-                    <div key={rol} className="mb-3">
-                      <h6 className="fw-bold" style={{ color: '#495057' }}>
-                        {rol === 'Presentante' ? '👤' : rol === 'Técnico' ? '🔧' : '📁'} {rol}
-                        {nombresPorRol[rol] && (
-                          <span className="fw-normal text-muted ms-2" style={{ fontSize: '0.85rem' }}>— {nombresPorRol[rol]}</span>
-                        )}
-                      </h6>
-                      {docs.length === 0 ? (
-                        <p className="text-muted small ms-2">Sin archivos adjuntos</p>
-                      ) : (
-                        <table className="table table-sm table-hover align-middle" style={{ fontSize: '0.875rem' }}>
-                          <thead className="table-light">
-                            <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th></th></tr>
-                          </thead>
-                          <tbody>
-                            {docs.map(doc => (
-                              <tr key={doc.id_documento}>
-                                <td title={doc.nombre_archivo} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre_archivo}</td>
-                                <td>{doc.tipo}</td>
-                                <td>{Math.round((doc.tamaño_archivo || 0) / 1024)} KB</td>
-                                <td>{doc.fecha_subida ? new Date(doc.fecha_subida).toLocaleDateString("es-AR") : '—'}</td>
-                                <td>
-                                  <div className="d-flex gap-2">
-                                    <a href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm">Ver</a>
-                                    {!modalSoloVer && (
-                                      <button className="btn btn-outline-danger btn-sm" onClick={async () => {
-                                        if (!window.confirm('¿Eliminar este documento?')) return;
-                                        try {
-                                          await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
-                                          const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
-                                          setDocumentosDoc(resp.data || []);
-                                        } catch (err) {
-                                          console.error('Error al eliminar documento:', err);
-                                          setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' });
-                                        }
-                                      }}>Eliminar</button>
+              <div className="mt-4">
+                {/* Título Principal */}
+                <h5 className="mb-4 fw-bold text-secondary text-uppercase" style={{ fontSize: '1rem', letterSpacing: '0.05em', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
+                  DOCUMENTACIÓN ADJUNTA
+                </h5>
+
+                {/* SECCIÓN: PRESENTANTE */}
+                <div className="mb-4">
+                  <div className="seccion-titulo-premium">
+                    <i className="bi bi-person-fill"></i>
+                    <h6>Presentante</h6>
+                  </div>
+
+                  <Accordion className="accordion-maestro shadow-sm rounded">
+                    <Accordion.Item eventKey="presentante-master">
+                      <Accordion.Header>
+                        <span className="fw-medium">Documentación</span>
+                      </Accordion.Header>
+                      <Accordion.Body className="p-0 border-0">
+                        <Accordion defaultActiveKey={null} className="accordion-documentos-internos">
+                          {categories.map((cat) => {
+                            const archivosAMostrar = documentosDoc.filter(doc => {
+                              if (doc.categoria) return doc.categoria === cat.key;
+                              const nombre = doc.nombre_archivo.toLowerCase();
+                              if (cat.key === 'dni' && (nombre.includes('dni') || nombre.includes('frente') || nombre.includes('dorso'))) return true;
+                              if (cat.key === 'nota' && (nombre.includes('nota') || nombre.includes('elevacion'))) return true;
+                              if (cat.key === 'plano' && (nombre.includes('plano') || nombre.includes('ubicacion'))) return true;
+                              if (cat.key === 'memoria' && nombre.includes('memoria')) return true;
+                              if (cat.key === 'titulo' && (nombre.includes('titulo') || nombre.includes('propiedad') || nombre.includes('boleto'))) return true;
+                              return false;
+                            });
+
+                            return (
+                              <Accordion.Item eventKey={cat.id} key={cat.id}>
+                                <Accordion.Header>
+                                  <div className="d-flex justify-content-between w-100 me-3">
+                                    <span className="fw-medium">{cat.label}</span>
+                                    <Badge bg={archivosAMostrar.length > 0 ? "primary" : "secondary"} pill className="badge-archivos-count">
+                                      {archivosAMostrar.length} {archivosAMostrar.length === 1 ? 'archivo' : 'archivos'}
+                                    </Badge>
+                                  </div>
+                                </Accordion.Header>
+                                <Accordion.Body className="bg-light p-2">
+                                  <div className="listado-archivos-categoria">
+                                    {archivosAMostrar.length === 0 ? (
+                                      <p className="text-muted small mb-0 p-2 italic">No hay archivos en esta categoría.</p>
+                                    ) : (
+                                      archivosAMostrar.map((doc) => (
+                                        <div key={doc.id_documento} className="doc-subido-item-nuevo mb-2 p-2 border rounded d-flex justify-content-between align-items-center shadow-sm">
+                                          <div className="d-flex align-items-center overflow-hidden">
+                                            <i className="bi bi-file-earmark-pdf text-danger me-2 fs-5"></i>
+                                            <div className="text-truncate">
+                                              <p className="mb-0 fw-medium text-truncate doc-nombre">{doc.nombre_archivo}</p>
+                                              <small className="doc-meta">
+                                                Subido el {new Date(doc.fecha_subida).toLocaleDateString()} — {doc.subido_por_nombre || 'Presentante'}
+                                              </small>
+                                            </div>
+                                          </div>
+                                          <div className="d-flex gap-2">
+                                            <a 
+                                              href={`${URL_DOCUMENTOS}/ver/${doc.id_documento}`} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 py-1 px-2"
+                                              style={{ fontSize: '0.75rem' }}
+                                            >
+                                              <i className="bi bi-eye"></i> Ver
+                                            </a>
+                                            {!modalSoloVer && (
+                                              <button className="btn btn-outline-danger btn-sm py-1 px-2" style={{ fontSize: '0.75rem' }} onClick={async () => {
+                                                if (!window.confirm('¿Eliminar este documento?')) return;
+                                                try {
+                                                  await axios.delete(`${URL_DOCUMENTOS}/${doc.id_documento}`);
+                                                  const resp = await axios.get(`${URL_DOCUMENTOS}/expediente/${expedienteDoc.id_expediente}`);
+                                                  setDocumentosDoc(resp.data || []);
+                                                } catch (err) { setMensajeDoc({ tipo: 'danger', texto: err.response?.data?.error || 'No se pudo eliminar el documento' }); }
+                                              }}>Eliminar</button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))
                                     )}
                                   </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  );
-                })}
+                                </Accordion.Body>
+                              </Accordion.Item>
+                            );
+                          })}
+                        </Accordion>
+                      </Accordion.Body>
+                    </Accordion.Item>
+                  </Accordion>
+                </div>
+
+                {/* SECCIÓN: ADMINISTRACIÓN */}
+                {(() => {
+                  const docsAdmin = documentosDoc.filter(f => {
+                    const rol = (f.rol_nombre || "").toLowerCase();
+                    const cat = (f.categoria || "").toLowerCase();
+                    return rol.includes("admin") || cat === "informe_administrativo";
+                  });
+
+                  if (docsAdmin.length > 0) {
+                    return (
+                      <div className="mt-4 pt-4 border-top">
+                        <div className="d-flex align-items-center mb-3">
+                          <i className="bi bi-briefcase-fill fs-5 me-2 text-primary"></i>
+                          <h6 className="mb-0 fw-bold" style={{ fontSize: '1.1rem', color: '#333' }}>Administración</h6>
+                        </div>
+
+                        <div className="listado-archivos-admin">
+                          {docsAdmin.map((f, i) => (
+                            <div key={i} className="doc-subido-item-nuevo mb-2 p-2 border rounded bg-white shadow-sm d-flex justify-content-between align-items-center">
+                              <div className="d-flex align-items-center overflow-hidden">
+                                <i className="bi bi-file-earmark-pdf text-danger me-2 fs-5"></i>
+                                <div className="text-truncate">
+                                  <div className="fw-semibold text-truncate" style={{ fontSize: '0.9rem' }}>{f.nombre_archivo}</div>
+                                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                    Subido el {f.fecha_subida ? new Date(f.fecha_subida).toLocaleDateString('es-AR') : '—'} 
+                                    {f.subido_por_nombre ? ` por ${f.subido_por_nombre}` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                className="px-3 py-1"
+                                style={{ fontSize: '0.8rem' }}
+                                onClick={() => window.open(`${URL_DOCUMENTOS}/ver/${f.id_documento}`, "_blank")}
+                              >
+                                Ver
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             );
           })()}
+
 
         </Modal.Body>
       </Modal>
 
       {/* Modal Ver: igual que UsuarioJuridico */}
-      <Modal show={showModalVer} onHide={cerrarModalVer} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Expediente: {expedienteVer?.numero_expediente}</Modal.Title>
+      <Modal show={showModalVer} onHide={cerrarModalVer} size="lg" centered>
+        <Modal.Header closeButton style={{ borderBottom: '2px solid #dee2e6' }}>
+          <Modal.Title className="d-flex align-items-center fw-bold" style={{ fontSize: '1.1rem' }}>
+            <span className="me-2">📂</span> Expediente {expedienteVer?.numero_expediente}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="p-4">
           {expedienteVer && (
             <>
-              <p><strong>Tipo:</strong> {expedienteVer.tipo_expediente || expedienteVer.tipo_tramite || 'N/A'}</p>
-              <p><strong>Descripción:</strong> {expedienteVer.descripcion || 'Sin descripción'}</p>
-              <p><strong>Fecha de creación:</strong> {new Date(expedienteVer.fecha_creacion).toLocaleString("es-AR")}</p>
-              <hr />
-              <h5>Informe Técnico</h5>
-              <Form.Group className="mb-2">
-                <Form.Label>Adjuntar archivo</Form.Label>
+              {/* Bloque de datos destacados (Caja Azul Premium) */}
+              <div className="premium-data-container shadow-sm">
+                <span className="premium-data-label">Datos del Expediente</span>
+                <div className="premium-data-grid">
+                  <div className="premium-dato-item">
+                    <span className="premium-dato-label">Tipo</span>
+                    <span className="premium-dato-valor">{expedienteVer.tipo_expediente || expedienteVer.tipo_tramite || 'N/A'}</span>
+                  </div>
+                  <div className="premium-dato-item">
+                    <span className="premium-dato-label">Estado</span>
+                    <div className="d-flex align-items-center">
+                      <Badge bg="info" className="badge-premium" style={{ fontSize: '0.75rem' }}>
+                        {expedienteVer.estado_actual || expedienteVer.estado || 'N/A'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="premium-dato-item">
+                    <span className="premium-dato-label">Presentante</span>
+                    <span className="premium-dato-valor">{expedienteVer.usuario_presentante_nombre || '-'} {expedienteVer.usuario_presentante_apellido || ''}</span>
+                  </div>
+                  <div className="premium-dato-item">
+                    <span className="premium-dato-label">Fecha</span>
+                    <span className="premium-dato-valor">{new Date(expedienteVer.fecha_creacion).toLocaleDateString("es-AR")}</span>
+                  </div>
+                </div>
+              </div>
+
+              <h5 className="section-subtitle-premium mb-3 mt-4">
+                <i className="bi bi-file-earmark-text me-2"></i>Informe Técnico
+              </h5>
+              <Form.Group className="mb-4">
+                <Form.Label className="small text-muted mb-2">Adjuntar archivo</Form.Label>
                 <Form.Control
                   type="file"
                   multiple
+                  className="form-control-premium"
                   onChange={e => setArchivosVer(Array.from(e.target.files))}
                   disabled={subiendoVer}
                 />
                 {archivosVer.length > 0 && (
-                  <Form.Text className="text-muted">{archivosVer.length} archivo(s) seleccionado(s)</Form.Text>
+                  <Form.Text className="text-primary fw-bold mt-2 d-block">
+                    <i className="bi bi-check-circle-fill me-1"></i>
+                    {archivosVer.length} archivo(s) seleccionado(s)
+                  </Form.Text>
                 )}
               </Form.Group>
-              <hr />
-              <h5>Realizar Pase</h5>
-              <Form.Group controlId="formDestinatarioPase">
-                <Form.Label>Destinatario</Form.Label>
-                <Form.Select value={destinatarioPase} onChange={e => setDestinatarioPase(e.target.value)}>
-                  <option value="">Seleccione destinatario</option>
+
+              <h5 className="section-subtitle-premium mb-3">
+                <i className="bi bi-person-badge me-2"></i>Jurídico destino
+              </h5>
+              <Form.Group controlId="formDestinatarioPase" className="mb-4">
+                <Form.Select 
+                  className="form-select-premium shadow-sm"
+                  value={destinatarioPase} 
+                  onChange={e => setDestinatarioPase(e.target.value)}
+                >
+                  <option value="">— Seleccioná un jurídico —</option>
                   {usuariosPase.map(u => (
-                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido} ({u.rol || u.tipo_usuario})</option>
+                    <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido}</option>
                   ))}
                 </Form.Select>
                 {usuariosPase.length === 0 && (
-                  <Form.Text className="text-danger">No hay usuarios jurídicos disponibles.</Form.Text>
+                  <Form.Text className="text-danger mt-1 d-block">
+                    <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                    No hay usuarios jurídicos disponibles.
+                  </Form.Text>
                 )}
               </Form.Group>
-              <Button variant="primary" className="mt-2" onClick={realizarPaseModal} disabled={!destinatarioPase || subiendoVer}>
-                {subiendoVer ? "Procesando..." : "Realizar Pase"}
+
+              <Button 
+                variant="primary" 
+                className="btn-realizar-pase-premium w-100 py-2 shadow-sm"
+                onClick={realizarPaseModal} 
+                disabled={!destinatarioPase || subiendoVer}
+              >
+                {subiendoVer ? (
+                  <><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2" />Procesando...</>
+                ) : (
+                  "Confirmar Pase"
+                )}
               </Button>
+
               {mensajeVer.texto && (
-                <Alert variant={mensajeVer.tipo} className="mt-3">{mensajeVer.texto}</Alert>
+                <Alert variant={mensajeVer.tipo} className="mt-4 border-0 shadow-sm">
+                  <i className={`bi ${mensajeVer.tipo === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill'} me-2`}></i>
+                  {mensajeVer.texto}
+                </Alert>
               )}
             </>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={cerrarModalVer}>Cerrar</Button>
+        <Modal.Footer className="border-0 pb-4">
+          <Button variant="outline-secondary" className="px-4" onClick={cerrarModalVer}>Cancelar</Button>
         </Modal.Footer>
       </Modal>
 

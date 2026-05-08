@@ -3,54 +3,60 @@ import connection from "../configDB/dataBase.js";
 
 // Obtener todos los expedientes — acepta ?estado, ?anio, ?desde, ?hasta para filtrar
 export const obtenerExpediente = (req, res) => {
-  const { estado, anio, desde, hasta } = req.query;
+  try {
+    const { estado, anio, desde, hasta } = req.query;
+    console.log("🔍 [GET /expedientes] Params:", { estado, anio, desde, hasta });
 
-  const condiciones = [];
-  const params = [];
+    const condiciones = [];
+    const params = [];
 
-  if (estado) { condiciones.push("e.estado_actual = ?"); params.push(estado); }
-  if (anio)   { condiciones.push("YEAR(e.fecha_creacion) = ?"); params.push(Number(anio)); }
-  if (desde)  { condiciones.push("e.fecha_creacion >= ?"); params.push(desde); }
-  if (hasta)  { condiciones.push("e.fecha_creacion <= ?"); params.push(`${hasta} 23:59:59`); }
+    if (estado) { condiciones.push("e.estado_actual = ?"); params.push(estado); }
+    if (anio)   { condiciones.push("YEAR(e.fecha_creacion) = ?"); params.push(Number(anio)); }
+    if (desde)  { condiciones.push("e.fecha_creacion >= ?"); params.push(desde); }
+    if (hasta)  { condiciones.push("e.fecha_creacion <= ?"); params.push(`${hasta} 23:59:59`); }
 
-  const whereClause = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
+    const whereClause = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
 
-  const sql = `
-    SELECT 
-      e.*,
-      u.nombre AS usuario_presentante_nombre,
-      u.apellido AS usuario_presentante_apellido,
-      u.telefono AS usuario_presentante_telefono,
-      u.email AS usuario_presentante_email,
-      COALESCE(ur.id_usuario, ut.id_usuario) AS usuario_asignado_id,
-      COALESCE(ur.nombre, ut.nombre) AS usuario_asignado_nombre,
-      COALESCE(ur.apellido, ut.apellido) AS usuario_asignado_apellido,
-      COALESCE(ur.tipo_usuario, ut.tipo_usuario) AS usuario_asignado_tipo
-    FROM expedientes e
-    LEFT JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
-    LEFT JOIN (
-      SELECT h1.id_expediente, h1.id_usuario_responsable, u2.nombre, u2.apellido, u2.id_usuario, u2.tipo_usuario
-      FROM historial_expediente h1
-      INNER JOIN (
-        SELECT id_expediente, MAX(fecha) AS max_fecha
-        FROM historial_expediente
-        WHERE LOWER(accion) LIKE '%recepcion%'
-        GROUP BY id_expediente
-      ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
-      LEFT JOIN usuario u2 ON h1.id_usuario_responsable = u2.id_usuario
-    ) ur ON e.id_expediente = ur.id_expediente
-    LEFT JOIN usuario ut ON e.id_profesional_asignado = ut.id_usuario
-    ${whereClause}
-    ORDER BY e.fecha_creacion DESC
-  `;
+    const sql = `
+      SELECT 
+        e.*,
+        u.nombre AS usuario_presentante_nombre,
+        u.apellido AS usuario_presentante_apellido,
+        u.telefono AS usuario_presentante_telefono,
+        u.email AS usuario_presentante_email,
+        COALESCE(ur.id_usuario, ut.id_usuario) AS usuario_asignado_id,
+        COALESCE(ur.nombre, ut.nombre) AS usuario_asignado_nombre,
+        COALESCE(ur.apellido, ut.apellido) AS usuario_asignado_apellido,
+        COALESCE(ur.tipo_usuario, ut.tipo_usuario) AS usuario_asignado_tipo
+      FROM expedientes e
+      LEFT JOIN usuario u ON e.id_usuario_presentante = u.id_usuario
+      LEFT JOIN (
+        SELECT h1.id_expediente, h1.id_usuario_responsable, u2.nombre, u2.apellido, u2.id_usuario, u2.tipo_usuario
+        FROM historial_expediente h1
+        INNER JOIN (
+          SELECT id_expediente, MAX(fecha) AS max_fecha
+          FROM historial_expediente
+          WHERE LOWER(accion) LIKE '%recepcion%'
+          GROUP BY id_expediente
+        ) h2 ON h1.id_expediente = h2.id_expediente AND h1.fecha = h2.max_fecha
+        LEFT JOIN usuario u2 ON h1.id_usuario_responsable = u2.id_usuario
+      ) ur ON e.id_expediente = ur.id_expediente
+      LEFT JOIN usuario ut ON e.id_profesional_asignado = ut.id_usuario
+      ${whereClause}
+      ORDER BY e.fecha_creacion DESC
+    `;
 
-  connection.query(sql, params, (err, results) => {
-    if (err) {
-      console.error("❌ Error al obtener expedientes:", err);
-      return res.status(500).json({ error: "Error al obtener los expedientes" });
-    }
-    res.json(results);
-  });
+    connection.query(sql, params, (err, results) => {
+      if (err) {
+        console.error("❌ Error SQL al obtener expedientes:", err);
+        return res.status(500).json({ error: "Error interno en la base de datos" });
+      }
+      res.json(results);
+    });
+  } catch (error) {
+    console.error("❌ Error inesperado en obtenerExpediente:", error);
+    res.status(500).json({ error: "Error inesperado en el servidor" });
+  }
 };
 
 /*

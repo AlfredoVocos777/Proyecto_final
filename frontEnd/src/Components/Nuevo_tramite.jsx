@@ -80,29 +80,37 @@ const NuevoTramite = () => {
       setError(null);
 
       const expedienteId = usuario?.id_usuario || usuario?.id || 0;
+      const subidoPor = usuario?.id_usuario || usuario?.usuario || "";
 
-      const formData = new FormData();
-      formData.append("id_expediente", expedienteId);
-      if (usuario) {
-        formData.append(
-          "subido_por",
-          usuario.id_usuario || usuario.usuario || ""
-        );
+      // Realizamos subidas individuales para cada categoría para guardar la metadata correctamente
+      const resultadosFinales = [];
+      
+      for (const [tipo, archivo] of Object.entries(filesByType)) {
+        if (archivo) {
+          const formData = new FormData();
+          formData.append("id_expediente", expedienteId);
+          formData.append("subido_por", subidoPor);
+          formData.append("categoria", tipo); // Guardamos la categoría (dni, nota, etc.)
+          formData.append("files", archivo);
+
+          const res = await axios.post(URL_SUBIR_DOCUMENTO, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+
+          if (res.data?.resultados) {
+            resultadosFinales.push(...res.data.resultados);
+          }
+        }
       }
-      archivosArray.forEach((f) => formData.append("files", f));
 
-      const res = await axios.post(URL_SUBIR_DOCUMENTO, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const resultados = res.data?.resultados || [];
       setUploadedFiles(
-        resultados.map((r) => ({
-          nombre: r.nombre_archivo,
+        resultadosFinales.map((r) => ({
+          nombre: r.nombre_archivo || r.nombre,
           id: r.id_documento,
         }))
       );
-      localStorage.setItem("expedienteFiles", JSON.stringify({ resultados }));
+      
+      localStorage.setItem("expedienteFiles", JSON.stringify({ resultados: resultadosFinales }));
       localStorage.removeItem("archivosSeleccionados");
       
       navigate("/Nuevo_tramitePago");

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL_TIPOS_TRAMITE } from "../Constants/endpoints";
 import { PORTADA_ADMINISTRATIVO } from "../Routers/router";
+import "../CSS/DocumentacionAdjunta.css";
 
 const GestionarTiposTramite = () => {
   const navigate = useNavigate();
@@ -122,14 +123,22 @@ const GestionarTiposTramite = () => {
     <div className="container mt-5 pt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2 className="mb-0">Gestión de Tipos de Trámite</h2>
+          <h2 className="fw-bold text-dark mb-1">Gestión de Tipos de Trámite</h2>
           <small className="text-muted">Administrá los tipos de trámite y sus importes</small>
         </div>
-        <div className="d-flex gap-2">
-          <Button variant="primary" onClick={abrirCrear}>
-            + Agregar Tipo
+        <div className="d-flex gap-3 align-items-center">
+          <Button 
+            variant="primary" 
+            onClick={abrirCrear} 
+            className="btn-gestion-header shadow-sm"
+          >
+            <i className="bi bi-plus-circle"></i>Agregar Tipo
           </Button>
-          <Button variant="outline-secondary" onClick={() => navigate(PORTADA_ADMINISTRATIVO)}>
+          <Button 
+            variant="outline-secondary" 
+            className="btn-gestion-header btn-volver-sm shadow-sm"
+            onClick={() => navigate(PORTADA_ADMINISTRATIVO)}
+          >
             ← Volver
           </Button>
         </div>
@@ -152,53 +161,58 @@ const GestionarTiposTramite = () => {
           <p className="mt-3">Cargando...</p>
         </div>
       ) : (
-        <Table striped bordered hover responsive>
-          <thead className="table-dark">
-            <tr>
-              <th>#</th>
-              <th>Nombre del Trámite</th>
-              <th>Importe ($)</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tipos.length === 0 ? (
+        <div className="modern-table-container">
+          <Table hover responsive className="modern-table">
+            <thead>
               <tr>
-                <td colSpan={4} className="text-center text-muted py-4">
-                  No hay tipos de trámite registrados.
-                </td>
+                <th className="text-center" style={{ width: '80px' }}>#</th>
+                <th>Nombre del Trámite</th>
+                <th className="text-center">Importe ($)</th>
+                <th className="text-center" style={{ width: '200px' }}>Acciones</th>
               </tr>
-            ) : (
-              tipos.map((t, idx) => (
-                <tr key={t.id_tipo}>
-                  <td>{idx + 1}</td>
-                  <td>{t.nombre}</td>
-                  <td>
-                    <strong>${Number(t.importe).toFixed(2)}</strong>
-                  </td>
-                  <td>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant="warning"
-                        size="sm"
-                        onClick={() => abrirEditar(t)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => confirmarEliminar(t)}
-                      >
-                        Eliminar
-                      </Button>
-                    </div>
+            </thead>
+            <tbody>
+              {tipos.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center text-muted py-5">
+                    <i className="bi bi-info-circle me-2"></i>
+                    No hay tipos de trámite registrados.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
+              ) : (
+                tipos.map((t, idx) => (
+                  <tr key={t.id_tipo}>
+                    <td className="text-center text-muted fw-bold">{idx + 1}</td>
+                    <td>{t.nombre}</td>
+                    <td className="text-center">
+                      <span className="fw-bold text-dark">${Number(t.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                    </td>
+                    <td>
+                      <div className="d-flex gap-2 justify-content-center">
+                        <Button
+                          variant="warning"
+                          size="sm"
+                          className="px-3"
+                          onClick={() => abrirEditar(t)}
+                        >
+                          <i className="bi bi-pencil me-1"></i>Editar
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="px-3"
+                          onClick={() => confirmarEliminar(t)}
+                        >
+                          <i className="bi bi-trash me-1"></i>Eliminar
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </div>
       )}
 
       {/* ── Modal Agregar / Editar ────────────────────── */}

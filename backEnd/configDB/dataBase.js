@@ -1,35 +1,35 @@
 import mysql from 'mysql2';
 
 /* 
-  BLOQUE 1: Creación de la conexión a MySQL.
-  Utilizamos 'mysql2' porque es más rápido, seguro y soporta Promesas o querys estándar.
-  Aquí se definen los parámetros críticos como el host, usuario, y el nombre de la BD 'sigedex'.
-  También se agrega 'ssl: { rejectUnauthorized: false }' para permitir conexiones a servidores con certificados auto-firmados o sin validación estricta (muy común en VPS).
+  BLOQUE 1: Creación del Pool de conexiones a MySQL.
+  Utilizamos un Pool en lugar de una conexión única para evitar cierres inesperados por timeout.
+  - connectionLimit: Cantidad máxima de conexiones simultáneas.
 */
-const connection = mysql.createConnection({
+const pool = mysql.createPool({
     host: 'localhost',
     user: 'root',
-    password: '1234',
-    database: 'sigedex1',
+    password: 'Alfredvocos777',
+    database: 'sigedex',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
     ssl: { rejectUnauthorized: false },
 });
 
-/*
-  BLOQUE 2: Inicialización de la conexión.
-  Al ejecutar connection.connect(), verificamos inmediatamente si hay un error de red o credenciales.
-  Si falla, arrojamos un error en consola. Si es exitoso, significa que el backend ya puede operar con la db.
-*/
-connection.connect((err) => {
-    if (err) {
-        console.error('❌ Error al conectar a la base de datos:', err);
-        return;
-    }
-    console.log('✅ Conectado exitosamente a la base de datos MySQL (SIGEDEX)');
-});
+// Exportamos el pool directamente. mysql2 permite usar .query() sobre el pool igual que sobre una conexión.
+const connection = pool;
 
 /*
-  BLOQUE 3: Exportación del módulo.
-  Al exportar 'connection', permitimos que cualquier controlador (ej. expedientes, usuarios)
-  en todo el proyecto use esta MÍSMA INSTANCIA de conexión, sin abrir una nueva a cada rato.
+  BLOQUE 2: Verificación de disponibilidad.
+  Intentamos obtener una conexión para asegurar que las credenciales y el host son correctos.
 */
+pool.getConnection((err, conn) => {
+    if (err) {
+        console.error('❌ Error al conectar al Pool de la base de datos:', err);
+        return;
+    }
+    console.log('✅ Pool de conexiones MySQL (SIGEDEX) inicializado correctamente');
+    conn.release(); // Importante liberar la conexión de prueba
+});
+
 export default connection;
