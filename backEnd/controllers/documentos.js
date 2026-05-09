@@ -163,6 +163,7 @@ export const subirMultiplesDocumentos = async (req, res) => {
     try {
         const expedienteId = req.body.expedienteId || req.body.id_expediente || 0;
         const subido_por = req.body.subido_por || null;
+        const categoria = req.body.categoria || null;
 
         const files = req.files || [];
         if (!files.length) {
@@ -178,7 +179,8 @@ export const subirMultiplesDocumentos = async (req, res) => {
             ruta_archivo: file.path,
             tamaño_archivo: file.size,
             subido_por,
-            id_expediente: expedienteId
+            id_expediente: expedienteId,
+            categoria: categoria
         }));
 
         res.status(201).json({ resultados, errores: [] });

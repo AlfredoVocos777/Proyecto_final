@@ -123,6 +123,8 @@ const NuevoTramitePago = () => {
       return;
     }
 
+    const cleanNumero = numeroComprobante.replace("#", "").trim();
+
     try {
       setLoading(true);
       const expedientePendiente = localStorage.getItem("expedientePendiente");
@@ -149,7 +151,7 @@ const NuevoTramitePago = () => {
         pago: {
           monto: datosExpediente.importe ?? 0.05,
           metodo_pago: "mercadopago",
-          referencia_pasarela: `MP-${numeroComprobante}`,
+          referencia_pasarela: `MP-${cleanNumero}`,
         },
         archivos: archivosTemporales,
       };
@@ -180,7 +182,8 @@ const NuevoTramitePago = () => {
 
     } catch (error) {
       console.error("Error al formalizar:", error);
-      alert("Hubo un error al validar el expediente. Inténtelo de nuevo.");
+      const mensajeError = error.response?.data?.error || error.response?.data?.details || "Hubo un error al validar el expediente. Inténtelo de nuevo.";
+      alert(mensajeError);
       setLoading(false);
     }
   };

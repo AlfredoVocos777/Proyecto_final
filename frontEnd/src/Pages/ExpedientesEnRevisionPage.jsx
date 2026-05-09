@@ -812,13 +812,21 @@ export default function ExpedientesEnRevisionPage() {
     setPasesPorExp((prev) => ({ ...prev, [id_expediente]: false }));
   };
 
-  const handlePaseExitoso = (id_expediente) => {
-    setExpedientes((prev) => prev.filter((e) => e.id_expediente !== id_expediente));
-    setPasesPorExp((prev) => {
-      const next = { ...prev };
-      delete next[id_expediente];
-      return next;
-    });
+  const handlePaseExitoso = (id_expediente, tecnico) => {
+    setExpedientes((prev) =>
+      prev.map((e) =>
+        e.id_expediente === id_expediente
+          ? {
+              ...e,
+              usuario_asignado_nombre: tecnico.nombre,
+              usuario_asignado_apellido: tecnico.apellido,
+              usuario_asignado_tipo: tecnico.tipo_usuario,
+              id_profesional_asignado: tecnico.id_usuario,
+            }
+          : e
+      )
+    );
+    setPasesPorExp((prev) => ({ ...prev, [id_expediente]: true }));
   };
 
   const datos = expedientes.filter((exp) => {

@@ -68,6 +68,7 @@ export const crearExpediente = (req, res) => {
   const {
     tipo_expediente,
     descripcion,
+    ubicacion,
     prioridad = 'media',
     id_usuario_presentante
   } = req.body;
@@ -117,6 +118,7 @@ export const crearExpediente = (req, res) => {
       id_usuario_presentante,
       tipo_expediente,
       descripcion,
+      ubicacion,
       prioridad,
       created_at: fecha_creacion,
       updated_at: fecha_creacion
@@ -296,6 +298,7 @@ export const obtenerExpedientesFinalizados = (req, res) => {
       e.descripcion,
       e.tipo_expediente,
       e.estado_actual,
+      e.ubicacion,
       e.fecha_creacion,
       u.nombre AS usuario_nombre,
       u.apellido AS usuario_apellido
@@ -322,6 +325,7 @@ export const obtenerPasesPorUsuario = (req, res) => {
            e.numero_expediente,
            e.tipo_expediente,
            e.descripcion,
+           e.ubicacion,
            e.estado_actual,
            e.prioridad,
            e.fecha_creacion,

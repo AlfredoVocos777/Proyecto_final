@@ -142,7 +142,7 @@
 }
 
 /* ============================================================
-   ESTILOS PARA EL ACORDEÓN ANIDADO (NUEVO FORMATO)
+   ESTILOS PARA EL ACORDEÓN ANIDADO 
    ============================================================ */
 
 .accordion-maestro {
@@ -157,7 +157,7 @@
 }
 
 .accordion-maestro .accordion-button {
-  background-color: #f9fafb !important;
+  background-color: #dde3e9 !important;
   color: #333 !important;
   font-weight: 600 !important;
   padding: 1rem 1.25rem !important;
@@ -165,7 +165,7 @@
 }
 
 .accordion-maestro .accordion-button:not(.collapsed) {
-  background-color: #f8f9fa !important;
+  background-color: #dde3e9 !important;
   box-shadow: none !important;
   border-bottom: 1px solid rgba(0,0,0,0.05);
 }
@@ -190,13 +190,13 @@
 .accordion-documentos-internos .accordion-button {
   font-size: 0.88rem !important;
   padding: 0.75rem 1rem !important;
-  background-color: #f9fafb !important; /* Un poco más claro que la imagen */
+  background-color: #eeeff0 !important; /* Un poco más claro que la imagen */
   font-weight: 500 !important;
   color: #4b5563 !important;
 }
 
 .accordion-documentos-internos .accordion-button:not(.collapsed) {
-  background-color: #f3f4f6 !important;
+  background-color: #eeeff0 !important;
   color: #111827 !important;
   box-shadow: none !important;
 }
@@ -264,7 +264,7 @@
 }
 
 .expediente-datos-grid {
-  background-color: #f8f9fa !important;
+  background-color: #e4ebf1 !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   border-radius: 8px !important;
   padding: 1rem !important;
@@ -294,7 +294,7 @@
 }
 
 /* ============================================================
-   ESTILOS PARA CONTENEDORES DE DATOS PREMIUM (BOX AZUL)
+   ESTILOS PARA CONTENEDORES DE DATOS 
    ============================================================ */
 .premium-data-container {
   background-color: #f0f7ff !important;
@@ -338,7 +338,7 @@
 }
 
 /* ============================================================
-   ESTILOS PARA TABLAS MODERNAS (INSPIRADO EN IMAGEN)
+   ESTILOS PARA TABLAS
    ============================================================ */
 .modern-table-container {
   background-color: #ffffff;
