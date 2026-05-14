@@ -20,6 +20,8 @@ const RegistroUsuario = () => {
     contraseña: "",
   };
   const [usuario, setUsuario] = useState(initialState);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [nombreRegistrado, setNombreRegistrado] = useState("");
   // ---------------------------------------------------------
   const handleChange = (e) => {
     setUsuario({ ...usuario, [e.target.name]: e.target.value });
@@ -50,14 +52,10 @@ const RegistroUsuario = () => {
       const { nombre, apellido } = response.data;
 
       // 2. Mostramos el mensaje personalizado
-      alert(`¡Registro exitoso! Bienvenido/a ${nombre} ${apellido}.`);
+      setNombreRegistrado(`${nombre} ${apellido}`);
+      setShowSuccess(true);
 
       setUsuario(initialState); // aqui limpiamos los datos del formulario
-      // si la respuesta es exitosa, redirigimos al usuario a la página de inicio o a donde quieras
-      if (response) {
-        navigate("/"); // Redirige al usuario a la página de inicio después de crear el mismo
-        console.log("Usuario creado exitosamente:", response.data);
-      }
     } catch (error) {
     // Intentamos obtener el mensaje de error detallado del backend
       const errorMessage = error.response?.data?.error || "Error desconocido al crear el usuario";
@@ -239,6 +237,31 @@ const RegistroUsuario = () => {
           </Container>
         </div>
       </div>
+
+      {showSuccess && (
+        <div className="success-overlay">
+          <div className="success-card">
+            <span className="success-icon">✓</span>
+            <h2>¡Registro Exitoso!</h2>
+            <p>Bienvenido/a al sistema,</p>
+            <span className="user-name">{nombreRegistrado}</span>
+            <Button 
+              variant="primary" 
+              className="mt-4" 
+              onClick={() => navigate("/")}
+              style={{
+                width: "100%",
+                height: "50px",
+                fontSize: "1.1rem",
+                fontWeight: "700",
+                borderRadius: "12px"
+              }}
+            >
+              Aceptar
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
