@@ -251,6 +251,7 @@ const NuevoTramitePago = () => {
 
   // Cargar datos del usuario y del expediente
   useEffect(() => {
+    window.scrollTo(0, 0);
     try {
       const usuarioGuardado = localStorage.getItem("usuarioLogueado");
       if (usuarioGuardado) {

@@ -37,6 +37,7 @@ const NuevoTramiteDatos = () => {
   const [expediente, setExpediente] = useState(initialExpediente);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     const usuarioGuardado = localStorage.getItem("usuarioLogueado");
     if (usuarioGuardado) {
       const datosUsuario = JSON.parse(usuarioGuardado);

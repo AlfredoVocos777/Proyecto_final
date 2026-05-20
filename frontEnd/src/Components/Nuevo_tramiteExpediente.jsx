@@ -18,6 +18,7 @@ const NuevoTramiteExpediente = () => {
     Si los datos existen, se los pinta al usuario dándole su nuevo N° de Expediente oficial.
   */
   useEffect(() => {
+    window.scrollTo(0, 0);
     try {
       const exp = localStorage.getItem("expedienteCreado");
       if (!exp) {

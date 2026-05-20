@@ -28,6 +28,7 @@ const NuevoTramite = () => {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     // Recuperar información del expediente pendiente del localStorage
     const expedientePendiente = localStorage.getItem("expedientePendiente");
     if (expedientePendiente) {
