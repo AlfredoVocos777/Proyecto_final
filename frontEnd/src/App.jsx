@@ -3,6 +3,7 @@ import {
   LOGIN_USUARIO,
   REGISTRO_USUARIO,
   PORTADA,
+  PAGINA_WEB,
   PORTADA_ADMINISTRATIVO,
   CONSULTA,
   CONSULTA_ADMIN,
@@ -45,6 +46,7 @@ import NuevoTramitePage from "./Pages/NuevoTramitePage";
 import NuevoTramite_pagoPage from "./Pages/NuevoTramite_pagoPage";
 import NuevoTramite_ExpedientePage from "./Pages/NuevoTramite_ExpedientePage";
 import PagoExitosoPage from "./Pages/PagoExitosoPage";
+import PaginaWeb from "./Pages/PaginaWeb";
 import CrearRolPage from "./Pages/CrearRolPage";
 import CrearPermisoPage from "./Pages/CrearPermisoPage";
 import CrearDepartamentoPage from "./Pages/CrearDepartamentoPage";
@@ -75,7 +77,8 @@ function App() {
           - RUTAS DE SISTEMA: se envuelven en HOCs (Higher Order Components) como <RequireAdmin>. 
             Esto verifica en LocalStorage/JWT si el usuario tiene el Rol 4 (admin). Si no, lo patea al login previniendo hackeos front-end.
         */}
-        <Route path="/" element={<LoginPage />} />
+        <Route path="/" element={<PaginaWeb />} />
+        <Route path={PAGINA_WEB} element={<PaginaWeb />} />
         <Route path={LOGIN_USUARIO} element={<LoginPage />} />
         <Route path={REGISTRO_USUARIO} element={<RegistroPage />} />
         <Route path={PORTADA} element={<PortadaPage />} />

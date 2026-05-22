@@ -1,6 +1,7 @@
 export const LOGIN_USUARIO = '/Login_usuario';
 export const REGISTRO_USUARIO = '/Registro_usuario';
 export const PORTADA = '/Portada';
+export const PAGINA_WEB = '/PaginaWeb';
 export const PORTADA_ADMINISTRATIVO = '/PortadaAdministrativo';
 export const CONSULTA = '/Consulta';
 export const NUEVO_TRAMITE_DATOS = '/Nuevo_tramiteDatos';

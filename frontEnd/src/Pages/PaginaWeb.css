@@ -1,0 +1,299 @@
+.pagina-web {
+  color: #0f2240;
+  background: #f4f7fc;
+  min-height: 100vh;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.pagina-web__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 32px;
+  background: linear-gradient(90deg, #08346a 0%, #1f5aa7 100%);
+  color: white;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pagina-web__brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pagina-web__logo,
+.pagina-web__logo-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  object-fit: contain;
+  background: #ffffff22;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
+}
+
+.pagina-web__brand-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.pagina-web__brand-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.pagina-web__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.pagina-web__nav-item {
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.pagina-web__nav-item:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.pagina-web__nav-item.inactive {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.pagina-web__main {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.pagina-web__hero {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 32px;
+  align-items: center;
+  margin-bottom: 48px;
+}
+
+.pagina-web__hero-copy h1 {
+  font-size: clamp(2rem, 2.7vw, 3.8rem);
+  line-height: 1.05;
+  margin: 0 0 18px;
+}
+
+.pagina-web__eyebrow {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: #2870e2;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+}
+
+.pagina-web__hero-copy p {
+  color: #34455d;
+  max-width: 580px;
+  margin: 0 0 24px;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.pagina-web__hero-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.pagina-web__hero-button,
+.pagina-web__card-button {
+  border: none;
+  border-radius: 999px;
+  padding: 14px 22px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.pagina-web__hero-button {
+  background: #ff8d0a;
+  color: white;
+}
+
+.pagina-web__hero-button:hover {
+  transform: translateY(-2px);
+}
+
+.pagina-web__hero-button.inactive,
+.pagina-web__card-button.inactive {
+  background: rgba(15, 34, 64, 0.08);
+  color: rgba(15, 34, 64, 0.65);
+  cursor: default;
+  pointer-events: none;
+}
+
+.pagina-web__hero-visual {
+  position: relative;
+  min-height: 320px;
+}
+
+.pagina-web__hero-image {
+  position: absolute;
+  inset: 0;
+  border-radius: 32px;
+  background-image: url("https://www.dpatuc.gob.ar/static/media/Logo_DPA_blanco.593edd23943d92c42c85.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center 35%;
+  opacity: 0.16;
+  filter: saturate(0.3);
+}
+
+.pagina-web__hero-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 32px;
+  background: linear-gradient(180deg, rgba(12, 47, 95, 0.95), rgba(59, 117, 202, 0.9));
+  color: white;
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  box-shadow: 0 32px 72px rgba(6, 32, 80, 0.24);
+}
+
+.pagina-web__hero-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.75rem;
+}
+
+.pagina-web__hero-card p {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.pagina-web__info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 48px;
+}
+
+.pagina-web__info-card {
+  background: white;
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 18px 36px rgba(16, 50, 91, 0.08);
+}
+
+.pagina-web__info-card h3 {
+  margin: 0 0 14px;
+  font-size: 1.2rem;
+}
+
+.pagina-web__info-card p {
+  margin: 0 0 24px;
+  color: #53607b;
+  line-height: 1.75;
+}
+
+.pagina-web__card-button {
+  background: #08346a;
+  color: white;
+}
+
+.pagina-web__section {
+  margin-bottom: 40px;
+}
+
+.pagina-web__section--news h2,
+.pagina-web__section--video h2 {
+  margin-bottom: 24px;
+}
+
+.pagina-web__card-list {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.pagina-web__news-card {
+  background: white;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 18px 32px rgba(16, 50, 91, 0.08);
+}
+
+.pagina-web__news-card h4 {
+  margin: 0 0 10px;
+}
+
+.pagina-web__news-card p {
+  margin: 0;
+  color: #3c4b64;
+  line-height: 1.7;
+}
+
+.pagina-web__video-placeholder {
+  min-height: 220px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #e9eff8 0%, #f7fbff 100%);
+  display: grid;
+  place-items: center;
+  color: #4d5d7a;
+  font-size: 1.05rem;
+  border: 1px dashed #a1b5d2;
+}
+
+.pagina-web__footer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 28px;
+  padding: 36px 24px 36px;
+  border-top: 1px solid #d8dee8;
+  background: white;
+}
+
+.pagina-web__footer-block h3 {
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+}
+
+.pagina-web__footer-logo {
+  width: 140px;
+  margin-top: 16px;
+  display: block;
+  object-fit: contain;
+}
+
+.pagina-web__footer-block p {
+  margin: 8px 0;
+  color: #4b5d78;
+}
+
+@media (max-width: 900px) {
+  .pagina-web__hero {
+    grid-template-columns: 1fr;
+  }
+
+  .pagina-web__header {
+    justify-content: center;
+  }
+
+  .pagina-web__nav {
+    justify-content: center;
+  }
+}
