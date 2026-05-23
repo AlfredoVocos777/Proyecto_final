@@ -36,7 +36,7 @@ const NuevoTramitePago = () => {
   const [tramite, setTramite] = useState(initialTramite);
   const [loading, setLoading] = useState(false);
   const [documentos, setDocumentos] = useState([]);
-  
+
   // Estados para el flujo manual de Mercado Pago
   const [pagoIniciado, setPagoIniciado] = useState(false);
   const [numeroComprobante, setNumeroComprobante] = useState("");
@@ -78,23 +78,34 @@ const NuevoTramitePago = () => {
         const payload = {
           title: `Trámite SIGEDEX - ${datosExpediente.tipo_expediente}`,
           price: datosExpediente.importe ?? 0.05,
-          quantity: 1
+          quantity: 1,
         };
+
+        const paymentWindow = window.open("", "_blank");
+        if (!paymentWindow) {
+          alert(
+            "No se pudo abrir la ventana de pago. Verifique el bloqueo de ventanas emergentes.",
+          );
+          setLoading(false);
+          return;
+        }
+
+        paymentWindow.document.write("<p>Iniciando Mercado Pago...</p>");
 
         const response = await axios.post(
           "http://localhost:8000/api/crear-preferencia",
-          payload
+          payload,
         );
 
         const { init_point } = response.data;
 
-        /* 
+        /*
            INTEGRACIÓN TERCERIZADA (Mercado Pago)
-           Al haberle ordenado a nuestro backend crear la preferencia de pago, nos devuelve un init_point (URL).
-           Abrimos esa URL en una pestaña emergente "_blank" para que el usuario proceda a pagar sin salir de nuestra app.
+           Abrimos una nueva ventana en blanco en el clic original y luego redirigimos la URL
+           para evitar bloqueos de popup por el await de la llamada al backend.
         */
-        window.open(init_point, "_blank");
-        
+        paymentWindow.location.href = init_point;
+
         // Habilitar la vista de carga de comprobante manual
         setPagoIniciado(true);
         setLoading(false);
@@ -158,9 +169,9 @@ const NuevoTramitePago = () => {
 
       const responseFormalizacion = await axios.post(
         "http://localhost:8000/pagos",
-        payload
+        payload,
       );
-      
+
       const dataFormalizacion = responseFormalizacion.data;
 
       const expedienteFormalizado = {
@@ -169,20 +180,25 @@ const NuevoTramitePago = () => {
         numero_expediente: dataFormalizacion.numero_expediente,
         fecha_creacion: dataFormalizacion.fecha_creacion,
       };
-      
+
       // Guardar para la página de éxito
-      localStorage.setItem("expedienteCreado", JSON.stringify(expedienteFormalizado));
-      
+      localStorage.setItem(
+        "expedienteCreado",
+        JSON.stringify(expedienteFormalizado),
+      );
+
       // Limpiar temporales
-      localStorage.removeItem('expedientePendiente');
-      localStorage.removeItem('expedienteFiles');
-      localStorage.removeItem('archivosSeleccionados');
+      localStorage.removeItem("expedientePendiente");
+      localStorage.removeItem("expedienteFiles");
+      localStorage.removeItem("archivosSeleccionados");
 
       navigate("/Nuevo_tramiteExpediente");
-
     } catch (error) {
       console.error("Error al formalizar:", error);
-      const mensajeError = error.response?.data?.error || error.response?.data?.details || "Hubo un error al validar el expediente. Inténtelo de nuevo.";
+      const mensajeError =
+        error.response?.data?.error ||
+        error.response?.data?.details ||
+        "Hubo un error al validar el expediente. Inténtelo de nuevo.";
       alert(mensajeError);
       setLoading(false);
     }
@@ -318,7 +334,13 @@ const NuevoTramitePago = () => {
               </div>
               <div className="filaPago">
                 <label className="labelPagoTatal">Total a Pagar</label>
-                <label> - <strong>${Number(tramite.importe ?? 0).toFixed(2)}</strong> - </label>
+                <label>
+                  {" "}
+                  - <strong>
+                    ${Number(tramite.importe ?? 0).toFixed(2)}
+                  </strong>{" "}
+                  -{" "}
+                </label>
               </div>
             </div>
           </div>
@@ -368,12 +390,15 @@ const NuevoTramitePago = () => {
                 <div className="contenedorFormMedioPago2">
                   <h1 className="tituloMedioPago">Pago seguro</h1>
                   <h4 className="subtituloMedioPago">
-                    Complete el pago para finalizar la presentación de su expediente
+                    Complete el pago para finalizar la presentación de su
+                    expediente
                   </h4>
                 </div>
                 <hr />
                 <div className="contenedorFormMedioPago2">
-                  <h2 className="tituloMedioPago2">Seleccione el medio de pago</h2>
+                  <h2 className="tituloMedioPago2">
+                    Seleccione el medio de pago
+                  </h2>
                 </div>
 
                 <div className="opcionesMedioPago">
@@ -424,13 +449,25 @@ const NuevoTramitePago = () => {
                 </div>
               </>
             ) : (
-              <div className="contenedorValidacionPago" style={{ padding: "20px", textAlign: "center" }}>
+              <div
+                className="contenedorValidacionPago"
+                style={{ padding: "20px", textAlign: "center" }}
+              >
                 <h2 className="tituloDatos2">Validación de Pago</h2>
                 <p>
-                  Has iniciado el proceso de pago. En la ventana de Mercado Pago que se acaba de abrir, al finalizar verás un texto que dice <strong>"Operación #123456789"</strong>.
+                  Has iniciado el proceso de pago. En la ventana de Mercado Pago
+                  que se acaba de abrir, al finalizar verás un texto que dice{" "}
+                  <strong>"Operación #123456789"</strong>.
                 </p>
                 <div style={{ margin: "20px 0" }}>
-                  <label htmlFor="numOperacion" style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
+                  <label
+                    htmlFor="numOperacion"
+                    style={{
+                      display: "block",
+                      marginBottom: "8px",
+                      fontWeight: "bold",
+                    }}
+                  >
                     Ingrese el N° de Operación o Comprobante:
                   </label>
                   <input
@@ -449,10 +486,14 @@ const NuevoTramitePago = () => {
                   disabled={loading || !numeroComprobante}
                   style={{ marginTop: "10px" }}
                 >
-                  {loading ? "Verificando..." : "Confirmar y Generar Expediente"}
+                  {loading
+                    ? "Verificando..."
+                    : "Confirmar y Generar Expediente"}
                 </Button>
                 <div style={{ marginTop: "15px" }}>
-                  <Button variant="link" onClick={() => setPagoIniciado(false)}>Volver a medios de pago</Button>
+                  <Button variant="link" onClick={() => setPagoIniciado(false)}>
+                    Volver a medios de pago
+                  </Button>
                 </div>
               </div>
             )}

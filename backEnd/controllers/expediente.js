@@ -335,10 +335,14 @@ export const obtenerPasesPorUsuario = (req, res) => {
            up.nombre AS usuario_presentante_nombre,
            up.apellido AS usuario_presentante_apellido,
            up.telefono AS usuario_presentante_telefono,
-           up.email AS usuario_presentante_email
+           up.email AS usuario_presentante_email,
+           MAX(h.fecha) AS fecha_pase
     FROM expedientes e
     LEFT JOIN usuario u ON e.id_profesional_asignado = u.id_usuario
     LEFT JOIN usuario up ON e.id_usuario_presentante = up.id_usuario
+    LEFT JOIN historial_expediente h ON e.id_expediente = h.id_expediente 
+      AND h.id_usuario_responsable = ? 
+      AND (LOWER(h.accion) LIKE '%pase%' OR LOWER(h.accion) LIKE '%asignación%' OR LOWER(h.accion) LIKE '%recepción%')
     WHERE (
       e.id_profesional_asignado = ?
       OR e.id_expediente IN (
@@ -355,12 +359,13 @@ export const obtenerPasesPorUsuario = (req, res) => {
       )
     )
     AND (e.estado_actual IS NULL OR e.estado_actual NOT IN ('aprobado', 'rechazado', 'archivado'))
-    ORDER BY e.fecha_creacion DESC
+    GROUP BY e.id_expediente
+    ORDER BY fecha_pase DESC, e.fecha_creacion DESC
   `;
 
   console.log("[SQL obtenerPasesPorUsuario] id_usuario:", id_usuario);
   console.log("[SQL obtenerPasesPorUsuario] QUERY:\n", sql);
-  connection.query(sql, [id_usuario, id_usuario], (err, results) => {
+  connection.query(sql, [id_usuario, id_usuario, id_usuario], (err, results) => {
     if (err) {
       console.error("❌ Error al obtener expedientes asignados o últimos responsables:", err);
       return res.status(500).json({ error: "Error al obtener expedientes asignados o últimos responsables" });
